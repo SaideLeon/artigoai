@@ -15,7 +15,7 @@ export default function InfoModal({ tipo, onClose }: InfoModalProps) {
     <div
       role="dialog"
       aria-modal="true"
-      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 p-4 backdrop-blur-xs"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-xs"
       onClick={onClose}
     >
       <motion.div
@@ -23,26 +23,26 @@ export default function InfoModal({ tipo, onClose }: InfoModalProps) {
         animate={{ opacity: 1, scale: 1, y: 0 }}
         transition={{ duration: 0.16 }}
         onClick={(e) => e.stopPropagation()}
-        className="w-full max-w-lg rounded-2xl border border-slate-200 bg-white p-6 shadow-xl"
+        className="w-full max-w-lg rounded-2xl border border-slate-200 bg-white p-6 shadow-xl dark:border-slate-800 dark:bg-slate-900"
       >
-        <div className="flex items-start justify-between gap-4 border-b border-slate-100 pb-4">
+        <div className="flex items-start justify-between gap-4 border-b border-slate-100 pb-4 dark:border-slate-800">
           <div className="flex items-center gap-2.5">
             {tipo === "upgrade" && (
-              <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-amber-100 text-amber-600">
+              <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-amber-100 text-amber-600 dark:bg-amber-950/70 dark:text-amber-400">
                 <Crown className="h-5 w-5" />
               </span>
             )}
             {tipo === "ajuda" && (
-              <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-indigo-100 text-indigo-600">
+              <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-indigo-100 text-indigo-600 dark:bg-indigo-950/70 dark:text-indigo-400">
                 <HelpCircle className="h-5 w-5" />
               </span>
             )}
             {tipo === "sobre" && (
-              <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-blue-100 text-blue-600">
+              <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-blue-100 text-blue-600 dark:bg-blue-950/70 dark:text-blue-400">
                 <Info className="h-5 w-5" />
               </span>
             )}
-            <h2 className="text-lg font-bold text-slate-900">
+            <h2 className="text-lg font-bold text-slate-900 dark:text-white">
               {tipo === "upgrade"
                 ? "Plano Pro — Estúdio Completo"
                 : tipo === "ajuda"
@@ -54,13 +54,13 @@ export default function InfoModal({ tipo, onClose }: InfoModalProps) {
             type="button"
             onClick={onClose}
             aria-label="Fechar janela"
-            className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700"
+            className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-800 dark:hover:text-slate-200"
           >
             <X className="h-5 w-5" />
           </button>
         </div>
 
-        <div className="mt-4 text-sm leading-relaxed text-slate-600">
+        <div className="mt-4 text-sm leading-relaxed text-slate-600 dark:text-slate-300">
           {tipo === "upgrade" && (
             <div className="space-y-4">
               <p>
@@ -68,46 +68,46 @@ export default function InfoModal({ tipo, onClose }: InfoModalProps) {
                 completo de estrutura, tom e exportação.
               </p>
               <div className="grid gap-3 sm:grid-cols-2">
-                <div className="rounded-xl border border-slate-200 p-4">
-                  <p className="text-xs font-semibold text-slate-500">
+                <div className="rounded-xl border border-slate-200 p-4 dark:border-slate-800 dark:bg-slate-950/40">
+                  <p className="text-xs font-semibold text-slate-500 dark:text-slate-400">
                     Plano Atual
                   </p>
-                  <p className="mt-1 text-base font-bold text-slate-900">
+                  <p className="mt-1 text-base font-bold text-slate-900 dark:text-white">
                     Essencial
                   </p>
-                  <ul className="mt-3 space-y-2 text-xs text-slate-600">
+                  <ul className="mt-3 space-y-2 text-xs text-slate-600 dark:text-slate-300">
                     <li className="flex items-center gap-2">
-                      <Check className="h-3.5 w-3.5 text-emerald-600" />
+                      <Check className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
                       Até 3.200 palavras por artigo
                     </li>
                     <li className="flex items-center gap-2">
-                      <Check className="h-3.5 w-3.5 text-emerald-600" />
+                      <Check className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
                       Ilustração automática por secção
                     </li>
                     <li className="flex items-center gap-2">
-                      <Check className="h-3.5 w-3.5 text-emerald-600" />
+                      <Check className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
                       Exportação em HTML & Texto
                     </li>
                   </ul>
                 </div>
-                <div className="rounded-xl border border-indigo-200 bg-indigo-50/40 p-4">
-                  <p className="text-xs font-semibold text-indigo-600">
+                <div className="rounded-xl border border-indigo-200 bg-indigo-50/40 p-4 dark:border-indigo-500/30 dark:bg-indigo-950/30">
+                  <p className="text-xs font-semibold text-indigo-600 dark:text-indigo-400">
                     Para equipas editoriais
                   </p>
-                  <p className="mt-1 text-base font-bold text-slate-900">
+                  <p className="mt-1 text-base font-bold text-slate-900 dark:text-white">
                     Plano Pro
                   </p>
-                  <ul className="mt-3 space-y-2 text-xs text-slate-700">
+                  <ul className="mt-3 space-y-2 text-xs text-slate-700 dark:text-slate-200">
                     <li className="flex items-center gap-2">
-                      <Check className="h-3.5 w-3.5 text-indigo-600" />
+                      <Check className="h-3.5 w-3.5 text-indigo-600 dark:text-indigo-400" />
                       Modelos dedicados de alta velocidade
                     </li>
                     <li className="flex items-center gap-2">
-                      <Check className="h-3.5 w-3.5 text-indigo-600" />
+                      <Check className="h-3.5 w-3.5 text-indigo-600 dark:text-indigo-400" />
                       Geração em lote e perfis de marca
                     </li>
                     <li className="flex items-center gap-2">
-                      <Check className="h-3.5 w-3.5 text-indigo-600" />
+                      <Check className="h-3.5 w-3.5 text-indigo-600 dark:text-indigo-400" />
                       Auditoria SEO multi-idiomas
                     </li>
                   </ul>
@@ -119,19 +119,21 @@ export default function InfoModal({ tipo, onClose }: InfoModalProps) {
           {tipo === "ajuda" && (
             <ol className="space-y-3 list-decimal pl-5">
               <li>
-                <strong className="text-slate-800">Defina o tema:</strong>{" "}
+                <strong className="text-slate-800 dark:text-slate-100">
+                  Defina o tema:
+                </strong>{" "}
                 Escreva o assunto principal e, se quiser, adicione palavras-chave
                 pressionando Enter ou vírgula.
               </li>
               <li>
-                <strong className="text-slate-800">
+                <strong className="text-slate-800 dark:text-slate-100">
                   Personalize tom, idioma e extensão:
                 </strong>{" "}
                 Escolha entre artigos curtos (800–1.200 palavras) ou guias
                 longos (2.000+ palavras) com imagens por secção.
               </li>
               <li>
-                <strong className="text-slate-800">
+                <strong className="text-slate-800 dark:text-slate-100">
                   Revise, edite e analise o SEO:
                 </strong>{" "}
                 Alterne entre os separadores Prévia, Editor e SEO a qualquer
@@ -143,11 +145,12 @@ export default function InfoModal({ tipo, onClose }: InfoModalProps) {
           {tipo === "sobre" && (
             <div className="space-y-3">
               <p>
-                O <strong>Gerador de Artigos</strong> cria esboços estruturados,
-                redige secção por secção mantendo a coerência do texto anterior e
-                gera ilustrações editoriais para cada capítulo.
+                O <strong className="dark:text-white">Gerador de Artigos</strong>{" "}
+                cria esboços estruturados, redige secção por secção mantendo a
+                coerência do texto anterior e gera ilustrações editoriais para
+                cada capítulo.
               </p>
-              <p className="text-xs text-slate-500">
+              <p className="text-xs text-slate-500 dark:text-slate-400">
                 Os artigos guardados ficam disponíveis localmente no seu
                 navegador nas secções Meus Artigos, Favoritos e Estatísticas.
               </p>

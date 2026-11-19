@@ -42,7 +42,7 @@ export default function Sidebar({
   onCloseMobile,
 }: SidebarProps) {
   const content = (
-    <aside className="relative flex h-full w-[252px] shrink-0 flex-col justify-between overflow-hidden bg-gradient-to-b from-[#0E162E] via-[#121C3A] to-[#111936] px-4 py-6 text-slate-200 select-none">
+    <aside className="relative flex h-full w-[252px] shrink-0 flex-col justify-between overflow-hidden bg-gradient-to-b from-[#0E162E] via-[#121C3A] to-[#111936] px-4 py-6 text-slate-200 select-none dark:border-r dark:border-slate-800/80">
       {/* Subtle atmospheric glow at bottom matching the design */}
       <div
         aria-hidden="true"

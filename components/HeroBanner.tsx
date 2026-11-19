@@ -6,28 +6,28 @@ export default function HeroBanner() {
   return (
     <section
       aria-label="Apresentação do Gerador de Artigos"
-      className="relative overflow-hidden rounded-2xl border border-indigo-200/70 bg-gradient-to-r from-[#EBF0FF] via-[#E1DBFE] to-[#CCE7FF] px-6 py-5 shadow-xs"
+      className="relative overflow-hidden rounded-2xl border border-indigo-200/70 bg-gradient-to-r from-[#EBF0FF] via-[#E1DBFE] to-[#CCE7FF] px-6 py-5 shadow-xs dark:border-indigo-500/25 dark:from-[#161E3D] dark:via-[#1E1B4B] dark:to-[#0F2747]"
     >
       {/* Decorative atmospheric shapes */}
       <div
         aria-hidden="true"
-        className="pointer-events-none absolute -right-8 -top-10 h-44 w-44 rounded-full bg-indigo-400/20 blur-2xl"
+        className="pointer-events-none absolute -right-8 -top-10 h-44 w-44 rounded-full bg-indigo-400/20 blur-2xl dark:bg-indigo-500/15"
       />
       <div
         aria-hidden="true"
-        className="pointer-events-none absolute bottom-0 left-1/3 h-28 w-56 rounded-full bg-sky-300/25 blur-2xl"
+        className="pointer-events-none absolute bottom-0 left-1/3 h-28 w-56 rounded-full bg-sky-300/25 blur-2xl dark:bg-sky-500/10"
       />
 
       <div className="relative z-10 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div className="flex items-center gap-4">
-          <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border border-white/70 bg-gradient-to-br from-sky-200/80 via-indigo-100 to-white shadow-sm">
-            <Wand2 className="h-7 w-7 text-indigo-700" />
+          <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border border-white/70 bg-gradient-to-br from-sky-200/80 via-indigo-100 to-white shadow-sm dark:border-white/10 dark:from-indigo-900/80 dark:via-slate-900 dark:to-slate-900">
+            <Wand2 className="h-7 w-7 text-indigo-700 dark:text-indigo-300" />
           </div>
           <div>
-            <h1 className="text-2xl font-bold tracking-tight text-[#1E2448] sm:text-[28px] text-balance">
+            <h1 className="text-2xl font-bold tracking-tight text-[#1E2448] dark:text-white sm:text-[28px] text-balance">
               Gerador de Artigos
             </h1>
-            <p className="mt-1 max-w-2xl text-sm text-slate-700">
+            <p className="mt-1 max-w-2xl text-sm text-slate-700 dark:text-slate-300">
               Informe o tema, personalize as opções e deixe a IA criar um artigo
               completo para você!
             </p>
@@ -44,7 +44,7 @@ export default function HeroBanner() {
           </div>
           <div
             aria-hidden="true"
-            className="hidden sm:flex h-12 w-12 items-center justify-center rounded-2xl border border-white/60 bg-gradient-to-br from-indigo-600 to-blue-500 text-white shadow-sm"
+            className="hidden sm:flex h-12 w-12 items-center justify-center rounded-2xl border border-white/60 bg-gradient-to-br from-indigo-600 to-blue-500 text-white shadow-sm dark:border-white/15"
           >
             <Bot className="h-6 w-6" />
           </div>

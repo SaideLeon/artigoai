@@ -183,15 +183,15 @@ export default function ArticleWorkspace({
   return (
     <section
       aria-label="Área de trabalho do artigo"
-      className="flex min-w-0 flex-col rounded-2xl border border-slate-200/90 bg-white shadow-xs"
+      className="flex min-w-0 flex-col rounded-2xl border border-slate-200/90 bg-white shadow-xs dark:border-slate-800 dark:bg-slate-900"
     >
       {/* Top Toolbar */}
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 px-5 py-3.5">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 px-5 py-3.5 dark:border-slate-800">
         {/* Segmented tabs */}
         <div
           role="tablist"
           aria-label="Modo de visualização do artigo"
-          className="inline-flex items-center gap-1 rounded-xl bg-slate-100 p-1"
+          className="inline-flex items-center gap-1 rounded-xl bg-slate-100 p-1 dark:bg-slate-800"
         >
           {(
             [
@@ -212,7 +212,7 @@ export default function ArticleWorkspace({
                 className={`inline-flex items-center gap-1.5 rounded-lg px-3.5 py-1.5 text-xs font-semibold transition-all duration-150 whitespace-nowrap shrink-0 focus-visible:outline-2 focus-visible:outline-indigo-600 ${
                   ativo
                     ? "bg-gradient-to-r from-[#5B4AF4] to-[#3B82F6] text-white shadow-xs"
-                    : "text-slate-600 hover:text-slate-900"
+                    : "text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-100"
                 }`}
               >
                 <Icon className="h-3.5 w-3.5 shrink-0" />
@@ -236,8 +236,8 @@ export default function ArticleWorkspace({
               }
               className={`inline-flex h-9 w-9 items-center justify-center rounded-xl border transition-colors ${
                 favorito
-                  ? "border-rose-200 bg-rose-50 text-rose-600"
-                  : "border-slate-200 bg-white text-slate-500 hover:bg-slate-50 hover:text-rose-600"
+                  ? "border-rose-200 bg-rose-50 text-rose-600 dark:border-rose-900/60 dark:bg-rose-950/50 dark:text-rose-400"
+                  : "border-slate-200 bg-white text-slate-500 hover:bg-slate-50 hover:text-rose-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400 dark:hover:bg-slate-700 dark:hover:text-rose-400"
               }`}
             >
               <Heart
@@ -250,16 +250,18 @@ export default function ArticleWorkspace({
             type="button"
             onClick={copiarTexto}
             disabled={!temConteudo}
-            className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs font-semibold text-slate-700 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-45 whitespace-nowrap shrink-0"
+            className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs font-semibold text-slate-700 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-45 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700 whitespace-nowrap shrink-0"
           >
             {copiado ? (
               <>
-                <Check className="h-3.5 w-3.5 text-emerald-600" />
-                <span className="text-emerald-700">Copiado!</span>
+                <Check className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
+                <span className="text-emerald-700 dark:text-emerald-300">
+                  Copiado!
+                </span>
               </>
             ) : (
               <>
-                <Copy className="h-3.5 w-3.5 text-slate-500" />
+                <Copy className="h-3.5 w-3.5 text-slate-500 dark:text-slate-400" />
                 <span>Copiar Texto</span>
               </>
             )}
@@ -283,22 +285,22 @@ export default function ArticleWorkspace({
           aria-live="polite"
           className={`flex flex-wrap items-center justify-between gap-3 border-b px-5 py-2.5 text-xs ${
             erroGeral
-              ? "border-rose-100 bg-rose-50/70 text-rose-700"
-              : "border-indigo-100 bg-indigo-50/50 text-indigo-900"
+              ? "border-rose-100 bg-rose-50/70 text-rose-700 dark:border-rose-900/50 dark:bg-rose-950/40 dark:text-rose-300"
+              : "border-indigo-100 bg-indigo-50/50 text-indigo-900 dark:border-indigo-900/40 dark:bg-indigo-950/30 dark:text-indigo-200"
           }`}
         >
           <div className="flex items-center gap-2 font-medium">
             {ocupado ? (
-              <Loader2 className="h-3.5 w-3.5 animate-spin text-indigo-600" />
+              <Loader2 className="h-3.5 w-3.5 animate-spin text-indigo-600 dark:text-indigo-400" />
             ) : erroGeral ? (
-              <AlertCircle className="h-3.5 w-3.5 text-rose-600" />
+              <AlertCircle className="h-3.5 w-3.5 text-rose-600 dark:text-rose-400" />
             ) : (
-              <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
+              <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
             )}
             <span>{erroGeral || estado}</span>
           </div>
           {secoes.length > 0 && (
-            <span className="font-mono text-[11px] text-slate-600 tabular-nums">
+            <span className="font-mono text-[11px] text-slate-600 dark:text-slate-400 tabular-nums">
               {secoesProntas}/{secoes.length} secções · {totalPalavras} palavras
               {alvoPalavras > 0 ? ` (meta ~${alvoPalavras})` : ""}
             </span>
@@ -311,13 +313,13 @@ export default function ArticleWorkspace({
         {!temConteudo ? (
           /* Empty State */
           <div className="flex flex-col items-center justify-center py-10 text-center">
-            <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-indigo-50 text-indigo-600">
+            <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-indigo-50 text-indigo-600 dark:bg-indigo-950/70 dark:text-indigo-400">
               <BookOpen className="h-7 w-7" />
             </div>
-            <h3 className="text-lg font-bold text-slate-900">
+            <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100">
               Pronto para criar o seu próximo artigo
             </h3>
-            <p className="mt-1.5 max-w-md text-sm text-slate-500">
+            <p className="mt-1.5 max-w-md text-sm text-slate-500 dark:text-slate-400">
               Preencha o tema ao lado ou selecione um dos modelos abaixo para
               testar a geração secção a secção com ilustrações.
             </p>
@@ -330,17 +332,17 @@ export default function ArticleWorkspace({
                   onClick={() =>
                     onAplicarSugestao(ex.tema, ex.tags, ex.desc)
                   }
-                  className="group flex items-start justify-between gap-3 rounded-xl border border-slate-200 bg-slate-50/60 p-3.5 transition-colors hover:border-indigo-300 hover:bg-indigo-50/40"
+                  className="group flex items-start justify-between gap-3 rounded-xl border border-slate-200 bg-slate-50/60 p-3.5 transition-colors hover:border-indigo-300 hover:bg-indigo-50/40 dark:border-slate-800 dark:bg-slate-800/50 dark:hover:border-indigo-500/50 dark:hover:bg-indigo-950/30"
                 >
                   <div>
-                    <p className="text-sm font-semibold text-slate-800 group-hover:text-indigo-700">
+                    <p className="text-sm font-semibold text-slate-800 group-hover:text-indigo-700 dark:text-slate-200 dark:group-hover:text-indigo-300">
                       {ex.tema}
                     </p>
-                    <p className="mt-0.5 text-xs text-slate-500 line-clamp-1">
+                    <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400 line-clamp-1">
                       {ex.desc}
                     </p>
                   </div>
-                  <span className="inline-flex shrink-0 items-center gap-1 text-xs font-semibold text-indigo-600">
+                  <span className="inline-flex shrink-0 items-center gap-1 text-xs font-semibold text-indigo-600 dark:text-indigo-400">
                     <Sparkles className="h-3.5 w-3.5" />
                     Usar
                   </span>
@@ -359,7 +361,7 @@ export default function ArticleWorkspace({
           >
             {/* Cover Banner Image if available */}
             {primeiraImagem && (
-              <div className="relative mb-7 overflow-hidden rounded-2xl border border-slate-200/80 bg-slate-900">
+              <div className="relative mb-7 overflow-hidden rounded-2xl border border-slate-200/80 bg-slate-900 dark:border-slate-800">
                 <img
                   src={primeiraImagem}
                   alt={titulo}
@@ -382,11 +384,11 @@ export default function ArticleWorkspace({
 
             {!primeiraImagem && (
               <header className="mb-6">
-                <h1 className="font-serif text-3xl font-bold leading-tight text-slate-900 sm:text-4xl text-balance">
+                <h1 className="font-serif text-3xl font-bold leading-tight text-slate-900 dark:text-white sm:text-4xl text-balance">
                   {titulo}
                 </h1>
                 {descricao && (
-                  <p className="mt-2.5 text-base leading-relaxed text-slate-600">
+                  <p className="mt-2.5 text-base leading-relaxed text-slate-600 dark:text-slate-300">
                     {descricao}
                   </p>
                 )}
@@ -394,8 +396,8 @@ export default function ArticleWorkspace({
             )}
 
             {/* Clean Unboxed Metadata Bar (Zero-Pill Discipline) */}
-            <div className="mb-7 flex flex-wrap items-center gap-x-2.5 gap-y-1 border-b border-slate-100 pb-4 text-xs text-slate-500">
-              <span className="font-medium text-slate-700 tabular-nums">
+            <div className="mb-7 flex flex-wrap items-center gap-x-2.5 gap-y-1 border-b border-slate-100 pb-4 text-xs text-slate-500 dark:border-slate-800 dark:text-slate-400">
+              <span className="font-medium text-slate-700 dark:text-slate-200 tabular-nums">
                 {totalPalavras} palavras
               </span>
               <span aria-hidden="true">·</span>
@@ -411,7 +413,7 @@ export default function ArticleWorkspace({
               {pesquisaUsada && (
                 <>
                   <span aria-hidden="true">·</span>
-                  <span className="inline-flex items-center gap-1 font-medium text-indigo-700">
+                  <span className="inline-flex items-center gap-1 font-medium text-indigo-700 dark:text-indigo-400">
                     <SearchCheck className="h-3.5 w-3.5" />
                     Pesquisa web
                     {fontes.length > 0 ? ` (${fontes.length} fontes)` : ""}
@@ -428,14 +430,14 @@ export default function ArticleWorkspace({
                     <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-blue-600 text-xs font-bold text-white tabular-nums">
                       {i + 1}
                     </span>
-                    <h2 className="text-xl font-bold tracking-tight text-slate-900">
+                    <h2 className="text-xl font-bold tracking-tight text-slate-900 dark:text-slate-100">
                       {sec.titulo}
                     </h2>
                   </div>
 
-                  {/* Section illustration (skip repeating first image if shown as cover, or show subsequent images) */}
+                  {/* Section illustration */}
                   {sec.img && i > 0 ? (
-                    <figure className="overflow-hidden rounded-xl border border-slate-200/80 bg-slate-50">
+                    <figure className="overflow-hidden rounded-xl border border-slate-200/80 bg-slate-50 dark:border-slate-800 dark:bg-slate-800">
                       <img
                         src={sec.img}
                         alt={sec.titulo}
@@ -445,18 +447,18 @@ export default function ArticleWorkspace({
                     </figure>
                   ) : sec.texto && (i > 0 || !primeiraImagem) ? (
                     sec.aGerarImagem ? (
-                      <div className="flex items-center gap-2.5 rounded-xl border border-dashed border-indigo-200 bg-indigo-50/40 px-4 py-3 text-xs font-medium text-indigo-700">
+                      <div className="flex items-center gap-2.5 rounded-xl border border-dashed border-indigo-200 bg-indigo-50/40 px-4 py-3 text-xs font-medium text-indigo-700 dark:border-indigo-800/60 dark:bg-indigo-950/30 dark:text-indigo-300">
                         <Loader2 className="h-4 w-4 animate-spin" />
                         <span>A gerar ilustração para esta secção…</span>
                       </div>
                     ) : sec.erro ? (
-                      <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-dashed border-rose-200 bg-rose-50/50 px-4 py-3 text-xs text-rose-700">
+                      <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-dashed border-rose-200 bg-rose-50/50 px-4 py-3 text-xs text-rose-700 dark:border-rose-900/60 dark:bg-rose-950/30 dark:text-rose-300">
                         <span>{sec.erro}</span>
                         {sec.prompt && (
                           <button
                             type="button"
                             onClick={() => onRegenerarImagem(i, sec.prompt!)}
-                            className="inline-flex items-center gap-1.5 rounded-lg border border-rose-200 bg-white px-3 py-1.5 font-semibold text-rose-700 hover:bg-rose-50"
+                            className="inline-flex items-center gap-1.5 rounded-lg border border-rose-200 bg-white px-3 py-1.5 font-semibold text-rose-700 hover:bg-rose-50 dark:border-rose-800 dark:bg-slate-900 dark:text-rose-300 dark:hover:bg-slate-800"
                           >
                             <RefreshCw className="h-3.5 w-3.5" />
                             <span>Tentar imagem de novo</span>
@@ -464,17 +466,17 @@ export default function ArticleWorkspace({
                         )}
                       </div>
                     ) : !sec.img && sec.prompt ? (
-                      <div className="flex items-center justify-between gap-3 rounded-xl border border-dashed border-slate-200 bg-slate-50/70 px-4 py-2.5 text-xs text-slate-500">
+                      <div className="flex items-center justify-between gap-3 rounded-xl border border-dashed border-slate-200 bg-slate-50/70 px-4 py-2.5 text-xs text-slate-500 dark:border-slate-800 dark:bg-slate-800/40 dark:text-slate-400">
                         <span className="flex items-center gap-2">
-                          <ImageIcon className="h-4 w-4 text-slate-400" />
+                          <ImageIcon className="h-4 w-4 text-slate-400 dark:text-slate-500" />
                           <span>Secção sem ilustração</span>
                         </span>
                         <button
                           type="button"
                           onClick={() => onRegenerarImagem(i, sec.prompt!)}
-                          className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 py-1 font-semibold text-slate-700 hover:bg-slate-100"
+                          className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 py-1 font-semibold text-slate-700 hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
                         >
-                          <Sparkles className="h-3 w-3 text-indigo-600" />
+                          <Sparkles className="h-3 w-3 text-indigo-600 dark:text-indigo-400" />
                           <span>Gerar imagem</span>
                         </button>
                       </div>
@@ -482,16 +484,16 @@ export default function ArticleWorkspace({
                   ) : null}
 
                   {sec.texto ? (
-                    <div className="space-y-4 font-serif text-[17px] leading-[1.78] text-slate-800">
+                    <div className="space-y-4 font-serif text-[17px] leading-[1.78] text-slate-800 dark:text-slate-200">
                       {sec.texto.split(/\n\s*\n/).map((paragrafo, pIdx) => (
                         <p key={pIdx}>{paragrafo}</p>
                       ))}
                     </div>
                   ) : (
                     <div className="space-y-2.5 py-2">
-                      <div className="h-4 w-full animate-pulse rounded bg-slate-100" />
-                      <div className="h-4 w-5/6 animate-pulse rounded bg-slate-100" />
-                      <div className="h-4 w-4/6 animate-pulse rounded bg-slate-100" />
+                      <div className="h-4 w-full animate-pulse rounded bg-slate-100 dark:bg-slate-800" />
+                      <div className="h-4 w-5/6 animate-pulse rounded bg-slate-100 dark:bg-slate-800" />
+                      <div className="h-4 w-4/6 animate-pulse rounded bg-slate-100 dark:bg-slate-800" />
                     </div>
                   )}
                 </section>
@@ -499,21 +501,21 @@ export default function ArticleWorkspace({
             </div>
 
             {fontes.length > 0 && (
-              <aside className="mt-10 border-t border-slate-200 pt-6">
-                <h3 className="text-sm font-bold text-slate-900">
+              <aside className="mt-10 border-t border-slate-200 pt-6 dark:border-slate-800">
+                <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">
                   Fontes consultadas na web
                 </h3>
-                <ol className="mt-3 space-y-2 text-xs text-slate-600">
+                <ol className="mt-3 space-y-2 text-xs text-slate-600 dark:text-slate-400">
                   {fontes.map((fonte, idx) => (
                     <li key={fonte.url} className="flex items-start gap-2">
-                      <span className="font-mono text-slate-400 tabular-nums">
+                      <span className="font-mono text-slate-400 dark:text-slate-500 tabular-nums">
                         {idx + 1}.
                       </span>
                       <a
                         href={fonte.url}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1 font-medium text-indigo-700 hover:underline break-all"
+                        className="inline-flex items-center gap-1 font-medium text-indigo-700 hover:underline dark:text-indigo-400 break-all"
                       >
                         <span>{fonte.titulo}</span>
                         <ExternalLink className="h-3 w-3 shrink-0" />
@@ -536,7 +538,7 @@ export default function ArticleWorkspace({
             <div>
               <label
                 htmlFor="editor-titulo"
-                className="mb-1.5 block text-xs font-semibold text-slate-600"
+                className="mb-1.5 block text-xs font-semibold text-slate-600 dark:text-slate-400"
               >
                 Título do artigo
               </label>
@@ -545,7 +547,7 @@ export default function ArticleWorkspace({
                 type="text"
                 value={titulo}
                 onChange={(e) => onUpdateTitulo(e.target.value)}
-                className="w-full rounded-xl border border-slate-200 bg-slate-50/60 px-4 py-2.5 text-lg font-bold text-slate-900 focus:border-indigo-500 focus:bg-white focus:outline-none"
+                className="w-full rounded-xl border border-slate-200 bg-slate-50/60 px-4 py-2.5 text-lg font-bold text-slate-900 focus:border-indigo-500 focus:bg-white focus:outline-none dark:border-slate-700 dark:bg-slate-800/70 dark:text-slate-100 dark:focus:bg-slate-800"
               />
             </div>
 
@@ -553,10 +555,10 @@ export default function ArticleWorkspace({
               {secoes.map((sec, idx) => (
                 <div
                   key={idx}
-                  className="rounded-xl border border-slate-200 bg-slate-50/40 p-4 space-y-3"
+                  className="space-y-3 rounded-xl border border-slate-200 bg-slate-50/40 p-4 dark:border-slate-800 dark:bg-slate-800/40"
                 >
                   <div className="flex items-center justify-between gap-2">
-                    <span className="text-xs font-semibold text-indigo-700 tabular-nums">
+                    <span className="text-xs font-semibold text-indigo-700 dark:text-indigo-400 tabular-nums">
                       Secção {idx + 1} · {contarPalavrasTexto(sec.texto)} palavras
                     </span>
                     <div className="flex items-center gap-2">
@@ -565,7 +567,7 @@ export default function ArticleWorkspace({
                           type="button"
                           disabled={sec.aGerarImagem}
                           onClick={() => onRegenerarImagem(idx, sec.prompt!)}
-                          className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-xs font-medium text-slate-700 hover:bg-slate-100 disabled:opacity-50"
+                          className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-xs font-medium text-slate-700 hover:bg-slate-100 disabled:opacity-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
                         >
                           <RefreshCw
                             className={`h-3 w-3 ${
@@ -580,7 +582,7 @@ export default function ArticleWorkspace({
                           type="button"
                           onClick={() => onRemoveSecao(idx)}
                           aria-label={`Remover secção ${idx + 1}`}
-                          className="rounded-lg p-1.5 text-slate-400 hover:bg-rose-50 hover:text-rose-600"
+                          className="rounded-lg p-1.5 text-slate-400 hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-950/60 dark:hover:text-rose-400"
                         >
                           <Trash2 className="h-4 w-4" />
                         </button>
@@ -594,7 +596,7 @@ export default function ArticleWorkspace({
                     onChange={(e) =>
                       onUpdateSecao(idx, { titulo: e.target.value })
                     }
-                    className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-bold text-slate-900 focus:border-indigo-500 focus:outline-none"
+                    className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-bold text-slate-900 focus:border-indigo-500 focus:outline-none dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
                   />
 
                   <textarea
@@ -604,7 +606,7 @@ export default function ArticleWorkspace({
                       onUpdateSecao(idx, { texto: e.target.value })
                     }
                     placeholder="Conteúdo da secção..."
-                    className="w-full rounded-lg border border-slate-200 bg-white p-3 text-sm leading-relaxed text-slate-800 focus:border-indigo-500 focus:outline-none"
+                    className="w-full rounded-lg border border-slate-200 bg-white p-3 text-sm leading-relaxed text-slate-800 focus:border-indigo-500 focus:outline-none dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"
                   />
                 </div>
               ))}
@@ -613,7 +615,7 @@ export default function ArticleWorkspace({
             <button
               type="button"
               onClick={onAddSecao}
-              className="inline-flex items-center gap-1.5 rounded-xl border border-dashed border-indigo-300 bg-indigo-50/40 px-4 py-2.5 text-xs font-semibold text-indigo-700 hover:bg-indigo-50"
+              className="inline-flex items-center gap-1.5 rounded-xl border border-dashed border-indigo-300 bg-indigo-50/40 px-4 py-2.5 text-xs font-semibold text-indigo-700 hover:bg-indigo-50 dark:border-indigo-700/60 dark:bg-indigo-950/30 dark:text-indigo-300 dark:hover:bg-indigo-950/50"
             >
               <Plus className="h-4 w-4" />
               <span>Adicionar nova secção</span>
@@ -629,28 +631,36 @@ export default function ArticleWorkspace({
             className="mx-auto max-w-3xl space-y-6"
           >
             {/* Summary numbers */}
-            <div className="grid grid-cols-2 gap-4 sm:grid-cols-4 border-b border-slate-100 pb-5">
+            <div className="grid grid-cols-2 gap-4 border-b border-slate-100 pb-5 dark:border-slate-800 sm:grid-cols-4">
               <div>
-                <p className="text-xs text-slate-500">Total de palavras</p>
-                <p className="mt-1 text-2xl font-bold text-slate-900 tabular-nums">
+                <p className="text-xs text-slate-500 dark:text-slate-400">
+                  Total de palavras
+                </p>
+                <p className="mt-1 text-2xl font-bold text-slate-900 dark:text-white tabular-nums">
                   {totalPalavras}
                 </p>
               </div>
               <div>
-                <p className="text-xs text-slate-500">Tempo de leitura</p>
-                <p className="mt-1 text-2xl font-bold text-slate-900 tabular-nums">
+                <p className="text-xs text-slate-500 dark:text-slate-400">
+                  Tempo de leitura
+                </p>
+                <p className="mt-1 text-2xl font-bold text-slate-900 dark:text-white tabular-nums">
                   {minutosLeitura} min
                 </p>
               </div>
               <div>
-                <p className="text-xs text-slate-500">Secções H2</p>
-                <p className="mt-1 text-2xl font-bold text-slate-900 tabular-nums">
+                <p className="text-xs text-slate-500 dark:text-slate-400">
+                  Secções H2
+                </p>
+                <p className="mt-1 text-2xl font-bold text-slate-900 dark:text-white tabular-nums">
                   {secoes.length}
                 </p>
               </div>
               <div>
-                <p className="text-xs text-slate-500">Imagens geradas</p>
-                <p className="mt-1 text-2xl font-bold text-slate-900 tabular-nums">
+                <p className="text-xs text-slate-500 dark:text-slate-400">
+                  Imagens geradas
+                </p>
+                <p className="mt-1 text-2xl font-bold text-slate-900 dark:text-white tabular-nums">
                   {imagensProntas}/{secoes.length}
                 </p>
               </div>
@@ -658,10 +668,10 @@ export default function ArticleWorkspace({
 
             {/* Checklist */}
             <div>
-              <h3 className="mb-3 text-sm font-bold text-slate-900">
+              <h3 className="mb-3 text-sm font-bold text-slate-900 dark:text-slate-100">
                 Auditoria editorial e estrutura
               </h3>
-              <div className="divide-y divide-slate-100 rounded-xl border border-slate-200">
+              <div className="divide-y divide-slate-100 rounded-xl border border-slate-200 dark:divide-slate-800 dark:border-slate-800">
                 {seoChecks.map((check) => (
                   <div
                     key={check.label}
@@ -669,15 +679,15 @@ export default function ArticleWorkspace({
                   >
                     <div className="flex items-center gap-2.5">
                       {check.ok ? (
-                        <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-600" />
+                        <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
                       ) : (
                         <AlertCircle className="h-4 w-4 shrink-0 text-amber-500" />
                       )}
-                      <span className="font-medium text-slate-800">
+                      <span className="font-medium text-slate-800 dark:text-slate-200">
                         {check.label}
                       </span>
                     </div>
-                    <span className="font-mono text-slate-500 tabular-nums shrink-0">
+                    <span className="font-mono text-slate-500 dark:text-slate-400 tabular-nums shrink-0">
                       {check.detalhe}
                     </span>
                   </div>
@@ -687,19 +697,19 @@ export default function ArticleWorkspace({
 
             {/* Keywords Density */}
             <div>
-              <h3 className="mb-3 text-sm font-bold text-slate-900">
+              <h3 className="mb-3 text-sm font-bold text-slate-900 dark:text-slate-100">
                 Cobertura de palavras-chave
               </h3>
               {keywordStats.length === 0 ? (
-                <p className="rounded-xl border border-dashed border-slate-200 p-4 text-xs text-slate-500">
+                <p className="rounded-xl border border-dashed border-slate-200 p-4 text-xs text-slate-500 dark:border-slate-800 dark:text-slate-400">
                   Nenhuma palavra-chave informada na configuração. Adicione
                   palavras-chave no painel ao lado para acompanhar a densidade
                   no texto.
                 </p>
               ) : (
-                <div className="overflow-x-auto rounded-xl border border-slate-200">
+                <div className="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-800">
                   <table className="w-full text-left text-xs">
-                    <thead className="border-b border-slate-200 bg-slate-50 text-slate-600">
+                    <thead className="border-b border-slate-200 bg-slate-50 text-slate-600 dark:border-slate-800 dark:bg-slate-800/70 dark:text-slate-300">
                       <tr>
                         <th className="px-4 py-2.5 font-semibold">
                           Palavra-chave
@@ -713,31 +723,38 @@ export default function ArticleWorkspace({
                         </th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-slate-100">
+                    <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                       {keywordStats.map((item) => (
-                        <tr key={item.kw} className="hover:bg-slate-50/70">
-                          <td className="px-4 py-2.5 font-semibold text-slate-800">
+                        <tr
+                          key={item.kw}
+                          className="hover:bg-slate-50/70 dark:hover:bg-slate-800/40"
+                        >
+                          <td className="px-4 py-2.5 font-semibold text-slate-800 dark:text-slate-200">
                             {item.kw}
                           </td>
                           <td className="px-4 py-2.5">
                             {item.noTitulo ? (
-                              <span className="font-medium text-emerald-700">
+                              <span className="font-medium text-emerald-700 dark:text-emerald-400">
                                 Presente
                               </span>
                             ) : (
-                              <span className="text-slate-400">Ausente</span>
+                              <span className="text-slate-400 dark:text-slate-500">
+                                Ausente
+                              </span>
                             )}
                           </td>
                           <td className="px-4 py-2.5">
                             {item.nosSubtitulos ? (
-                              <span className="font-medium text-emerald-700">
+                              <span className="font-medium text-emerald-700 dark:text-emerald-400">
                                 Presente
                               </span>
                             ) : (
-                              <span className="text-slate-400">Ausente</span>
+                              <span className="text-slate-400 dark:text-slate-500">
+                                Ausente
+                              </span>
                             )}
                           </td>
-                          <td className="px-4 py-2.5 text-right font-mono font-semibold text-slate-900 tabular-nums">
+                          <td className="px-4 py-2.5 text-right font-mono font-semibold text-slate-900 dark:text-white tabular-nums">
                             {item.count}
                           </td>
                         </tr>

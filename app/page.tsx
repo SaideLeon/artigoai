@@ -505,7 +505,7 @@ export default function Home() {
   const totalFavoritos = artigosSalvos.filter((a) => a.favorito).length;
 
   return (
-    <div className="flex min-h-screen bg-[#F4F6FB]">
+    <div className="flex min-h-screen bg-[#F4F6FB] dark:bg-slate-950 transition-colors duration-150">
       <Sidebar
         activeTab={activeTab}
         onSelectTab={setActiveTab}

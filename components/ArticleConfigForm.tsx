@@ -105,13 +105,13 @@ export default function ArticleConfigForm({
   return (
     <section
       aria-label="Configuração do artigo"
-      className="rounded-2xl border border-slate-200/90 bg-white p-5 shadow-xs"
+      className="rounded-2xl border border-slate-200/90 bg-white p-5 shadow-xs dark:border-slate-800 dark:bg-slate-900"
     >
       <div className="mb-5 flex items-center gap-2.5">
-        <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600">
+        <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600 dark:bg-indigo-950/70 dark:text-indigo-400">
           <Settings className="h-[18px] w-[18px]" />
         </span>
-        <h2 className="text-[17px] font-bold tracking-tight text-slate-900">
+        <h2 className="text-[17px] font-bold tracking-tight text-slate-900 dark:text-slate-100">
           Configurar seu artigo
         </h2>
       </div>
@@ -122,12 +122,12 @@ export default function ArticleConfigForm({
           <div className="mb-1.5 flex items-center justify-between gap-2">
             <label
               htmlFor="campo-tema"
-              className="flex items-center gap-1 text-[13px] font-semibold text-slate-800"
+              className="flex items-center gap-1 text-[13px] font-semibold text-slate-800 dark:text-slate-200"
             >
               <Asterisk className="h-3 w-3 text-rose-500" />
               <span>Tema ou Título Principal</span>
             </label>
-            <span className="text-xs font-medium text-slate-400 tabular-nums">
+            <span className="text-xs font-medium text-slate-400 dark:text-slate-500 tabular-nums">
               {tema.length}/100
             </span>
           </div>
@@ -139,7 +139,7 @@ export default function ArticleConfigForm({
             onChange={(e) => onChangeTema(e.target.value)}
             disabled={ocupado}
             placeholder="Ex.: Como criar aplicativos Android no Google"
-            className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-3.5 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 transition-colors focus:border-indigo-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/15 disabled:opacity-60"
+            className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-3.5 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 transition-colors focus:border-indigo-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/15 disabled:opacity-60 dark:border-slate-700 dark:bg-slate-800/70 dark:text-slate-100 dark:placeholder:text-slate-500 dark:focus:bg-slate-800"
           />
         </div>
 
@@ -147,17 +147,19 @@ export default function ArticleConfigForm({
         <div>
           <label
             htmlFor="campo-tags"
-            className="mb-1.5 flex items-center gap-1.5 text-[13px] font-semibold text-slate-800"
+            className="mb-1.5 flex items-center gap-1.5 text-[13px] font-semibold text-slate-800 dark:text-slate-200"
           >
-            <Tag className="h-3.5 w-3.5 text-indigo-600" />
+            <Tag className="h-3.5 w-3.5 text-indigo-600 dark:text-indigo-400" />
             <span>Palavras-chave</span>
-            <span className="font-normal text-slate-400">(opcional)</span>
+            <span className="font-normal text-slate-400 dark:text-slate-500">
+              (opcional)
+            </span>
           </label>
-          <div className="flex min-h-[44px] flex-wrap items-center gap-1.5 rounded-xl border border-slate-200 bg-slate-50/50 px-2.5 py-1.5 focus-within:border-indigo-500 focus-within:bg-white focus-within:ring-2 focus-within:ring-indigo-500/15">
+          <div className="flex min-h-[44px] flex-wrap items-center gap-1.5 rounded-xl border border-slate-200 bg-slate-50/50 px-2.5 py-1.5 focus-within:border-indigo-500 focus-within:bg-white focus-within:ring-2 focus-within:ring-indigo-500/15 dark:border-slate-700 dark:bg-slate-800/70 dark:focus-within:bg-slate-800">
             {palavrasChave.map((tag, idx) => (
               <span
                 key={`${tag}-${idx}`}
-                className="inline-flex items-center gap-1 rounded-lg bg-indigo-50 px-2 py-1 text-xs font-medium text-indigo-800 border border-indigo-100"
+                className="inline-flex items-center gap-1 rounded-lg border border-indigo-100 bg-indigo-50 px-2 py-1 text-xs font-medium text-indigo-800 dark:border-indigo-800/60 dark:bg-indigo-950/70 dark:text-indigo-200"
               >
                 <span>{tag}</span>
                 <button
@@ -165,7 +167,7 @@ export default function ArticleConfigForm({
                   disabled={ocupado}
                   onClick={() => removerTag(idx)}
                   aria-label={`Remover palavra-chave ${tag}`}
-                  className="rounded p-0.5 text-indigo-500 hover:bg-indigo-100 hover:text-indigo-800 disabled:opacity-50"
+                  className="rounded p-0.5 text-indigo-500 hover:bg-indigo-100 hover:text-indigo-800 dark:text-indigo-300 dark:hover:bg-indigo-900 dark:hover:text-white disabled:opacity-50"
                 >
                   <X className="h-3 w-3" />
                 </button>
@@ -186,7 +188,7 @@ export default function ArticleConfigForm({
                   ? "Digite e pressione Enter..."
                   : "Adicione mais..."
               }
-              className="min-w-[110px] flex-1 bg-transparent py-1 text-xs text-slate-800 placeholder:text-slate-400 focus:outline-none disabled:opacity-60"
+              className="min-w-[110px] flex-1 bg-transparent py-1 text-xs text-slate-800 placeholder:text-slate-400 focus:outline-none dark:text-slate-100 dark:placeholder:text-slate-500 disabled:opacity-60"
             />
           </div>
         </div>
@@ -195,11 +197,13 @@ export default function ArticleConfigForm({
         <div>
           <label
             htmlFor="campo-descricao"
-            className="mb-1.5 flex items-center gap-1.5 text-[13px] font-semibold text-slate-800"
+            className="mb-1.5 flex items-center gap-1.5 text-[13px] font-semibold text-slate-800 dark:text-slate-200"
           >
-            <AlignLeft className="h-3.5 w-3.5 text-indigo-600" />
+            <AlignLeft className="h-3.5 w-3.5 text-indigo-600 dark:text-indigo-400" />
             <span>Descrição</span>
-            <span className="font-normal text-slate-400">(opcional)</span>
+            <span className="font-normal text-slate-400 dark:text-slate-500">
+              (opcional)
+            </span>
           </label>
           <div className="relative">
             <textarea
@@ -210,9 +214,9 @@ export default function ArticleConfigForm({
               onChange={(e) => onChangeDescricao(e.target.value)}
               disabled={ocupado}
               placeholder="Guia completo e atualizado para o leitor, destacando pontos-chave e público-alvo..."
-              className="w-full resize-none rounded-xl border border-slate-200 bg-slate-50/50 px-3.5 py-2.5 pb-7 text-sm text-slate-900 placeholder:text-slate-400 transition-colors focus:border-indigo-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/15 disabled:opacity-60"
+              className="w-full resize-none rounded-xl border border-slate-200 bg-slate-50/50 px-3.5 py-2.5 pb-7 text-sm text-slate-900 placeholder:text-slate-400 transition-colors focus:border-indigo-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/15 disabled:opacity-60 dark:border-slate-700 dark:bg-slate-800/70 dark:text-slate-100 dark:placeholder:text-slate-500 dark:focus:bg-slate-800"
             />
-            <span className="pointer-events-none absolute bottom-2.5 right-3 text-[11px] font-medium text-slate-400 tabular-nums">
+            <span className="pointer-events-none absolute bottom-2.5 right-3 text-[11px] font-medium text-slate-400 dark:text-slate-500 tabular-nums">
               {descricao.length}/300
             </span>
           </div>
@@ -222,7 +226,7 @@ export default function ArticleConfigForm({
         <div>
           <label
             htmlFor="campo-tom"
-            className="mb-1.5 flex items-center gap-1.5 text-[13px] font-semibold text-slate-800"
+            className="mb-1.5 flex items-center gap-1.5 text-[13px] font-semibold text-slate-800 dark:text-slate-200"
           >
             <Smile className="h-3.5 w-3.5 text-amber-500" />
             <span>Tom do texto</span>
@@ -232,7 +236,7 @@ export default function ArticleConfigForm({
             value={tom}
             disabled={ocupado}
             onChange={(e) => onChangeTom(e.target.value)}
-            className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-3.5 py-2.5 text-sm font-medium text-slate-800 transition-colors focus:border-indigo-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/15 disabled:opacity-60"
+            className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-3.5 py-2.5 text-sm font-medium text-slate-800 transition-colors focus:border-indigo-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/15 disabled:opacity-60 dark:border-slate-700 dark:bg-slate-800/70 dark:text-slate-100 dark:focus:bg-slate-800"
           >
             {TONS_TEXTO.map((t) => (
               <option key={t} value={t}>
@@ -246,9 +250,9 @@ export default function ArticleConfigForm({
         <div>
           <label
             htmlFor="campo-idioma"
-            className="mb-1.5 flex items-center gap-1.5 text-[13px] font-semibold text-slate-800"
+            className="mb-1.5 flex items-center gap-1.5 text-[13px] font-semibold text-slate-800 dark:text-slate-200"
           >
-            <Globe className="h-3.5 w-3.5 text-emerald-600" />
+            <Globe className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
             <span>Idioma</span>
           </label>
           <select
@@ -256,7 +260,7 @@ export default function ArticleConfigForm({
             value={idioma}
             disabled={ocupado}
             onChange={(e) => onChangeIdioma(e.target.value)}
-            className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-3.5 py-2.5 text-sm font-medium text-slate-800 transition-colors focus:border-indigo-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/15 disabled:opacity-60"
+            className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-3.5 py-2.5 text-sm font-medium text-slate-800 transition-colors focus:border-indigo-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/15 disabled:opacity-60 dark:border-slate-700 dark:bg-slate-800/70 dark:text-slate-100 dark:focus:bg-slate-800"
           >
             {IDIOMAS.map((lang) => (
               <option key={lang.id} value={lang.id}>
@@ -270,11 +274,13 @@ export default function ArticleConfigForm({
         <div>
           <label
             htmlFor="campo-palavras"
-            className="mb-1.5 flex items-center gap-1.5 text-[13px] font-semibold text-slate-800"
+            className="mb-1.5 flex items-center gap-1.5 text-[13px] font-semibold text-slate-800 dark:text-slate-200"
           >
-            <Hash className="h-3.5 w-3.5 text-slate-500" />
+            <Hash className="h-3.5 w-3.5 text-slate-500 dark:text-slate-400" />
             <span>Número de palavras</span>
-            <span className="font-normal text-slate-400">(aprox.)</span>
+            <span className="font-normal text-slate-400 dark:text-slate-500">
+              (aprox.)
+            </span>
           </label>
           <select
             id="campo-palavras"
@@ -283,7 +289,7 @@ export default function ArticleConfigForm({
             onChange={(e) =>
               onChangeFaixaPalavras(e.target.value as FaixaPalavrasId)
             }
-            className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-3.5 py-2.5 text-sm font-medium text-slate-800 transition-colors focus:border-indigo-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/15 disabled:opacity-60"
+            className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-3.5 py-2.5 text-sm font-medium text-slate-800 transition-colors focus:border-indigo-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/15 disabled:opacity-60 dark:border-slate-700 dark:bg-slate-800/70 dark:text-slate-100 dark:focus:bg-slate-800"
           >
             {FAIXAS_PALAVRAS.map((f) => (
               <option key={f.id} value={f.id}>
@@ -295,8 +301,8 @@ export default function ArticleConfigForm({
 
         {/* Incluir imagens toggle */}
         <div className="flex items-center justify-between pt-1">
-          <div className="flex items-center gap-2 text-[13px] font-semibold text-slate-800">
-            <ImageIcon className="h-4 w-4 text-indigo-600" />
+          <div className="flex items-center gap-2 text-[13px] font-semibold text-slate-800 dark:text-slate-200">
+            <ImageIcon className="h-4 w-4 text-indigo-600 dark:text-indigo-400" />
             <span id="label-incluir-imagens">Incluir imagens</span>
           </div>
           <button
@@ -307,7 +313,7 @@ export default function ArticleConfigForm({
             disabled={ocupado}
             onClick={() => onChangeIncluirImagens(!incluirImagens)}
             className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer items-center rounded-full transition-colors duration-150 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 disabled:opacity-60 ${
-              incluirImagens ? "bg-indigo-600" : "bg-slate-300"
+              incluirImagens ? "bg-indigo-600" : "bg-slate-300 dark:bg-slate-700"
             }`}
           >
             <span
@@ -320,8 +326,8 @@ export default function ArticleConfigForm({
 
         {/* Primeira pessoa toggle */}
         <div className="flex items-center justify-between pt-0.5">
-          <div className="flex items-center gap-2 text-[13px] font-semibold text-slate-800">
-            <UserCheck className="h-4 w-4 text-indigo-600" />
+          <div className="flex items-center gap-2 text-[13px] font-semibold text-slate-800 dark:text-slate-200">
+            <UserCheck className="h-4 w-4 text-indigo-600 dark:text-indigo-400" />
             <span id="label-primeira-pessoa">Escrever em primeira pessoa</span>
           </div>
           <button
@@ -332,7 +338,7 @@ export default function ArticleConfigForm({
             disabled={ocupado}
             onClick={() => onChangePrimeiraPessoa(!primeiraPessoa)}
             className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer items-center rounded-full transition-colors duration-150 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 disabled:opacity-60 ${
-              primeiraPessoa ? "bg-indigo-600" : "bg-slate-300"
+              primeiraPessoa ? "bg-indigo-600" : "bg-slate-300 dark:bg-slate-700"
             }`}
           >
             <span
@@ -347,9 +353,9 @@ export default function ArticleConfigForm({
         <div className="pt-0.5">
           <label
             htmlFor="campo-pesquisa-web"
-            className="mb-1.5 flex items-center gap-1.5 text-[13px] font-semibold text-slate-800"
+            className="mb-1.5 flex items-center gap-1.5 text-[13px] font-semibold text-slate-800 dark:text-slate-200"
           >
-            <Search className="h-3.5 w-3.5 text-indigo-600" />
+            <Search className="h-3.5 w-3.5 text-indigo-600 dark:text-indigo-400" />
             <span>Pesquisa na web</span>
           </label>
           <select
@@ -359,7 +365,7 @@ export default function ArticleConfigForm({
             onChange={(e) =>
               onChangePesquisaWeb(e.target.value as ModoPesquisa)
             }
-            className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-3.5 py-2.5 text-sm font-medium text-slate-800 transition-colors focus:border-indigo-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/15 disabled:opacity-60"
+            className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-3.5 py-2.5 text-sm font-medium text-slate-800 transition-colors focus:border-indigo-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/15 disabled:opacity-60 dark:border-slate-700 dark:bg-slate-800/70 dark:text-slate-100 dark:focus:bg-slate-800"
           >
             <option value="auto">
               Automática (se informativo ou notícia)
@@ -385,7 +391,7 @@ export default function ArticleConfigForm({
                 type="button"
                 onClick={onCancelar}
                 title="Interromper geração"
-                className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-rose-200 bg-rose-50 px-3.5 py-3 text-xs font-semibold text-rose-700 hover:bg-rose-100 whitespace-nowrap"
+                className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-rose-200 bg-rose-50 px-3.5 py-3 text-xs font-semibold text-rose-700 hover:bg-rose-100 dark:border-rose-900/60 dark:bg-rose-950/60 dark:text-rose-300 dark:hover:bg-rose-950 whitespace-nowrap"
               >
                 <Square className="h-3.5 w-3.5 fill-current" />
                 <span>Parar</span>

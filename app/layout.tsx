@@ -1,5 +1,10 @@
 import type { Metadata } from "next";
-import { Plus_Jakarta_Sans, Source_Serif_4, JetBrains_Mono } from "next/font/google";
+import {
+  Plus_Jakarta_Sans,
+  Source_Serif_4,
+  JetBrains_Mono,
+} from "next/font/google";
+import { ThemeProvider } from "@/components/ThemeProvider";
 import "./globals.css";
 
 const plusJakarta = Plus_Jakarta_Sans({
@@ -29,6 +34,22 @@ export const metadata: Metadata = {
     "Crie artigos longos, bem estruturados e ilustrados secção a secção com auxílio de inteligência artificial.",
 };
 
+const themeInitScript = `
+(function() {
+  try {
+    var saved = localStorage.getItem("artigoai:theme:v1");
+    var isDark = saved === "dark" || (!saved && window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches);
+    if (isDark) {
+      document.documentElement.classList.add("dark");
+      document.documentElement.style.colorScheme = "dark";
+    } else {
+      document.documentElement.classList.remove("dark");
+      document.documentElement.style.colorScheme = "light";
+    }
+  } catch (e) {}
+})();
+`;
+
 export default function RootLayout({
   children,
 }: {
@@ -37,10 +58,14 @@ export default function RootLayout({
   return (
     <html
       lang="pt"
+      suppressHydrationWarning
       className={`${plusJakarta.variable} ${sourceSerif.variable} ${jetbrainsMono.variable}`}
     >
-      <body className="min-h-screen bg-[#F4F6FB] text-slate-900 font-sans antialiased">
-        {children}
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
+      </head>
+      <body className="min-h-screen bg-[#F4F6FB] text-slate-900 dark:bg-slate-950 dark:text-slate-100 font-sans antialiased transition-colors duration-150">
+        <ThemeProvider>{children}</ThemeProvider>
       </body>
     </html>
   );
