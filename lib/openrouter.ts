@@ -26,4 +26,4 @@ export async function chat(body: Record<string, unknown>, tentativas = 3) {
 
 export const MODELO_TEXTO = process.env.TEXT_MODEL ?? "openrouter/free";
 export const MODELO_IMAGEM =
-  process.env.IMAGE_MODEL ?? "sourceful/riverflow-v2.5-fast:free";
+  process.env.IMAGE_MODEL ?? "recraft/recraft-v4.1-flash-v2:free";
