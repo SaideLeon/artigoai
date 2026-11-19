@@ -13,11 +13,15 @@ export async function POST(req: Request) {
       idioma = "Português (Brasil)",
       palavrasChave = [],
       descricao = "",
+      primeiraPessoa = false,
     } = await req.json();
 
     const extras = [
       descricao ? `Enquadramento geral: ${descricao}.` : "",
       `Tom desejado: ${tom}.`,
+      primeiraPessoa
+        ? `Perspectiva narrativa: escreve obrigatoriamente em primeira pessoa do singular ("eu", "na minha experiência", "notei", "recomendo"), com voz pessoal e direta.`
+        : `Perspectiva narrativa: escreve em terceira pessoa ou forma impessoal, evitando o uso de "eu", "meu" ou "minha".`,
       Array.isArray(palavrasChave) && palavrasChave.length > 0
         ? `Quando fizer sentido, integra naturalmente estas palavras-chave: ${palavrasChave.join(", ")}.`
         : "",

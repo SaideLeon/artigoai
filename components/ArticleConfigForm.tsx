@@ -15,6 +15,7 @@ import {
   Loader2,
   Square,
   Asterisk,
+  UserCheck,
 } from "lucide-react";
 import {
   FAIXAS_PALAVRAS,
@@ -38,6 +39,8 @@ type ArticleConfigFormProps = {
   onChangeFaixaPalavras: (val: FaixaPalavrasId) => void;
   incluirImagens: boolean;
   onChangeIncluirImagens: (val: boolean) => void;
+  primeiraPessoa: boolean;
+  onChangePrimeiraPessoa: (val: boolean) => void;
   ocupado: boolean;
   onGerar: () => void;
   onCancelar: () => void;
@@ -58,6 +61,8 @@ export default function ArticleConfigForm({
   onChangeFaixaPalavras,
   incluirImagens,
   onChangeIncluirImagens,
+  primeiraPessoa,
+  onChangePrimeiraPessoa,
   ocupado,
   onGerar,
   onCancelar,
@@ -302,6 +307,31 @@ export default function ArticleConfigForm({
             <span
               className={`inline-block h-4.5 w-4.5 rounded-full bg-white shadow-xs transition-transform duration-150 ${
                 incluirImagens ? "translate-x-5.5" : "translate-x-1"
+              }`}
+            />
+          </button>
+        </div>
+
+        {/* Primeira pessoa toggle */}
+        <div className="flex items-center justify-between pt-0.5">
+          <div className="flex items-center gap-2 text-[13px] font-semibold text-slate-800">
+            <UserCheck className="h-4 w-4 text-indigo-600" />
+            <span id="label-primeira-pessoa">Escrever em primeira pessoa</span>
+          </div>
+          <button
+            type="button"
+            role="switch"
+            aria-checked={primeiraPessoa}
+            aria-labelledby="label-primeira-pessoa"
+            disabled={ocupado}
+            onClick={() => onChangePrimeiraPessoa(!primeiraPessoa)}
+            className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer items-center rounded-full transition-colors duration-150 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 disabled:opacity-60 ${
+              primeiraPessoa ? "bg-indigo-600" : "bg-slate-300"
+            }`}
+          >
+            <span
+              className={`inline-block h-4.5 w-4.5 rounded-full bg-white shadow-xs transition-transform duration-150 ${
+                primeiraPessoa ? "translate-x-5.5" : "translate-x-1"
               }`}
             />
           </button>

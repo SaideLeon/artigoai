@@ -431,6 +431,32 @@ export function SettingsView({
             />
           </button>
         </div>
+
+        <div className="flex items-center justify-between rounded-xl border border-slate-200 px-3.5 py-2.5 sm:col-span-2">
+          <span className="text-xs font-semibold text-slate-800">
+            Escrever em primeira pessoa por padrão
+          </span>
+          <button
+            type="button"
+            role="switch"
+            aria-checked={Boolean(draft.primeiraPessoaPadrao)}
+            onClick={() =>
+              setDraft({
+                ...draft,
+                primeiraPessoaPadrao: !draft.primeiraPessoaPadrao,
+              })
+            }
+            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+              draft.primeiraPessoaPadrao ? "bg-indigo-600" : "bg-slate-300"
+            }`}
+          >
+            <span
+              className={`inline-block h-4.5 w-4.5 rounded-full bg-white transition-transform ${
+                draft.primeiraPessoaPadrao ? "translate-x-5.5" : "translate-x-1"
+              }`}
+            />
+          </button>
+        </div>
       </div>
 
       <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 pt-4">

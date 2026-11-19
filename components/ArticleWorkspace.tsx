@@ -28,6 +28,7 @@ type ArticleWorkspaceProps = {
   palavrasChave: string[];
   tom: string;
   idioma: string;
+  primeiraPessoa: boolean;
   alvoPalavras: number;
   secoes: Secao[];
   estado: string;
@@ -74,6 +75,7 @@ export default function ArticleWorkspace({
   palavrasChave,
   tom,
   idioma,
+  primeiraPessoa,
   alvoPalavras,
   secoes,
   estado,
@@ -396,6 +398,10 @@ export default function ArticleWorkspace({
               <span>{idioma}</span>
               <span aria-hidden="true">·</span>
               <span>{tom}</span>
+              <span aria-hidden="true">·</span>
+              <span>
+                {primeiraPessoa ? "Primeira pessoa" : "Terceira pessoa"}
+              </span>
             </div>
 
             {/* Sections */}

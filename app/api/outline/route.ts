@@ -10,6 +10,7 @@ export async function POST(req: Request) {
       palavrasChave = [],
       tom = "Informativo e Didático",
       idioma = "Português (Brasil)",
+      primeiraPessoa = false,
     } = await req.json();
 
     const extras = [
@@ -19,6 +20,9 @@ export async function POST(req: Request) {
         : "",
       `Tom do texto: ${tom}.`,
       `Idioma do artigo: ${idioma}.`,
+      primeiraPessoa
+        ? `Perspectiva narrativa: estrutura o artigo em primeira pessoa do singular ("eu", "minha experiência", "o que aprendi").`
+        : `Perspectiva narrativa: estrutura o artigo em terceira pessoa / forma impessoal, sem usar "eu" ou "meu".`,
     ]
       .filter(Boolean)
       .join("\n");

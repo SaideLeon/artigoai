@@ -69,6 +69,7 @@ export type ArtigoSalvo = {
   tom: string;
   idioma: string;
   faixaPalavras: FaixaPalavrasId;
+  primeiraPessoa?: boolean;
   secoes: Secao[];
   criadoEm: string;
   favorito: boolean;
@@ -80,6 +81,7 @@ export type ConfiguracoesPadrao = {
   idiomaPadrao: string;
   faixaPalavrasPadrao: FaixaPalavrasId;
   incluirImagensPadrao: boolean;
+  primeiraPessoaPadrao?: boolean;
 };
 
 export type NavTab =

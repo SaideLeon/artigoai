@@ -30,6 +30,7 @@ const DEFAULT_CONFIG: ConfiguracoesPadrao = {
   idiomaPadrao: "Português (Brasil)",
   faixaPalavrasPadrao: "2000-2500",
   incluirImagensPadrao: true,
+  primeiraPessoaPadrao: false,
 };
 
 async function postJson(
@@ -130,6 +131,9 @@ export default function Home() {
   const [incluirImagens, setIncluirImagens] = useState<boolean>(
     DEFAULT_CONFIG.incluirImagensPadrao
   );
+  const [primeiraPessoa, setPrimeiraPessoa] = useState<boolean>(
+    Boolean(DEFAULT_CONFIG.primeiraPessoaPadrao)
+  );
 
   // Active article workspace state
   const [artigoAtualId, setArtigoAtualId] = useState<string | null>(null);
@@ -165,6 +169,7 @@ export default function Home() {
           setIdioma(parsed.idiomaPadrao);
           setFaixaPalavras(parsed.faixaPalavrasPadrao);
           setIncluirImagens(parsed.incluirImagensPadrao);
+          setPrimeiraPessoa(Boolean(parsed.primeiraPessoaPadrao));
         }
       } catch {
         // Ignora erro de localStorage indisponível
@@ -271,6 +276,7 @@ export default function Home() {
           palavrasChave,
           tom,
           idioma,
+          primeiraPessoa,
         },
         controller.signal
       );
@@ -298,6 +304,7 @@ export default function Home() {
             idioma,
             palavrasChave,
             descricao: descricao.trim(),
+            primeiraPessoa,
           },
           controller.signal
         );
@@ -328,6 +335,7 @@ export default function Home() {
           tom,
           idioma,
           faixaPalavras,
+          primeiraPessoa,
           secoes: lista,
           criadoEm: new Date().toISOString(),
           favorito: false,
@@ -413,6 +421,7 @@ export default function Home() {
     setTom(artigo.tom);
     setIdioma(artigo.idioma);
     setFaixaPalavras(artigo.faixaPalavras);
+    setPrimeiraPessoa(Boolean(artigo.primeiraPessoa));
     setSecoes(artigo.secoes);
     setArtigoAtualId(artigo.id);
     setEstado("Artigo carregado do histórico.");
@@ -426,6 +435,7 @@ export default function Home() {
     setIdioma(nova.idiomaPadrao);
     setFaixaPalavras(nova.faixaPalavrasPadrao);
     setIncluirImagens(nova.incluirImagensPadrao);
+    setPrimeiraPessoa(Boolean(nova.primeiraPessoaPadrao));
     try {
       localStorage.setItem(STORAGE_CONFIG, JSON.stringify(nova));
     } catch {
@@ -479,6 +489,8 @@ export default function Home() {
                   onChangeFaixaPalavras={setFaixaPalavras}
                   incluirImagens={incluirImagens}
                   onChangeIncluirImagens={setIncluirImagens}
+                  primeiraPessoa={primeiraPessoa}
+                  onChangePrimeiraPessoa={setPrimeiraPessoa}
                   ocupado={ocupado}
                   onGerar={gerarArtigo}
                   onCancelar={cancelarGeracao}
@@ -491,6 +503,7 @@ export default function Home() {
                 palavrasChave={palavrasChave}
                 tom={tom}
                 idioma={idioma}
+                primeiraPessoa={primeiraPessoa}
                 alvoPalavras={faixaAtual.alvoPalavras}
                 secoes={secoes}
                 estado={estado}
