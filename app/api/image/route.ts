@@ -9,13 +9,75 @@ const NVIDIA_INVOKE_URL =
   "https://ai.api.nvidia.com/v1/genai/black-forest-labs/flux.2-klein-4b";
 
 function toImageDataUri(raw: string): string {
-  if (raw.startsWith("data:") || /^https?:\/\//i.test(raw)) return raw;
-  const mime = raw.startsWith("/9j/")
+  const trimmed = raw.trim();
+  if (trimmed.startsWith("data:") || /^https?:\/\//i.test(trimmed)) {
+    return trimmed;
+  }
+  const mime = trimmed.startsWith("/9j/")
     ? "image/jpeg"
-    : raw.startsWith("UklGR")
+    : trimmed.startsWith("UklGR")
     ? "image/webp"
     : "image/png";
-  return `data:${mime};base64,${raw}`;
+  return `data:${mime};base64,${trimmed}`;
+}
+
+function isLikelyImagePayload(value: string): boolean {
+  const trimmed = value.trim();
+  if (trimmed.startsWith("data:image/")) return true;
+  if (/^https?:\/\/\S+/i.test(trimmed)) return true;
+  // Raw base64 image payload
+  return trimmed.length >= 128 && /^[A-Za-z0-9+/=_\r\n-]+$/.test(trimmed);
+}
+
+const IMAGE_KEYS = new Set([
+  "base64",
+  "b64_json",
+  "image_data",
+  "image",
+  "url",
+  "image_url",
+  "src",
+  "data",
+  "output",
+]);
+
+function findImageInPayload(node: unknown, depth = 0): string | null {
+  if (depth > 6 || node == null) return null;
+
+  if (typeof node === "string") {
+    return isLikelyImagePayload(node) ? node : null;
+  }
+
+  if (Array.isArray(node)) {
+    for (const item of node) {
+      const found = findImageInPayload(item, depth + 1);
+      if (found) return found;
+    }
+    return null;
+  }
+
+  if (typeof node === "object") {
+    const obj = node as Record<string, unknown>;
+    // Prioritise known image keys first
+    for (const key of Object.keys(obj)) {
+      if (IMAGE_KEYS.has(key.toLowerCase())) {
+        const val = obj[key];
+        if (typeof val === "string" && isLikelyImagePayload(val)) {
+          return val;
+        }
+      }
+    }
+    // Recurse into nested objects/arrays
+    for (const key of Object.keys(obj)) {
+      const val = obj[key];
+      if (val && typeof val === "object") {
+        const found = findImageInPayload(val, depth + 1);
+        if (found) return found;
+      }
+    }
+  }
+
+  return null;
 }
 
 async function gerarImagemOpenRouter(prompt: string): Promise<string> {
@@ -29,7 +91,7 @@ async function gerarImagemOpenRouter(prompt: string): Promise<string> {
   });
 
   const image = result.data?.[0];
-  const raw = image?.b64_json || image?.url;
+  const raw = image?.b64_json || image?.url || findImageInPayload(result);
   if (!raw) throw new Error("O modelo do OpenRouter não devolveu nenhuma imagem.");
   return toImageDataUri(raw);
 }
@@ -62,18 +124,48 @@ async function gerarImagemNvidia(prompt: string): Promise<string> {
     );
   }
 
-  const responseBody = await response.json();
-  const raw =
-    responseBody?.artifacts?.[0]?.base64 ||
-    responseBody?.image ||
-    responseBody?.data?.[0]?.b64_json ||
-    responseBody?.data?.[0]?.url;
-
-  if (!raw || typeof raw !== "string") {
-    throw new Error("A API da NVIDIA não devolveu nenhuma imagem.");
+  const contentType = response.headers.get("content-type") || "";
+  if (contentType.startsWith("image/")) {
+    const buf = Buffer.from(await response.arrayBuffer());
+    return `data:${contentType.split(";")[0]};base64,${buf.toString("base64")}`;
   }
 
-  return toImageDataUri(raw);
+  const rawText = await response.text();
+  let responseBody: unknown = null;
+  try {
+    responseBody = JSON.parse(rawText);
+  } catch {
+    if (isLikelyImagePayload(rawText)) {
+      return toImageDataUri(rawText);
+    }
+    throw new Error(
+      `Resposta inesperada da NVIDIA (não JSON): ${rawText.slice(0, 180)}`
+    );
+  }
+
+  const extracted = findImageInPayload(responseBody);
+  if (extracted) {
+    return toImageDataUri(extracted);
+  }
+
+  const keys =
+    responseBody && typeof responseBody === "object"
+      ? Object.keys(responseBody as Record<string, unknown>).join(", ")
+      : typeof responseBody;
+  const finishReason =
+    responseBody &&
+    typeof responseBody === "object" &&
+    "artifacts" in responseBody &&
+    Array.isArray((responseBody as { artifacts?: Array<{ finishReason?: string }> }).artifacts)
+      ? (responseBody as { artifacts?: Array<{ finishReason?: string }> }).artifacts?.[0]
+          ?.finishReason
+      : undefined;
+
+  throw new Error(
+    `A API da NVIDIA não devolveu nenhuma imagem${
+      finishReason ? ` (finishReason: ${finishReason})` : ""
+    }${keys ? ` [chaves: ${keys}]` : ""}.`
+  );
 }
 
 export async function POST(req: Request) {
