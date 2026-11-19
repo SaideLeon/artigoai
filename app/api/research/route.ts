@@ -96,9 +96,6 @@ Responde APENAS em JSON válido neste formato exato:
       top_p: 1,
       stream: false,
       reasoning_effort: "medium",
-      response_format: {
-        type: "json_object",
-      },
       stop: null,
       tools: [
         {
@@ -111,9 +108,22 @@ Responde APENAS em JSON válido neste formato exato:
     });
 
     const msg = chatCompletion.choices[0]?.message;
-    const rawContent = msg?.content ?? "{}";
-    const jsonMatch = rawContent.match(/\{[\s\S]*\}/)?.[0] ?? "{}";
-    const parsed: ResearchResultJson = JSON.parse(jsonMatch);
+    const rawContent = (msg?.content ?? "").trim();
+    const withoutFences = rawContent
+      .replace(/^```(?:json)?\s*/i, "")
+      .replace(/\s*```$/i, "")
+      .trim();
+
+    let parsed: ResearchResultJson = {};
+    try {
+      const jsonMatch = withoutFences.match(/\{[\s\S]*\}/)?.[0];
+      parsed = jsonMatch ? JSON.parse(jsonMatch) : {};
+    } catch {
+      parsed = {
+        necessario: Boolean(rawContent),
+        resumo_factual: rawContent,
+      };
+    }
 
     const fontesMap = new Map<string, FontePesquisa>();
 
