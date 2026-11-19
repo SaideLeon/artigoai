@@ -1,167 +1,563 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
+import Sidebar from "@/components/Sidebar";
+import TopBar from "@/components/TopBar";
+import HeroBanner from "@/components/HeroBanner";
+import ArticleConfigForm from "@/components/ArticleConfigForm";
+import ArticleWorkspace from "@/components/ArticleWorkspace";
+import {
+  ArticlesListView,
+  StatisticsView,
+  SettingsView,
+} from "@/components/LibraryViews";
+import InfoModal from "@/components/InfoModal";
+import {
+  FAIXAS_PALAVRAS,
+  type ArtigoSalvo,
+  type ConfiguracoesPadrao,
+  type FaixaPalavrasId,
+  type NavTab,
+  type NotificacaoItem,
+  type Secao,
+} from "@/lib/types";
 
-type Secao = {
-  titulo: string;
-  objetivo: string;
-  texto?: string;
-  prompt?: string;
-  img?: string;
-  erro?: string;
-  aGerarImagem?: boolean;
+const STORAGE_ARTICLES = "artigoai:artigos:v1";
+const STORAGE_CONFIG = "artigoai:config:v1";
+
+const DEFAULT_CONFIG: ConfiguracoesPadrao = {
+  tomPadrao: "Informativo e Didático",
+  idiomaPadrao: "Português (Brasil)",
+  faixaPalavrasPadrao: "2000-2500",
+  incluirImagensPadrao: true,
 };
 
-const PALAVRAS_ALVO = 2300; // um pouco acima de 2000 para ter margem
-const NUM_SECOES = 7;
-
-async function post(url: string, corpo: unknown) {
+async function postJson(
+  url: string,
+  corpo: unknown,
+  signal?: AbortSignal
+) {
   const r = await fetch(url, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(corpo),
+    signal,
   });
   const d = await r.json();
   if (!r.ok) throw new Error(d.erro ?? "Erro desconhecido");
   return d;
 }
 
+function escapeHtml(text: string) {
+  return text
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;");
+}
+
+function contarPalavras(secoes: Secao[]) {
+  return secoes.reduce(
+    (n, s) => n + (s.texto?.trim().split(/\s+/).filter(Boolean).length ?? 0),
+    0
+  );
+}
+
+function downloadArtigoHtml(
+  titulo: string,
+  descricao: string,
+  secoes: Secao[]
+) {
+  const corpo = secoes
+    .map(
+      (s, idx) =>
+        `<section style="margin-top:2.2rem"><h2>${idx + 1}. ${escapeHtml(
+          s.titulo
+        )}</h2>${
+          s.img
+            ? `<img src="${s.img}" alt="${escapeHtml(
+                s.titulo
+              )}" style="width:100%;border-radius:12px;margin:1rem 0">`
+            : ""
+        }${(s.texto ?? "")
+          .split(/\n\s*\n/)
+          .filter(Boolean)
+          .map((p) => `<p>${escapeHtml(p)}</p>`)
+          .join("")}</section>`
+    )
+    .join("");
+
+  const html = `<!doctype html><html lang="pt"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${escapeHtml(
+    titulo
+  )}</title></head><body style="max-width:760px;margin:2.5rem auto;padding:0 1.25rem;font-family:Georgia,serif;line-height:1.78;color:#1e293b"><h1>${escapeHtml(
+    titulo
+  )}</h1>${
+    descricao
+      ? `<p style="font-size:1.1rem;color:#475569">${escapeHtml(descricao)}</p>`
+      : ""
+  }${corpo}</body></html>`;
+
+  const slug =
+    titulo
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/(^-|-$)/g, "") || "artigo";
+
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob([html], { type: "text/html" }));
+  a.download = `${slug}.html`;
+  a.click();
+}
+
 export default function Home() {
+  const [activeTab, setActiveTab] = useState<NavTab>("inicio");
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [modalTipo, setModalTipo] = useState<
+    "upgrade" | "ajuda" | "sobre" | null
+  >(null);
+
+  // Configuration state
   const [tema, setTema] = useState("");
+  const [palavrasChave, setPalavrasChave] = useState<string[]>([]);
+  const [descricao, setDescricao] = useState("");
+  const [tom, setTom] = useState<string>(DEFAULT_CONFIG.tomPadrao);
+  const [idioma, setIdioma] = useState<string>(DEFAULT_CONFIG.idiomaPadrao);
+  const [faixaPalavras, setFaixaPalavras] = useState<FaixaPalavrasId>(
+    DEFAULT_CONFIG.faixaPalavrasPadrao
+  );
+  const [incluirImagens, setIncluirImagens] = useState<boolean>(
+    DEFAULT_CONFIG.incluirImagensPadrao
+  );
+
+  // Active article workspace state
+  const [artigoAtualId, setArtigoAtualId] = useState<string | null>(null);
   const [titulo, setTitulo] = useState("");
   const [secoes, setSecoes] = useState<Secao[]>([]);
   const [estado, setEstado] = useState("");
+  const [erroGeral, setErroGeral] = useState("");
   const [ocupado, setOcupado] = useState(false);
 
-  const atualizar = (i: number, p: Partial<Secao>) =>
-    setSecoes((s) => s.map((x, j) => (j === i ? { ...x, ...p } : x)));
+  // Library & settings state
+  const [artigosSalvos, setArtigosSalvos] = useState<ArtigoSalvo[]>([]);
+  const [configPadrao, setConfigPadrao] =
+    useState<ConfiguracoesPadrao>(DEFAULT_CONFIG);
+  const [notificacoes, setNotificacoes] = useState<NotificacaoItem[]>([]);
 
-  const total = secoes.reduce(
-    (n, s) => n + (s.texto?.split(/\s+/).filter(Boolean).length ?? 0),
-    0
-  );
+  const abortRef = useRef<AbortController | null>(null);
 
-  async function gerarImagem(i: number, prompt: string) {
-    atualizar(i, { aGerarImagem: true, erro: undefined });
+  // Load persisted data after mount
+  useEffect(() => {
+    let mounted = true;
+    Promise.resolve().then(() => {
+      if (!mounted) return;
+      try {
+        const rawArtigos = localStorage.getItem(STORAGE_ARTICLES);
+        if (rawArtigos) {
+          setArtigosSalvos(JSON.parse(rawArtigos));
+        }
+        const rawConfig = localStorage.getItem(STORAGE_CONFIG);
+        if (rawConfig) {
+          const parsed: ConfiguracoesPadrao = JSON.parse(rawConfig);
+          setConfigPadrao(parsed);
+          setTom(parsed.tomPadrao);
+          setIdioma(parsed.idiomaPadrao);
+          setFaixaPalavras(parsed.faixaPalavrasPadrao);
+          setIncluirImagens(parsed.incluirImagensPadrao);
+        }
+      } catch {
+        // Ignora erro de localStorage indisponível
+      }
+    });
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  function persistirArtigos(lista: ArtigoSalvo[]) {
+    setArtigosSalvos(lista);
     try {
-      const { url } = await post("/api/image", { prompt });
-      atualizar(i, { img: url, aGerarImagem: false });
-    } catch (e) {
-      atualizar(i, { erro: (e as Error).message, aGerarImagem: false });
+      localStorage.setItem(STORAGE_ARTICLES, JSON.stringify(lista));
+    } catch {
+      // Ignora quota cheia
     }
   }
 
-  async function gerar() {
-    if (!tema.trim()) return;
+  function registrarNotificacao(tituloNotif: string, detalhe: string) {
+    const hora = new Date().toLocaleTimeString("pt-PT", {
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+    setNotificacoes((prev) => [
+      {
+        id: `${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+        titulo: tituloNotif,
+        detalhe,
+        hora,
+        lida: false,
+      },
+      ...prev.slice(0, 9),
+    ]);
+  }
+
+  function atualizarSecao(index: number, patch: Partial<Secao>) {
+    setSecoes((prev) => {
+      const next = prev.map((x, j) => (j === index ? { ...x, ...patch } : x));
+      if (artigoAtualId) {
+        setArtigosSalvos((lista) => {
+          const atualizada = lista.map((a) =>
+            a.id === artigoAtualId
+              ? { ...a, secoes: next, totalPalavras: contarPalavras(next) }
+              : a
+          );
+          try {
+            localStorage.setItem(STORAGE_ARTICLES, JSON.stringify(atualizada));
+          } catch {
+            // Ignora
+          }
+          return atualizada;
+        });
+      }
+      return next;
+    });
+  }
+
+  async function gerarImagemSecao(
+    index: number,
+    prompt: string,
+    signal?: AbortSignal
+  ): Promise<string | undefined> {
+    atualizarSecao(index, { aGerarImagem: true, erro: undefined });
+    try {
+      const { url } = await postJson("/api/image", { prompt }, signal);
+      atualizarSecao(index, { img: url, aGerarImagem: false });
+      return url;
+    } catch (e) {
+      if ((e as Error).name === "AbortError") {
+        atualizarSecao(index, { aGerarImagem: false });
+        return undefined;
+      }
+      atualizarSecao(index, {
+        erro: (e as Error).message,
+        aGerarImagem: false,
+      });
+      return undefined;
+    }
+  }
+
+  const faixaAtual =
+    FAIXAS_PALAVRAS.find((f) => f.id === faixaPalavras) ?? FAIXAS_PALAVRAS[2];
+
+  async function gerarArtigo() {
+    if (!tema.trim() || ocupado) return;
+    const controller = new AbortController();
+    abortRef.current = controller;
+
     setOcupado(true);
+    setErroGeral("");
     setSecoes([]);
     setTitulo("");
+    setArtigoAtualId(null);
 
     try {
-      setEstado("A criar o esboço…");
-      const esb = await post("/api/outline", { tema, secoes: NUM_SECOES });
-      const lista: Secao[] = esb.secoes;
+      setEstado("A criar o esboço estruturado…");
+      const esb = await postJson(
+        "/api/outline",
+        {
+          tema: tema.trim(),
+          secoes: faixaAtual.numSecoes,
+          descricao: descricao.trim(),
+          palavrasChave,
+          tom,
+          idioma,
+        },
+        controller.signal
+      );
+
+      let lista: Secao[] = esb.secoes;
       setTitulo(esb.titulo);
       setSecoes(lista);
 
-      const alvo = Math.ceil(PALAVRAS_ALVO / lista.length);
+      const alvoPorSecao = Math.ceil(faixaAtual.alvoPalavras / lista.length);
       let resumo = "";
 
-      // Uma secção de cada vez: cada pedido é curto e respeita o limite de pedidos por minuto.
       for (let i = 0; i < lista.length; i++) {
+        if (controller.signal.aborted) break;
         setEstado(`A escrever a secção ${i + 1} de ${lista.length}…`);
-        const { texto, prompt } = await post("/api/section", {
-          titulo: esb.titulo,
-          indice: lista.map((s) => s.titulo),
-          secao: lista[i],
-          resumo,
-          palavras: alvo,
-        });
-        atualizar(i, { texto, prompt });
+
+        const { texto, prompt } = await postJson(
+          "/api/section",
+          {
+            titulo: esb.titulo,
+            indice: lista.map((s) => s.titulo),
+            secao: lista[i],
+            resumo,
+            palavras: alvoPorSecao,
+            tom,
+            idioma,
+            palavrasChave,
+            descricao: descricao.trim(),
+          },
+          controller.signal
+        );
+
+        lista = lista.map((s, j) => (j === i ? { ...s, texto, prompt } : s));
+        atualizarSecao(i, { texto, prompt });
         resumo += `- ${lista[i].titulo}: ${texto.slice(0, 200)}…\n`;
 
-        setEstado(`A gerar a imagem da secção ${i + 1}…`);
-        await gerarImagem(i, prompt);
+        if (incluirImagens && !controller.signal.aborted) {
+          setEstado(`A gerar a imagem da secção ${i + 1} de ${lista.length}…`);
+          const imgUrl = await gerarImagemSecao(i, prompt, controller.signal);
+          if (imgUrl) {
+            lista = lista.map((s, j) =>
+              j === i ? { ...s, img: imgUrl } : s
+            );
+          }
+        }
       }
-      setEstado("Artigo concluído.");
+
+      if (!controller.signal.aborted) {
+        const novoId = `${Date.now()}`;
+        const novoArtigo: ArtigoSalvo = {
+          id: novoId,
+          tema: tema.trim(),
+          titulo: esb.titulo,
+          descricao: descricao.trim(),
+          palavrasChave,
+          tom,
+          idioma,
+          faixaPalavras,
+          secoes: lista,
+          criadoEm: new Date().toISOString(),
+          favorito: false,
+          totalPalavras: contarPalavras(lista),
+        };
+        setArtigoAtualId(novoId);
+        persistirArtigos([novoArtigo, ...artigosSalvos]);
+        setEstado("Artigo concluído e guardado em Meus Artigos.");
+        registrarNotificacao("Artigo concluído", esb.titulo);
+      }
     } catch (e) {
-      setEstado("Erro: " + (e as Error).message);
+      if ((e as Error).name === "AbortError") {
+        setEstado("Geração interrompida.");
+      } else {
+        setErroGeral((e as Error).message);
+        setEstado("");
+      }
+    } finally {
+      setOcupado(false);
+      abortRef.current = null;
     }
-    setOcupado(false);
   }
 
-  function exportar() {
-    const corpo = secoes
-      .map(
-        (s) =>
-          `<h2>${s.titulo}</h2>${s.img ? `<img src="${s.img}" style="width:100%;border-radius:8px">` : ""}` +
-          (s.texto ?? "")
-            .split(/\n\s*\n/)
-            .map((p) => `<p>${p}</p>`)
-            .join("")
-      )
-      .join("");
-    const html = `<!doctype html><html lang="pt"><meta charset="utf-8"><title>${titulo}</title><body style="max-width:760px;margin:2rem auto;padding:0 1rem;font-family:Georgia,serif;line-height:1.75"><h1>${titulo}</h1>${corpo}</body></html>`;
-    const a = document.createElement("a");
-    a.href = URL.createObjectURL(new Blob([html], { type: "text/html" }));
-    a.download = "artigo.html";
-    a.click();
+  function cancelarGeracao() {
+    abortRef.current?.abort();
   }
+
+  function handleUpdateTitulo(novo: string) {
+    setTitulo(novo);
+    if (artigoAtualId) {
+      persistirArtigos(
+        artigosSalvos.map((a) =>
+          a.id === artigoAtualId ? { ...a, titulo: novo } : a
+        )
+      );
+    }
+  }
+
+  function handleAddSecao() {
+    const nova: Secao = {
+      titulo: `Nova secção ${secoes.length + 1}`,
+      objetivo: "Secção adicionada manualmente",
+      texto: "",
+    };
+    const next = [...secoes, nova];
+    setSecoes(next);
+    if (artigoAtualId) {
+      persistirArtigos(
+        artigosSalvos.map((a) =>
+          a.id === artigoAtualId ? { ...a, secoes: next } : a
+        )
+      );
+    }
+  }
+
+  function handleRemoveSecao(index: number) {
+    const next = secoes.filter((_, i) => i !== index);
+    setSecoes(next);
+    if (artigoAtualId) {
+      persistirArtigos(
+        artigosSalvos.map((a) =>
+          a.id === artigoAtualId
+            ? { ...a, secoes: next, totalPalavras: contarPalavras(next) }
+            : a
+        )
+      );
+    }
+  }
+
+  function toggleFavoritoPorId(id: string) {
+    persistirArtigos(
+      artigosSalvos.map((a) =>
+        a.id === id ? { ...a, favorito: !a.favorito } : a
+      )
+    );
+  }
+
+  function abrirArtigoSalvo(artigo: ArtigoSalvo) {
+    setTema(artigo.tema);
+    setTitulo(artigo.titulo);
+    setDescricao(artigo.descricao);
+    setPalavrasChave(artigo.palavrasChave);
+    setTom(artigo.tom);
+    setIdioma(artigo.idioma);
+    setFaixaPalavras(artigo.faixaPalavras);
+    setSecoes(artigo.secoes);
+    setArtigoAtualId(artigo.id);
+    setEstado("Artigo carregado do histórico.");
+    setErroGeral("");
+    setActiveTab("inicio");
+  }
+
+  function salvarConfigPadrao(nova: ConfiguracoesPadrao) {
+    setConfigPadrao(nova);
+    setTom(nova.tomPadrao);
+    setIdioma(nova.idiomaPadrao);
+    setFaixaPalavras(nova.faixaPalavrasPadrao);
+    setIncluirImagens(nova.incluirImagensPadrao);
+    try {
+      localStorage.setItem(STORAGE_CONFIG, JSON.stringify(nova));
+    } catch {
+      // Ignora
+    }
+  }
+
+  const artigoAtualObj = artigosSalvos.find((a) => a.id === artigoAtualId);
+  const totalFavoritos = artigosSalvos.filter((a) => a.favorito).length;
 
   return (
-    <main className="layout">
-      <aside className="painel">
-        <h1>Gerador de artigos</h1>
-        <label htmlFor="tema">Sobre o que é o artigo?</label>
-        <textarea
-          id="tema"
-          value={tema}
-          onChange={(e) => setTema(e.target.value)}
-          placeholder="Ex.: Como funciona o pagamento por telemóvel em Moçambique"
-          disabled={ocupado}
-        />
-        <button onClick={gerar} disabled={ocupado || !tema.trim()}>
-          {ocupado ? "A gerar…" : "Gerar artigo"}
-        </button>
-        {secoes.length > 0 && !ocupado && (
-          <button className="secundario" onClick={exportar}>
-            Descarregar HTML
-          </button>
-        )}
-        <p className="estado" aria-live="polite">{estado}</p>
-        {secoes.length > 0 && (
-          <p className={`estado contagem ${total >= 2000 ? "ok" : ""}`}>
-            {total} palavras {total >= 2000 ? "— meta atingida" : "(meta: 2000)"}
-          </p>
-        )}
-      </aside>
+    <div className="flex min-h-screen bg-[#F4F6FB]">
+      <Sidebar
+        activeTab={activeTab}
+        onSelectTab={setActiveTab}
+        totalArtigos={artigosSalvos.length}
+        totalFavoritos={totalFavoritos}
+        onOpenModal={setModalTipo}
+        mobileOpen={mobileMenuOpen}
+        onCloseMobile={() => setMobileMenuOpen(false)}
+      />
 
-      <article className="artigo">
-        {!titulo && <p className="vazio">O artigo aparece aqui, secção a secção.</p>}
-        {titulo && <h1>{titulo}</h1>}
-        {secoes.map((s, i) => (
-          <section key={i}>
-            <h2>{s.titulo}</h2>
-            {s.img ? (
-              <img className="imagem" src={s.img} alt={s.titulo} />
-            ) : s.texto ? (
-              <div className="sem-imagem">
-                <span className={s.erro ? "erro" : ""}>
-                  {s.aGerarImagem ? "A gerar imagem…" : s.erro ?? "Sem imagem"}
-                </span>
-                {!s.aGerarImagem && s.prompt && (
-                  <button className="secundario" onClick={() => gerarImagem(i, s.prompt!)}>
-                    Gerar imagem de novo
-                  </button>
-                )}
+      <div className="flex min-w-0 flex-1 flex-col px-4 py-4 sm:px-6 lg:px-8">
+        <TopBar
+          onOpenMobileMenu={() => setMobileMenuOpen(true)}
+          notificacoes={notificacoes}
+          onMarcarLidas={() =>
+            setNotificacoes((prev) => prev.map((n) => ({ ...n, lida: true })))
+          }
+          onNavigate={setActiveTab}
+        />
+
+        <div className="mx-auto w-full max-w-[1360px] space-y-5 pb-10">
+          <HeroBanner />
+
+          {activeTab === "inicio" && (
+            <div className="grid grid-cols-1 gap-5 xl:grid-cols-[410px_minmax(0,1fr)] items-start">
+              <div className="xl:sticky xl:top-5">
+                <ArticleConfigForm
+                  tema={tema}
+                  onChangeTema={setTema}
+                  palavrasChave={palavrasChave}
+                  onChangePalavrasChave={setPalavrasChave}
+                  descricao={descricao}
+                  onChangeDescricao={setDescricao}
+                  tom={tom}
+                  onChangeTom={setTom}
+                  idioma={idioma}
+                  onChangeIdioma={setIdioma}
+                  faixaPalavras={faixaPalavras}
+                  onChangeFaixaPalavras={setFaixaPalavras}
+                  incluirImagens={incluirImagens}
+                  onChangeIncluirImagens={setIncluirImagens}
+                  ocupado={ocupado}
+                  onGerar={gerarArtigo}
+                  onCancelar={cancelarGeracao}
+                />
               </div>
-            ) : null}
-            {s.texto
-              ? s.texto.split(/\n\s*\n/).map((p, k) => <p key={k}>{p}</p>)
-              : ocupado && <p className="vazio">A aguardar…</p>}
-          </section>
-        ))}
-      </article>
-    </main>
+
+              <ArticleWorkspace
+                titulo={titulo}
+                descricao={descricao}
+                palavrasChave={palavrasChave}
+                tom={tom}
+                idioma={idioma}
+                alvoPalavras={faixaAtual.alvoPalavras}
+                secoes={secoes}
+                estado={estado}
+                erroGeral={erroGeral}
+                ocupado={ocupado}
+                favorito={artigoAtualObj?.favorito ?? false}
+                temArtigoSalvo={Boolean(artigoAtualObj)}
+                onToggleFavorito={() => {
+                  if (artigoAtualId) toggleFavoritoPorId(artigoAtualId);
+                }}
+                onUpdateTitulo={handleUpdateTitulo}
+                onUpdateSecao={atualizarSecao}
+                onAddSecao={handleAddSecao}
+                onRemoveSecao={handleRemoveSecao}
+                onRegenerarImagem={(i, prompt) => gerarImagemSecao(i, prompt)}
+                onExportarHtml={() => {
+                  downloadArtigoHtml(titulo, descricao, secoes);
+                  registrarNotificacao("HTML descarregado", titulo);
+                }}
+                onAplicarSugestao={(t, tags, desc) => {
+                  setTema(t);
+                  setPalavrasChave(tags);
+                  setDescricao(desc);
+                }}
+              />
+            </div>
+          )}
+
+          {(activeTab === "artigos" || activeTab === "favoritos") && (
+            <ArticlesListView
+              apenasFavoritos={activeTab === "favoritos"}
+              artigos={artigosSalvos}
+              onAbrirArtigo={abrirArtigoSalvo}
+              onToggleFavorito={toggleFavoritoPorId}
+              onExcluirArtigo={(id) => {
+                persistirArtigos(artigosSalvos.filter((a) => a.id !== id));
+                if (artigoAtualId === id) setArtigoAtualId(null);
+              }}
+              onBaixarHtml={(a) =>
+                downloadArtigoHtml(a.titulo, a.descricao, a.secoes)
+              }
+              onIrParaInicio={() => setActiveTab("inicio")}
+            />
+          )}
+
+          {activeTab === "estatisticas" && (
+            <StatisticsView
+              artigos={artigosSalvos}
+              onAbrirArtigo={abrirArtigoSalvo}
+            />
+          )}
+
+          {activeTab === "configuracoes" && (
+            <SettingsView
+              config={configPadrao}
+              onSaveConfig={salvarConfigPadrao}
+              onLimparHistorico={() => {
+                persistirArtigos([]);
+                setArtigoAtualId(null);
+              }}
+              totalArtigos={artigosSalvos.length}
+            />
+          )}
+        </div>
+      </div>
+
+      <InfoModal tipo={modalTipo} onClose={() => setModalTipo(null)} />
+    </div>
   );
 }

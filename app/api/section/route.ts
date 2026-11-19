@@ -3,15 +3,36 @@ import { chat, MODELO_TEXTO } from "@/lib/openrouter";
 
 export async function POST(req: Request) {
   try {
-    const { titulo, indice, secao, resumo, palavras } = await req.json();
+    const {
+      titulo,
+      indice,
+      secao,
+      resumo,
+      palavras,
+      tom = "Informativo e Didático",
+      idioma = "Português (Brasil)",
+      palavrasChave = [],
+      descricao = "",
+    } = await req.json();
+
+    const extras = [
+      descricao ? `Enquadramento geral: ${descricao}.` : "",
+      `Tom desejado: ${tom}.`,
+      Array.isArray(palavrasChave) && palavrasChave.length > 0
+        ? `Quando fizer sentido, integra naturalmente estas palavras-chave: ${palavrasChave.join(", ")}.`
+        : "",
+    ]
+      .filter(Boolean)
+      .join("\n");
 
     const data = await chat({
       model: MODELO_TEXTO,
       messages: [
         {
           role: "user",
-          content: `Estás a escrever o artigo "${titulo}" em português.
+          content: `Estás a escrever o artigo "${titulo}" em ${idioma}.
 Estrutura completa: ${indice.join(" | ")}.
+${extras}
 ${resumo ? `O que já foi escrito (não repitas):\n${resumo}\n` : ""}
 Escreve agora APENAS a secção "${secao.titulo}". Objectivo: ${secao.objetivo}.
 Escreve cerca de ${palavras} palavras, em parágrafos corridos separados por linha em branco, sem título e sem listas.

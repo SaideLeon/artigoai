@@ -3,14 +3,33 @@ import { chat, MODELO_TEXTO } from "@/lib/openrouter";
 
 export async function POST(req: Request) {
   try {
-    const { tema, secoes = 7 } = await req.json();
+    const {
+      tema,
+      secoes = 7,
+      descricao = "",
+      palavrasChave = [],
+      tom = "Informativo e Didático",
+      idioma = "Português (Brasil)",
+    } = await req.json();
+
+    const extras = [
+      descricao ? `Descrição/foco: "${descricao}".` : "",
+      Array.isArray(palavrasChave) && palavrasChave.length > 0
+        ? `Palavras-chave a integrar naturalmente: ${palavrasChave.join(", ")}.`
+        : "",
+      `Tom do texto: ${tom}.`,
+      `Idioma do artigo: ${idioma}.`,
+    ]
+      .filter(Boolean)
+      .join("\n");
 
     const data = await chat({
       model: MODELO_TEXTO,
       messages: [
         {
           role: "user",
-          content: `Cria o esboço de um artigo em português sobre: "${tema}".
+          content: `Cria o esboço de um artigo em ${idioma} sobre: "${tema}".
+${extras}
 Responde APENAS com JSON válido, sem texto antes ou depois, neste formato:
 {"titulo": "...", "secoes": [{"titulo": "...", "objetivo": "o que esta secção deve explicar, numa frase"}]}
 O artigo deve ter exactamente ${secoes} secções.`,
