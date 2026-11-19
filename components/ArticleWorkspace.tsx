@@ -18,9 +18,11 @@ import {
   Sparkles,
   Loader2,
   BookOpen,
+  ExternalLink,
+  SearchCheck,
 } from "lucide-react";
 import { motion } from "motion/react";
-import type { Secao, WorkspaceTab } from "@/lib/types";
+import type { FontePesquisa, Secao, WorkspaceTab } from "@/lib/types";
 
 type ArticleWorkspaceProps = {
   titulo: string;
@@ -29,6 +31,8 @@ type ArticleWorkspaceProps = {
   tom: string;
   idioma: string;
   primeiraPessoa: boolean;
+  pesquisaUsada: boolean;
+  fontes: FontePesquisa[];
   alvoPalavras: number;
   secoes: Secao[];
   estado: string;
@@ -76,6 +80,8 @@ export default function ArticleWorkspace({
   tom,
   idioma,
   primeiraPessoa,
+  pesquisaUsada,
+  fontes,
   alvoPalavras,
   secoes,
   estado,
@@ -402,6 +408,16 @@ export default function ArticleWorkspace({
               <span>
                 {primeiraPessoa ? "Primeira pessoa" : "Terceira pessoa"}
               </span>
+              {pesquisaUsada && (
+                <>
+                  <span aria-hidden="true">·</span>
+                  <span className="inline-flex items-center gap-1 font-medium text-indigo-700">
+                    <SearchCheck className="h-3.5 w-3.5" />
+                    Pesquisa web
+                    {fontes.length > 0 ? ` (${fontes.length} fontes)` : ""}
+                  </span>
+                </>
+              )}
             </div>
 
             {/* Sections */}
@@ -481,6 +497,32 @@ export default function ArticleWorkspace({
                 </section>
               ))}
             </div>
+
+            {fontes.length > 0 && (
+              <aside className="mt-10 border-t border-slate-200 pt-6">
+                <h3 className="text-sm font-bold text-slate-900">
+                  Fontes consultadas na web
+                </h3>
+                <ol className="mt-3 space-y-2 text-xs text-slate-600">
+                  {fontes.map((fonte, idx) => (
+                    <li key={fonte.url} className="flex items-start gap-2">
+                      <span className="font-mono text-slate-400 tabular-nums">
+                        {idx + 1}.
+                      </span>
+                      <a
+                        href={fonte.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1 font-medium text-indigo-700 hover:underline break-all"
+                      >
+                        <span>{fonte.titulo}</span>
+                        <ExternalLink className="h-3 w-3 shrink-0" />
+                      </a>
+                    </li>
+                  ))}
+                </ol>
+              </aside>
+            )}
           </motion.article>
         ) : tab === "editor" ? (
           /* EDITOR TAB */

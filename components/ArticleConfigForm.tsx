@@ -16,12 +16,14 @@ import {
   Square,
   Asterisk,
   UserCheck,
+  Search,
 } from "lucide-react";
 import {
   FAIXAS_PALAVRAS,
   TONS_TEXTO,
   IDIOMAS,
   type FaixaPalavrasId,
+  type ModoPesquisa,
 } from "@/lib/types";
 
 type ArticleConfigFormProps = {
@@ -41,6 +43,8 @@ type ArticleConfigFormProps = {
   onChangeIncluirImagens: (val: boolean) => void;
   primeiraPessoa: boolean;
   onChangePrimeiraPessoa: (val: boolean) => void;
+  pesquisaWeb: ModoPesquisa;
+  onChangePesquisaWeb: (val: ModoPesquisa) => void;
   ocupado: boolean;
   onGerar: () => void;
   onCancelar: () => void;
@@ -63,6 +67,8 @@ export default function ArticleConfigForm({
   onChangeIncluirImagens,
   primeiraPessoa,
   onChangePrimeiraPessoa,
+  pesquisaWeb,
+  onChangePesquisaWeb,
   ocupado,
   onGerar,
   onCancelar,
@@ -335,6 +341,32 @@ export default function ArticleConfigForm({
               }`}
             />
           </button>
+        </div>
+
+        {/* Pesquisa na web */}
+        <div className="pt-0.5">
+          <label
+            htmlFor="campo-pesquisa-web"
+            className="mb-1.5 flex items-center gap-1.5 text-[13px] font-semibold text-slate-800"
+          >
+            <Search className="h-3.5 w-3.5 text-indigo-600" />
+            <span>Pesquisa na web</span>
+          </label>
+          <select
+            id="campo-pesquisa-web"
+            value={pesquisaWeb}
+            disabled={ocupado}
+            onChange={(e) =>
+              onChangePesquisaWeb(e.target.value as ModoPesquisa)
+            }
+            className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-3.5 py-2.5 text-sm font-medium text-slate-800 transition-colors focus:border-indigo-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/15 disabled:opacity-60"
+          >
+            <option value="auto">
+              Automática (se informativo ou notícia)
+            </option>
+            <option value="sempre">Sempre pesquisar fontes atuais</option>
+            <option value="desativada">Desativada</option>
+          </select>
         </div>
 
         {/* Submit / Cancel CTA */}

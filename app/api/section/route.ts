@@ -14,6 +14,7 @@ export async function POST(req: Request) {
       palavrasChave = [],
       descricao = "",
       primeiraPessoa = false,
+      contextoPesquisa = "",
     } = await req.json();
 
     const extras = [
@@ -24,6 +25,9 @@ export async function POST(req: Request) {
         : `Perspectiva narrativa: escreve em terceira pessoa ou forma impessoal, evitando o uso de "eu", "meu" ou "minha".`,
       Array.isArray(palavrasChave) && palavrasChave.length > 0
         ? `Quando fizer sentido, integra naturalmente estas palavras-chave: ${palavrasChave.join(", ")}.`
+        : "",
+      contextoPesquisa
+        ? `\nInformação pesquisada na web (usa estes factos, datas e dados com rigor, sem inventar estatísticas):\n${contextoPesquisa}`
         : "",
     ]
       .filter(Boolean)

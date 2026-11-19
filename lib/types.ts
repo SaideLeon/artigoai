@@ -46,11 +46,19 @@ export const FAIXAS_PALAVRAS: FaixaPalavrasOpcao[] = [
 
 export const TONS_TEXTO = [
   "Informativo e Didático",
+  "Notícia e Atualidade",
+  "Jornalístico e Analítico",
   "Profissional e Corporativo",
   "Conversacional e Acessível",
-  "Jornalístico e Analítico",
   "Persuasivo e Marketing",
 ] as const;
+
+export type ModoPesquisa = "auto" | "sempre" | "desativada";
+
+export type FontePesquisa = {
+  titulo: string;
+  url: string;
+};
 
 export const IDIOMAS = [
   { id: "Português (Brasil)", label: "Português (Brasil)", codigo: "pt-BR" },
@@ -70,6 +78,8 @@ export type ArtigoSalvo = {
   idioma: string;
   faixaPalavras: FaixaPalavrasId;
   primeiraPessoa?: boolean;
+  pesquisaUsada?: boolean;
+  fontes?: FontePesquisa[];
   secoes: Secao[];
   criadoEm: string;
   favorito: boolean;
@@ -82,6 +92,7 @@ export type ConfiguracoesPadrao = {
   faixaPalavrasPadrao: FaixaPalavrasId;
   incluirImagensPadrao: boolean;
   primeiraPessoaPadrao?: boolean;
+  pesquisaWebPadrao?: ModoPesquisa;
 };
 
 export type NavTab =

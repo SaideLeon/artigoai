@@ -17,6 +17,8 @@ import {
   type ArtigoSalvo,
   type ConfiguracoesPadrao,
   type FaixaPalavrasId,
+  type FontePesquisa,
+  type ModoPesquisa,
   type NavTab,
   type NotificacaoItem,
   type Secao,
@@ -31,6 +33,7 @@ const DEFAULT_CONFIG: ConfiguracoesPadrao = {
   faixaPalavrasPadrao: "2000-2500",
   incluirImagensPadrao: true,
   primeiraPessoaPadrao: false,
+  pesquisaWebPadrao: "auto",
 };
 
 async function postJson(
@@ -67,7 +70,8 @@ function contarPalavras(secoes: Secao[]) {
 function downloadArtigoHtml(
   titulo: string,
   descricao: string,
-  secoes: Secao[]
+  secoes: Secao[],
+  fontes: FontePesquisa[] = []
 ) {
   const corpo = secoes
     .map(
@@ -88,6 +92,20 @@ function downloadArtigoHtml(
     )
     .join("");
 
+  const fontesHtml =
+    fontes.length > 0
+      ? `<section style="margin-top:2.5rem;padding-top:1.25rem;border-top:1px solid #e2e8f0"><h3 style="font-size:1rem">Fontes consultadas</h3><ol style="font-size:0.9rem;color:#475569">${fontes
+          .map(
+            (f) =>
+              `<li><a href="${escapeHtml(
+                f.url
+              )}" target="_blank" rel="noopener noreferrer">${escapeHtml(
+                f.titulo
+              )}</a></li>`
+          )
+          .join("")}</ol></section>`
+      : "";
+
   const html = `<!doctype html><html lang="pt"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${escapeHtml(
     titulo
   )}</title></head><body style="max-width:760px;margin:2.5rem auto;padding:0 1.25rem;font-family:Georgia,serif;line-height:1.78;color:#1e293b"><h1>${escapeHtml(
@@ -96,7 +114,7 @@ function downloadArtigoHtml(
     descricao
       ? `<p style="font-size:1.1rem;color:#475569">${escapeHtml(descricao)}</p>`
       : ""
-  }${corpo}</body></html>`;
+  }${corpo}${fontesHtml}</body></html>`;
 
   const slug =
     titulo
@@ -134,11 +152,16 @@ export default function Home() {
   const [primeiraPessoa, setPrimeiraPessoa] = useState<boolean>(
     Boolean(DEFAULT_CONFIG.primeiraPessoaPadrao)
   );
+  const [pesquisaWeb, setPesquisaWeb] = useState<ModoPesquisa>(
+    DEFAULT_CONFIG.pesquisaWebPadrao ?? "auto"
+  );
 
   // Active article workspace state
   const [artigoAtualId, setArtigoAtualId] = useState<string | null>(null);
   const [titulo, setTitulo] = useState("");
   const [secoes, setSecoes] = useState<Secao[]>([]);
+  const [fontes, setFontes] = useState<FontePesquisa[]>([]);
+  const [pesquisaUsada, setPesquisaUsada] = useState(false);
   const [estado, setEstado] = useState("");
   const [erroGeral, setErroGeral] = useState("");
   const [ocupado, setOcupado] = useState(false);
@@ -170,6 +193,7 @@ export default function Home() {
           setFaixaPalavras(parsed.faixaPalavrasPadrao);
           setIncluirImagens(parsed.incluirImagensPadrao);
           setPrimeiraPessoa(Boolean(parsed.primeiraPessoaPadrao));
+          setPesquisaWeb(parsed.pesquisaWebPadrao ?? "auto");
         }
       } catch {
         // Ignora erro de localStorage indisponível
@@ -263,9 +287,36 @@ export default function Home() {
     setErroGeral("");
     setSecoes([]);
     setTitulo("");
+    setFontes([]);
+    setPesquisaUsada(false);
     setArtigoAtualId(null);
 
     try {
+      let contextoPesquisa = "";
+      let fontesPesquisadas: FontePesquisa[] = [];
+      let usouPesquisa = false;
+
+      if (pesquisaWeb !== "desativada") {
+        setEstado("A avaliar e pesquisar fontes atualizadas na web…");
+        const resPesquisa = await postJson(
+          "/api/research",
+          {
+            tema: tema.trim(),
+            descricao: descricao.trim(),
+            palavrasChave,
+            tom,
+            idioma,
+            modo: pesquisaWeb,
+          },
+          controller.signal
+        );
+        usouPesquisa = Boolean(resPesquisa.pesquisou);
+        contextoPesquisa = resPesquisa.resumoPesquisa ?? "";
+        fontesPesquisadas = resPesquisa.fontes ?? [];
+        setPesquisaUsada(usouPesquisa);
+        setFontes(fontesPesquisadas);
+      }
+
       setEstado("A criar o esboço estruturado…");
       const esb = await postJson(
         "/api/outline",
@@ -277,6 +328,7 @@ export default function Home() {
           tom,
           idioma,
           primeiraPessoa,
+          contextoPesquisa,
         },
         controller.signal
       );
@@ -305,6 +357,7 @@ export default function Home() {
             palavrasChave,
             descricao: descricao.trim(),
             primeiraPessoa,
+            contextoPesquisa,
           },
           controller.signal
         );
@@ -336,6 +389,8 @@ export default function Home() {
           idioma,
           faixaPalavras,
           primeiraPessoa,
+          pesquisaUsada: usouPesquisa,
+          fontes: fontesPesquisadas,
           secoes: lista,
           criadoEm: new Date().toISOString(),
           favorito: false,
@@ -422,6 +477,8 @@ export default function Home() {
     setIdioma(artigo.idioma);
     setFaixaPalavras(artigo.faixaPalavras);
     setPrimeiraPessoa(Boolean(artigo.primeiraPessoa));
+    setPesquisaUsada(Boolean(artigo.pesquisaUsada));
+    setFontes(artigo.fontes ?? []);
     setSecoes(artigo.secoes);
     setArtigoAtualId(artigo.id);
     setEstado("Artigo carregado do histórico.");
@@ -436,6 +493,7 @@ export default function Home() {
     setFaixaPalavras(nova.faixaPalavrasPadrao);
     setIncluirImagens(nova.incluirImagensPadrao);
     setPrimeiraPessoa(Boolean(nova.primeiraPessoaPadrao));
+    setPesquisaWeb(nova.pesquisaWebPadrao ?? "auto");
     try {
       localStorage.setItem(STORAGE_CONFIG, JSON.stringify(nova));
     } catch {
@@ -491,6 +549,8 @@ export default function Home() {
                   onChangeIncluirImagens={setIncluirImagens}
                   primeiraPessoa={primeiraPessoa}
                   onChangePrimeiraPessoa={setPrimeiraPessoa}
+                  pesquisaWeb={pesquisaWeb}
+                  onChangePesquisaWeb={setPesquisaWeb}
                   ocupado={ocupado}
                   onGerar={gerarArtigo}
                   onCancelar={cancelarGeracao}
@@ -504,6 +564,8 @@ export default function Home() {
                 tom={tom}
                 idioma={idioma}
                 primeiraPessoa={primeiraPessoa}
+                pesquisaUsada={pesquisaUsada}
+                fontes={fontes}
                 alvoPalavras={faixaAtual.alvoPalavras}
                 secoes={secoes}
                 estado={estado}
@@ -520,7 +582,7 @@ export default function Home() {
                 onRemoveSecao={handleRemoveSecao}
                 onRegenerarImagem={(i, prompt) => gerarImagemSecao(i, prompt)}
                 onExportarHtml={() => {
-                  downloadArtigoHtml(titulo, descricao, secoes);
+                  downloadArtigoHtml(titulo, descricao, secoes, fontes);
                   registrarNotificacao("HTML descarregado", titulo);
                 }}
                 onAplicarSugestao={(t, tags, desc) => {
@@ -543,7 +605,7 @@ export default function Home() {
                 if (artigoAtualId === id) setArtigoAtualId(null);
               }}
               onBaixarHtml={(a) =>
-                downloadArtigoHtml(a.titulo, a.descricao, a.secoes)
+                downloadArtigoHtml(a.titulo, a.descricao, a.secoes, a.fontes ?? [])
               }
               onIrParaInicio={() => setActiveTab("inicio")}
             />

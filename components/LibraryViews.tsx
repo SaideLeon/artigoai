@@ -20,6 +20,7 @@ import {
   type ArtigoSalvo,
   type ConfiguracoesPadrao,
   type FaixaPalavrasId,
+  type ModoPesquisa,
 } from "@/lib/types";
 
 type ArticlesListViewProps = {
@@ -432,7 +433,7 @@ export function SettingsView({
           </button>
         </div>
 
-        <div className="flex items-center justify-between rounded-xl border border-slate-200 px-3.5 py-2.5 sm:col-span-2">
+        <div className="flex items-center justify-between rounded-xl border border-slate-200 px-3.5 py-2.5">
           <span className="text-xs font-semibold text-slate-800">
             Escrever em primeira pessoa por padrão
           </span>
@@ -456,6 +457,26 @@ export function SettingsView({
               }`}
             />
           </button>
+        </div>
+
+        <div>
+          <label className="mb-1.5 block text-xs font-semibold text-slate-700">
+            Pesquisa web padrão
+          </label>
+          <select
+            value={draft.pesquisaWebPadrao ?? "auto"}
+            onChange={(e) =>
+              setDraft({
+                ...draft,
+                pesquisaWebPadrao: e.target.value as ModoPesquisa,
+              })
+            }
+            className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-800 focus:border-indigo-500 focus:bg-white focus:outline-none"
+          >
+            <option value="auto">Automática (informativo/notícia)</option>
+            <option value="sempre">Sempre pesquisar</option>
+            <option value="desativada">Desativada</option>
+          </select>
         </div>
       </div>
 

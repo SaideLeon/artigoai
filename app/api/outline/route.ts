@@ -11,6 +11,7 @@ export async function POST(req: Request) {
       tom = "Informativo e Didático",
       idioma = "Português (Brasil)",
       primeiraPessoa = false,
+      contextoPesquisa = "",
     } = await req.json();
 
     const extras = [
@@ -23,6 +24,9 @@ export async function POST(req: Request) {
       primeiraPessoa
         ? `Perspectiva narrativa: estrutura o artigo em primeira pessoa do singular ("eu", "minha experiência", "o que aprendi").`
         : `Perspectiva narrativa: estrutura o artigo em terceira pessoa / forma impessoal, sem usar "eu" ou "meu".`,
+      contextoPesquisa
+        ? `\nContexto factual pesquisado na web (usa estes factos e dados atualizados para estruturar as secções):\n${contextoPesquisa}`
+        : "",
     ]
       .filter(Boolean)
       .join("\n");
