@@ -165,6 +165,9 @@ export default function Home() {
   const [estado, setEstado] = useState("");
   const [erroGeral, setErroGeral] = useState("");
   const [ocupado, setOcupado] = useState(false);
+  const [sugerindo, setSugerindo] = useState(false);
+  const [erroSugestao, setErroSugestao] = useState("");
+  const [descricaoSugerida, setDescricaoSugerida] = useState(false);
 
   // Library & settings state
   const [artigosSalvos, setArtigosSalvos] = useState<ArtigoSalvo[]>([]);
@@ -278,6 +281,35 @@ export default function Home() {
   const faixaAtual =
     FAIXAS_PALAVRAS.find((f) => f.id === faixaPalavras) ?? FAIXAS_PALAVRAS[2];
 
+  async function sugerirComIa() {
+    if (tema.trim().length < 3 || ocupado || sugerindo) return;
+    setSugerindo(true);
+    setErroSugestao("");
+    try {
+      const sug = await postJson("/api/suggest", {
+        tema: tema.trim(),
+        idioma,
+      });
+      if (Array.isArray(sug.palavrasChave)) {
+        setPalavrasChave(sug.palavrasChave);
+      }
+      if (typeof sug.descricao === "string") {
+        setDescricao(sug.descricao);
+        setDescricaoSugerida(Boolean(sug.descricao));
+      }
+      if (sug.tom) setTom(sug.tom);
+      if (sug.faixaPalavras) setFaixaPalavras(sug.faixaPalavras);
+      if (typeof sug.primeiraPessoa === "boolean") {
+        setPrimeiraPessoa(sug.primeiraPessoa);
+      }
+      if (sug.pesquisaWeb) setPesquisaWeb(sug.pesquisaWeb);
+    } catch (e) {
+      setErroSugestao((e as Error).message);
+    } finally {
+      setSugerindo(false);
+    }
+  }
+
   async function gerarArtigo() {
     if (!tema.trim() || ocupado) return;
     const controller = new AbortController();
@@ -285,6 +317,7 @@ export default function Home() {
 
     setOcupado(true);
     setErroGeral("");
+    setErroSugestao("");
     setSecoes([]);
     setTitulo("");
     setFontes([]);
@@ -292,21 +325,74 @@ export default function Home() {
     setArtigoAtualId(null);
 
     try {
+      let descEfetiva = descricao.trim();
+      let tagsEfetivas = palavrasChave;
+      let tomEfetivo = tom;
+      let faixaEfetiva = faixaAtual;
+      let primeiraPessoaEfetiva = primeiraPessoa;
+      let pesquisaEfetiva = pesquisaWeb;
+
+      // Se o utilizador inseriu apenas o título principal (sem descrição nem palavras-chave),
+      // a IA sugere automaticamente os restantes parâmetros antes de gerar o artigo.
+      if (!descEfetiva && tagsEfetivas.length === 0) {
+        try {
+          setEstado("A sugerir descrição, palavras-chave e estilo com IA…");
+          const sug = await postJson(
+            "/api/suggest",
+            { tema: tema.trim(), idioma },
+            controller.signal
+          );
+          if (Array.isArray(sug.palavrasChave) && sug.palavrasChave.length > 0) {
+            tagsEfetivas = sug.palavrasChave;
+            setPalavrasChave(tagsEfetivas);
+          }
+          if (typeof sug.descricao === "string" && sug.descricao.trim()) {
+            descEfetiva = sug.descricao.trim();
+            setDescricao(descEfetiva);
+            setDescricaoSugerida(true);
+          }
+          if (sug.tom) {
+            tomEfetivo = sug.tom;
+            setTom(tomEfetivo);
+          }
+          if (sug.faixaPalavras) {
+            const encontrada = FAIXAS_PALAVRAS.find(
+              (f) => f.id === sug.faixaPalavras
+            );
+            if (encontrada) {
+              faixaEfetiva = encontrada;
+              setFaixaPalavras(encontrada.id);
+            }
+          }
+          if (typeof sug.primeiraPessoa === "boolean") {
+            primeiraPessoaEfetiva = sug.primeiraPessoa;
+            setPrimeiraPessoa(primeiraPessoaEfetiva);
+          }
+          if (sug.pesquisaWeb) {
+            pesquisaEfetiva = sug.pesquisaWeb;
+            setPesquisaWeb(pesquisaEfetiva);
+          }
+        } catch (sugErr) {
+          if ((sugErr as Error).name === "AbortError") throw sugErr;
+          // Continua normalmente caso a sugestão automática falhe
+        }
+      }
+
       let contextoPesquisa = "";
       let fontesPesquisadas: FontePesquisa[] = [];
       let usouPesquisa = false;
 
-      if (pesquisaWeb !== "desativada") {
+      if (pesquisaEfetiva !== "desativada") {
         setEstado("A avaliar e pesquisar fontes atualizadas na web…");
         const resPesquisa = await postJson(
           "/api/research",
           {
             tema: tema.trim(),
-            descricao: descricao.trim(),
-            palavrasChave,
-            tom,
+            descricao: descEfetiva,
+            palavrasChave: tagsEfetivas,
+            tom: tomEfetivo,
             idioma,
-            modo: pesquisaWeb,
+            modo: pesquisaEfetiva,
           },
           controller.signal
         );
@@ -322,12 +408,12 @@ export default function Home() {
         "/api/outline",
         {
           tema: tema.trim(),
-          secoes: faixaAtual.numSecoes,
-          descricao: descricao.trim(),
-          palavrasChave,
-          tom,
+          secoes: faixaEfetiva.numSecoes,
+          descricao: descEfetiva,
+          palavrasChave: tagsEfetivas,
+          tom: tomEfetivo,
           idioma,
-          primeiraPessoa,
+          primeiraPessoa: primeiraPessoaEfetiva,
           contextoPesquisa,
         },
         controller.signal
@@ -337,7 +423,7 @@ export default function Home() {
       setTitulo(esb.titulo);
       setSecoes(lista);
 
-      const alvoPorSecao = Math.ceil(faixaAtual.alvoPalavras / lista.length);
+      const alvoPorSecao = Math.ceil(faixaEfetiva.alvoPalavras / lista.length);
       let resumo = "";
 
       for (let i = 0; i < lista.length; i++) {
@@ -352,11 +438,11 @@ export default function Home() {
             secao: lista[i],
             resumo,
             palavras: alvoPorSecao,
-            tom,
+            tom: tomEfetivo,
             idioma,
-            palavrasChave,
-            descricao: descricao.trim(),
-            primeiraPessoa,
+            palavrasChave: tagsEfetivas,
+            descricao: descEfetiva,
+            primeiraPessoa: primeiraPessoaEfetiva,
             contextoPesquisa,
           },
           controller.signal
@@ -383,12 +469,12 @@ export default function Home() {
           id: novoId,
           tema: tema.trim(),
           titulo: esb.titulo,
-          descricao: descricao.trim(),
-          palavrasChave,
-          tom,
+          descricao: descEfetiva,
+          palavrasChave: tagsEfetivas,
+          tom: tomEfetivo,
           idioma,
-          faixaPalavras,
-          primeiraPessoa,
+          faixaPalavras: faixaEfetiva.id,
+          primeiraPessoa: primeiraPessoaEfetiva,
           pesquisaUsada: usouPesquisa,
           fontes: fontesPesquisadas,
           secoes: lista,
@@ -483,6 +569,8 @@ export default function Home() {
     setArtigoAtualId(artigo.id);
     setEstado("Artigo carregado do histórico.");
     setErroGeral("");
+    setErroSugestao("");
+    setDescricaoSugerida(false);
     setActiveTab("inicio");
   }
 
@@ -538,7 +626,10 @@ export default function Home() {
                   palavrasChave={palavrasChave}
                   onChangePalavrasChave={setPalavrasChave}
                   descricao={descricao}
-                  onChangeDescricao={setDescricao}
+                  onChangeDescricao={(val) => {
+                    setDescricao(val);
+                    setDescricaoSugerida(false);
+                  }}
                   tom={tom}
                   onChangeTom={setTom}
                   idioma={idioma}
@@ -551,6 +642,10 @@ export default function Home() {
                   onChangePrimeiraPessoa={setPrimeiraPessoa}
                   pesquisaWeb={pesquisaWeb}
                   onChangePesquisaWeb={setPesquisaWeb}
+                  sugerindo={sugerindo}
+                  erroSugestao={erroSugestao}
+                  descricaoSugerida={descricaoSugerida}
+                  onSugerirComIa={sugerirComIa}
                   ocupado={ocupado}
                   onGerar={gerarArtigo}
                   onCancelar={cancelarGeracao}

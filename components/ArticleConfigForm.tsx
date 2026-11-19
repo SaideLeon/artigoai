@@ -17,6 +17,7 @@ import {
   Asterisk,
   UserCheck,
   Search,
+  Sparkles,
 } from "lucide-react";
 import {
   FAIXAS_PALAVRAS,
@@ -45,6 +46,10 @@ type ArticleConfigFormProps = {
   onChangePrimeiraPessoa: (val: boolean) => void;
   pesquisaWeb: ModoPesquisa;
   onChangePesquisaWeb: (val: ModoPesquisa) => void;
+  sugerindo: boolean;
+  erroSugestao?: string;
+  descricaoSugerida?: boolean;
+  onSugerirComIa: () => void;
   ocupado: boolean;
   onGerar: () => void;
   onCancelar: () => void;
@@ -69,6 +74,10 @@ export default function ArticleConfigForm({
   onChangePrimeiraPessoa,
   pesquisaWeb,
   onChangePesquisaWeb,
+  sugerindo,
+  erroSugestao,
+  descricaoSugerida,
+  onSugerirComIa,
   ocupado,
   onGerar,
   onCancelar,
@@ -137,10 +146,38 @@ export default function ArticleConfigForm({
             maxLength={100}
             value={tema}
             onChange={(e) => onChangeTema(e.target.value)}
-            disabled={ocupado}
+            disabled={ocupado || sugerindo}
             placeholder="Ex.: Como criar aplicativos Android no Google"
             className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-3.5 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 transition-colors focus:border-indigo-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/15 disabled:opacity-60 dark:border-slate-700 dark:bg-slate-800/70 dark:text-slate-100 dark:placeholder:text-slate-500 dark:focus:bg-slate-800"
           />
+          <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
+            <p className="text-[11px] text-slate-500 dark:text-slate-400">
+              Pode preencher só o título e deixar a IA sugerir o resto.
+            </p>
+            <button
+              type="button"
+              onClick={onSugerirComIa}
+              disabled={ocupado || sugerindo || tema.trim().length < 3}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-indigo-200 bg-indigo-50/80 px-2.5 py-1 text-[11px] font-semibold text-indigo-700 transition-colors hover:bg-indigo-100 disabled:cursor-not-allowed disabled:opacity-45 dark:border-indigo-800/70 dark:bg-indigo-950/60 dark:text-indigo-300 dark:hover:bg-indigo-900/60 whitespace-nowrap shrink-0"
+            >
+              {sugerindo ? (
+                <>
+                  <Loader2 className="h-3 w-3 animate-spin" />
+                  <span>A sugerir…</span>
+                </>
+              ) : (
+                <>
+                  <Sparkles className="h-3 w-3" />
+                  <span>Sugerir opções com IA</span>
+                </>
+              )}
+            </button>
+          </div>
+          {erroSugestao && (
+            <p className="mt-1.5 text-xs text-rose-600 dark:text-rose-400">
+              {erroSugestao}
+            </p>
+          )}
         </div>
 
         {/* Palavras-chave */}
@@ -195,16 +232,23 @@ export default function ArticleConfigForm({
 
         {/* Descrição */}
         <div>
-          <label
-            htmlFor="campo-descricao"
-            className="mb-1.5 flex items-center gap-1.5 text-[13px] font-semibold text-slate-800 dark:text-slate-200"
-          >
-            <AlignLeft className="h-3.5 w-3.5 text-indigo-600 dark:text-indigo-400" />
-            <span>Descrição</span>
-            <span className="font-normal text-slate-400 dark:text-slate-500">
-              (opcional)
-            </span>
-          </label>
+          <div className="mb-1.5 flex items-center justify-between gap-2">
+            <label
+              htmlFor="campo-descricao"
+              className="flex items-center gap-1.5 text-[13px] font-semibold text-slate-800 dark:text-slate-200"
+            >
+              <AlignLeft className="h-3.5 w-3.5 text-indigo-600 dark:text-indigo-400" />
+              <span>Descrição</span>
+              <span className="font-normal text-slate-400 dark:text-slate-500">
+                (opcional)
+              </span>
+            </label>
+            {descricaoSugerida && (
+              <span className="text-[11px] font-medium text-indigo-600 dark:text-indigo-400">
+                Sugerida pela IA · pode editar
+              </span>
+            )}
+          </div>
           <div className="relative">
             <textarea
               id="campo-descricao"
@@ -212,7 +256,7 @@ export default function ArticleConfigForm({
               maxLength={300}
               value={descricao}
               onChange={(e) => onChangeDescricao(e.target.value)}
-              disabled={ocupado}
+              disabled={ocupado || sugerindo}
               placeholder="Guia completo e atualizado para o leitor, destacando pontos-chave e público-alvo..."
               className="w-full resize-none rounded-xl border border-slate-200 bg-slate-50/50 px-3.5 py-2.5 pb-7 text-sm text-slate-900 placeholder:text-slate-400 transition-colors focus:border-indigo-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/15 disabled:opacity-60 dark:border-slate-700 dark:bg-slate-800/70 dark:text-slate-100 dark:placeholder:text-slate-500 dark:focus:bg-slate-800"
             />
