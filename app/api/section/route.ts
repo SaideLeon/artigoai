@@ -13,7 +13,7 @@ export async function POST(req: Request) {
       idioma = "Português (Brasil)",
       palavrasChave = [],
       descricao = "",
-      primeiraPessoa = false,
+      primeiraPessoa = true,
       contextoPesquisa = "",
     } = await req.json();
 

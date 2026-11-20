@@ -32,7 +32,7 @@ const DEFAULT_CONFIG: ConfiguracoesPadrao = {
   idiomaPadrao: "Português (Brasil)",
   faixaPalavrasPadrao: "2000-2500",
   incluirImagensPadrao: true,
-  primeiraPessoaPadrao: false,
+  primeiraPessoaPadrao: true,
   pesquisaWebPadrao: "auto",
 };
 
@@ -189,14 +189,18 @@ export default function Home() {
         }
         const rawConfig = localStorage.getItem(STORAGE_CONFIG);
         if (rawConfig) {
-          const parsed: ConfiguracoesPadrao = JSON.parse(rawConfig);
-          setConfigPadrao(parsed);
-          setTom(parsed.tomPadrao);
-          setIdioma(parsed.idiomaPadrao);
-          setFaixaPalavras(parsed.faixaPalavrasPadrao);
-          setIncluirImagens(parsed.incluirImagensPadrao);
-          setPrimeiraPessoa(Boolean(parsed.primeiraPessoaPadrao));
-          setPesquisaWeb(parsed.pesquisaWebPadrao ?? "auto");
+          const parsed: Partial<ConfiguracoesPadrao> = JSON.parse(rawConfig);
+          const merged: ConfiguracoesPadrao = {
+            ...DEFAULT_CONFIG,
+            ...parsed,
+          };
+          setConfigPadrao(merged);
+          setTom(merged.tomPadrao);
+          setIdioma(merged.idiomaPadrao);
+          setFaixaPalavras(merged.faixaPalavrasPadrao);
+          setIncluirImagens(merged.incluirImagensPadrao);
+          setPrimeiraPessoa(Boolean(merged.primeiraPessoaPadrao));
+          setPesquisaWeb(merged.pesquisaWebPadrao ?? "auto");
         }
       } catch {
         // Ignora erro de localStorage indisponível

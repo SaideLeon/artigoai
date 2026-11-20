@@ -38,7 +38,7 @@ Responde APENAS com JSON válido (sem texto antes ou depois) neste formato exato
   "descricao": "Resumo claro e atrativo do que o artigo deve abordar, em no máximo 260 caracteres, no idioma ${idioma}.",
   "tom": "um dos valores exatos: ${TONS_TEXTO.join(" | ")}",
   "faixaPalavras": "um dos valores exatos: ${FAIXAS_PALAVRAS.map((f) => f.id).join(" | ")}",
-  "primeiraPessoa": false,
+  "primeiraPessoa": true,
   "pesquisaWeb": "auto ou sempre (usa sempre se for notícia, evento recente, dado técnico ou atualidade) ou desativada"
 }`,
         },
@@ -74,7 +74,8 @@ Responde APENAS com JSON válido (sem texto antes ou depois) neste formato exato
       ? (raw.faixaPalavras as FaixaPalavrasId)
       : "2000-2500";
 
-    const primeiraPessoa = Boolean(raw.primeiraPessoa);
+    const primeiraPessoa =
+      typeof raw.primeiraPessoa === "boolean" ? raw.primeiraPessoa : true;
 
     const pesquisaWeb: ModoPesquisa = VALID_PESQUISA.has(raw.pesquisaWeb)
       ? (raw.pesquisaWeb as ModoPesquisa)
