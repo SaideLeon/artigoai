@@ -12,11 +12,10 @@ import {
   FileText,
   Globe,
   Image as ImageIcon,
-  Layers,
   Mail,
   Menu,
   Moon,
-  PenTool,
+  Package,
   Play,
   Search,
   Sliders,
@@ -38,6 +37,13 @@ import type {
   RobotAnimationState,
   RobotExpression,
 } from "@/components/mascot/RobotAnimations";
+import {
+  PRICING_TIERS,
+  USD_TO_BRL,
+  formatCurrency,
+  getPerArticlePrice,
+  type CurrencyCode,
+} from "@/lib/pricing";
 
 type PreviewPresetId = "produtividade" | "noticia" | "seo";
 
@@ -189,7 +195,7 @@ export default function LandingPage() {
   const [presetId, setPresetId] = useState<PreviewPresetId>("produtividade");
   const [activeStep, setActiveStep] = useState<number>(0);
   const [mascotInteractClicks, setMascotInteractClicks] = useState(0);
-  const [billingCycle, setBillingCycle] = useState<"mensal" | "anual">("mensal");
+  const [currency, setCurrency] = useState<CurrencyCode>("BRL");
   const [openFaq, setOpenFaq] = useState<number | null>(0);
 
   // Contact form state
@@ -213,7 +219,7 @@ export default function LandingPage() {
   }
 
   function handleSelectEnterprise() {
-    setAssunto("Plano Empresarial");
+    setAssunto("Pacote Personalizado");
     setFormEnviado(false);
     const el = document.getElementById("contato");
     el?.scrollIntoView({ behavior: "smooth" });
@@ -242,9 +248,6 @@ export default function LandingPage() {
     setEmail("");
     setMensagem("");
   }
-
-  const proPrice = billingCycle === "mensal" ? "29,90" : "23,90";
-  const enterprisePrice = billingCycle === "mensal" ? "79,90" : "63,90";
 
   return (
     <div className="min-h-screen bg-[#F4F6FB] text-slate-900 dark:bg-slate-950 dark:text-slate-100 transition-colors duration-150">
@@ -941,200 +944,178 @@ export default function LandingPage() {
           <div className="mx-auto max-w-[1280px] px-4 sm:px-6 lg:px-8">
             <div className="mx-auto max-w-2xl text-center">
               <h2 className="text-[clamp(1.75rem,2.8vw,2.35rem)] font-bold tracking-tight text-slate-950 dark:text-white text-balance">
-                Planos e Preços
+                Preços por Artigo e Pacotes
               </h2>
               <p className="mt-2.5 text-base text-slate-600 dark:text-slate-400">
-                Escolha o plano ideal para o ritmo de publicação do seu projeto.
+                Pague apenas pelo que produzir — compre 1 artigo avulso ou
+                economize até 32% com pacotes de créditos.
               </p>
 
-              {/* Segmented Billing Cycle Control */}
+              {/* Segmented Currency Switcher */}
               <div className="mt-6 inline-flex items-center gap-1 rounded-xl border border-slate-200 bg-white p-1 dark:border-slate-800 dark:bg-slate-900">
                 <button
                   type="button"
-                  onClick={() => setBillingCycle("mensal")}
+                  onClick={() => setCurrency("BRL")}
                   className={`rounded-lg px-4 py-2 text-xs font-semibold transition-colors whitespace-nowrap shrink-0 ${
-                    billingCycle === "mensal"
+                    currency === "BRL"
                       ? "bg-indigo-600 text-white"
                       : "text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white"
                   }`}
                 >
-                  Mensal
+                  Real (R$)
                 </button>
                 <button
                   type="button"
-                  onClick={() => setBillingCycle("anual")}
+                  onClick={() => setCurrency("USD")}
                   className={`rounded-lg px-4 py-2 text-xs font-semibold transition-colors whitespace-nowrap shrink-0 ${
-                    billingCycle === "anual"
+                    currency === "USD"
                       ? "bg-indigo-600 text-white"
                       : "text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white"
                   }`}
                 >
-                  Anual (20% off)
+                  Dólar (US$)
                 </button>
               </div>
+              <p className="mt-3 text-xs text-slate-500 dark:text-slate-400">
+                Artigos de ~2.500 palavras com até 7 imagens em qualidade 1K ·
+                Cotação de referência: 1 USD = R${" "}
+                {USD_TO_BRL.toLocaleString("pt-BR", {
+                  minimumFractionDigits: 4,
+                  maximumFractionDigits: 4,
+                })}
+              </p>
             </div>
 
-            <div className="mt-10 grid grid-cols-1 gap-6 lg:grid-cols-3">
-              {/* Plano Gratuito */}
-              <div className="flex flex-col justify-between rounded-2xl border border-slate-200/90 bg-white p-7 dark:border-slate-800 dark:bg-slate-900">
-                <div>
-                  <div className="flex items-start justify-between gap-3">
+            <div className="mt-10 grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
+              {PRICING_TIERS.map((tier) => {
+                const isPopular = tier.destaque === "popular";
+                const isBestValue = tier.destaque === "melhor-valor";
+                const totalPrice =
+                  currency === "BRL" ? tier.totalBrl : tier.totalUsd;
+                const altTotal =
+                  currency === "BRL" ? tier.totalUsd : tier.totalBrl;
+                const altCurrency: CurrencyCode =
+                  currency === "BRL" ? "USD" : "BRL";
+                const perArticle = getPerArticlePrice(tier, currency);
+                const Icon = tier.artigos === 1 ? FileText : Package;
+
+                return (
+                  <div
+                    key={tier.id}
+                    className={`flex flex-col justify-between rounded-2xl bg-white p-7 dark:bg-slate-900 ${
+                      isPopular
+                        ? "border-2 border-indigo-600 shadow-lg shadow-indigo-950/10 dark:border-indigo-500"
+                        : isBestValue
+                        ? "border-2 border-blue-500/70 shadow-md shadow-blue-950/5 dark:border-blue-400/70"
+                        : "border border-slate-200/90 dark:border-slate-800"
+                    }`}
+                  >
                     <div>
-                      <h3 className="text-lg font-bold text-slate-900 dark:text-white">
-                        Plano Gratuito
-                      </h3>
-                      <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-                        Perfeito para começar e testar o fluxo completo
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          {isPopular && (
+                            <span className="mb-0.5 block text-xs font-semibold text-indigo-600 dark:text-indigo-400">
+                              Mais popular
+                            </span>
+                          )}
+                          {isBestValue && (
+                            <span className="mb-0.5 block text-xs font-semibold text-blue-600 dark:text-blue-400">
+                              Melhor custo-benefício
+                            </span>
+                          )}
+                          <h3 className="text-lg font-bold text-slate-900 dark:text-white">
+                            {tier.nome}
+                          </h3>
+                          <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                            {tier.descricao}
+                          </p>
+                        </div>
+                        <Icon className="h-5 w-5 shrink-0 text-indigo-600 dark:text-indigo-400" />
+                      </div>
+
+                      <div className="mt-6 flex items-baseline gap-2">
+                        <span className="font-mono text-3xl font-bold text-slate-950 dark:text-white tabular-nums">
+                          {formatCurrency(totalPrice, currency)}
+                        </span>
+                        <span className="text-xs font-medium text-slate-500 dark:text-slate-400">
+                          /{" "}
+                          {tier.artigos === 1
+                            ? "1 artigo"
+                            : `${tier.artigos} artigos`}
+                        </span>
+                      </div>
+
+                      <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">
+                        <span className="font-semibold text-slate-700 dark:text-slate-200 tabular-nums">
+                          {formatCurrency(perArticle, currency)} por artigo
+                        </span>
+                        {tier.descontoPct > 0 ? (
+                          <span className="font-semibold text-emerald-600 dark:text-emerald-400">
+                            · {tier.descontoPct}% off vs. avulso
+                          </span>
+                        ) : (
+                          <span className="text-slate-500 dark:text-slate-400">
+                            · Compra avulsa sem assinatura
+                          </span>
+                        )}
+                      </div>
+
+                      <p className="mt-1 text-[11px] text-slate-400 dark:text-slate-500 tabular-nums">
+                        Equivalente a {formatCurrency(altTotal, altCurrency)}
                       </p>
+
+                      <ul className="mt-6 space-y-2.5 text-sm text-slate-600 dark:text-slate-300">
+                        <li className="flex items-center gap-2.5">
+                          <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
+                          <span>
+                            {tier.artigos === 1
+                              ? "1 artigo completo (~2.500 palavras)"
+                              : `${tier.artigos} créditos de artigo (~2.500 palavras cada)`}
+                          </span>
+                        </li>
+                        <li className="flex items-center gap-2.5">
+                          <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
+                          <span>Até 7 imagens em qualidade 1K por artigo</span>
+                        </li>
+                        <li className="flex items-center gap-2.5">
+                          <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
+                          <span>Pesquisa web, SEO e exportação HTML</span>
+                        </li>
+                      </ul>
                     </div>
-                    <FileText className="h-5 w-5 shrink-0 text-indigo-600 dark:text-indigo-400" />
+
+                    <Link
+                      href={`/studio?pacote=${tier.id}`}
+                      className={`mt-8 inline-flex w-full items-center justify-center rounded-xl px-4 py-3 text-sm font-semibold transition-all whitespace-nowrap ${
+                        isPopular
+                          ? "bg-gradient-to-r from-[#5B4AF4] to-[#2563EB] text-white shadow-md shadow-indigo-600/20 hover:brightness-110"
+                          : "border border-indigo-600/30 bg-indigo-50/60 text-indigo-700 hover:bg-indigo-100/70 dark:border-indigo-500/40 dark:bg-indigo-950/40 dark:text-indigo-300 dark:hover:bg-indigo-950/70"
+                      }`}
+                    >
+                      {tier.artigos === 1 ? "Comprar Artigo" : "Escolher Pacote"}
+                    </Link>
                   </div>
+                );
+              })}
+            </div>
 
-                  <div className="mt-6 flex items-baseline gap-1">
-                    <span className="text-sm font-semibold text-slate-500 dark:text-slate-400">
-                      R$
-                    </span>
-                    <span className="font-mono text-4xl font-bold text-slate-950 dark:text-white tabular-nums">
-                      0
-                    </span>
-                    <span className="text-xs text-slate-500 dark:text-slate-400">
-                      /mês
-                    </span>
-                  </div>
-
-                  <ul className="mt-6 space-y-2.5 text-sm text-slate-600 dark:text-slate-300">
-                    <li className="flex items-center gap-2.5">
-                      <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
-                      <span>Até 5 artigos por mês</span>
-                    </li>
-                    <li className="flex items-center gap-2.5">
-                      <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
-                      <span>Primeira e terceira pessoa</span>
-                    </li>
-                    <li className="flex items-center gap-2.5">
-                      <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
-                      <span>Exportação em HTML</span>
-                    </li>
-                  </ul>
-                </div>
-
-                <Link
-                  href="/studio"
-                  className="mt-8 inline-flex w-full items-center justify-center rounded-xl border border-indigo-600/30 bg-indigo-50/60 px-4 py-3 text-sm font-semibold text-indigo-700 transition-colors hover:bg-indigo-100/70 dark:border-indigo-500/40 dark:bg-indigo-950/40 dark:text-indigo-300 dark:hover:bg-indigo-950/70 whitespace-nowrap"
-                >
-                  Começar Grátis
-                </Link>
+            <div className="mt-8 flex flex-col items-start justify-between gap-4 rounded-2xl border border-slate-200/90 bg-white px-6 py-5 sm:flex-row sm:items-center dark:border-slate-800 dark:bg-slate-900">
+              <div>
+                <h3 className="text-sm font-bold text-slate-900 dark:text-white">
+                  Precisa de alto volume ou pacotes personalizados para sua agência?
+                </h3>
+                <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
+                  Também disponibilizamos volumes sob medida e suporte dedicado
+                  para redações e equipas de SEO.
+                </p>
               </div>
-
-              {/* Plano Pro (Highlighted cleanly without candy pill clutter) */}
-              <div className="flex flex-col justify-between rounded-2xl border-2 border-indigo-600 bg-white p-7 shadow-lg shadow-indigo-950/10 dark:border-indigo-500 dark:bg-slate-900">
-                <div>
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <span className="block text-xs font-semibold text-indigo-600 dark:text-indigo-400">
-                        Mais popular
-                      </span>
-                      <h3 className="mt-0.5 text-lg font-bold text-slate-900 dark:text-white">
-                        Plano Pro
-                      </h3>
-                      <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-                        Para criadores, blogs e profissionais de conteúdo
-                      </p>
-                    </div>
-                    <PenTool className="h-5 w-5 shrink-0 text-indigo-600 dark:text-indigo-400" />
-                  </div>
-
-                  <div className="mt-6 flex items-baseline gap-1">
-                    <span className="text-sm font-semibold text-slate-500 dark:text-slate-400">
-                      R$
-                    </span>
-                    <span className="font-mono text-4xl font-bold text-slate-950 dark:text-white tabular-nums">
-                      {proPrice}
-                    </span>
-                    <span className="text-xs text-slate-500 dark:text-slate-400">
-                      /mês
-                    </span>
-                  </div>
-
-                  <ul className="mt-6 space-y-2.5 text-sm text-slate-600 dark:text-slate-300">
-                    <li className="flex items-center gap-2.5">
-                      <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
-                      <span>Até 100 artigos por mês</span>
-                    </li>
-                    <li className="flex items-center gap-2.5">
-                      <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
-                      <span>Pesquisa web em tempo real com fontes</span>
-                    </li>
-                    <li className="flex items-center gap-2.5">
-                      <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
-                      <span>Ilustrações automáticas por secção</span>
-                    </li>
-                    <li className="flex items-center gap-2.5">
-                      <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
-                      <span>Suporte prioritário</span>
-                    </li>
-                  </ul>
-                </div>
-
-                <Link
-                  href="/studio"
-                  className="mt-8 inline-flex w-full items-center justify-center rounded-xl bg-gradient-to-r from-[#5B4AF4] to-[#2563EB] px-4 py-3 text-sm font-semibold text-white shadow-md shadow-indigo-600/20 transition-all hover:brightness-110 whitespace-nowrap"
-                >
-                  Assinar Agora
-                </Link>
-              </div>
-
-              {/* Plano Empresarial */}
-              <div className="flex flex-col justify-between rounded-2xl border border-slate-200/90 bg-white p-7 dark:border-slate-800 dark:bg-slate-900">
-                <div>
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <h3 className="text-lg font-bold text-slate-900 dark:text-white">
-                        Plano Empresarial
-                      </h3>
-                      <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-                        Para redações, agências e grandes projetos
-                      </p>
-                    </div>
-                    <Layers className="h-5 w-5 shrink-0 text-indigo-600 dark:text-indigo-400" />
-                  </div>
-
-                  <div className="mt-6 flex items-baseline gap-1">
-                    <span className="text-sm font-semibold text-slate-500 dark:text-slate-400">
-                      R$
-                    </span>
-                    <span className="font-mono text-4xl font-bold text-slate-950 dark:text-white tabular-nums">
-                      {enterprisePrice}
-                    </span>
-                    <span className="text-xs text-slate-500 dark:text-slate-400">
-                      /mês
-                    </span>
-                  </div>
-
-                  <ul className="mt-6 space-y-2.5 text-sm text-slate-600 dark:text-slate-300">
-                    <li className="flex items-center gap-2.5">
-                      <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
-                      <span>Artigos ilimitados</span>
-                    </li>
-                    <li className="flex items-center gap-2.5">
-                      <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
-                      <span>Todos os idiomas e tons avançados</span>
-                    </li>
-                    <li className="flex items-center gap-2.5">
-                      <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
-                      <span>Suporte dedicado</span>
-                    </li>
-                  </ul>
-                </div>
-
-                <button
-                  type="button"
-                  onClick={handleSelectEnterprise}
-                  className="mt-8 inline-flex w-full items-center justify-center rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm font-semibold text-slate-800 transition-colors hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:hover:bg-slate-700 whitespace-nowrap"
-                >
-                  Falar com Vendas
-                </button>
-              </div>
+              <button
+                type="button"
+                onClick={handleSelectEnterprise}
+                className="inline-flex shrink-0 items-center justify-center rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-xs font-semibold text-slate-800 transition-colors hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:hover:bg-slate-700 whitespace-nowrap"
+              >
+                Falar com Vendas
+              </button>
             </div>
           </div>
         </section>
@@ -1290,8 +1271,8 @@ export default function LandingPage() {
                       className="w-full rounded-xl border border-slate-200 bg-slate-50/70 px-3.5 py-2.5 text-sm text-slate-900 focus:border-indigo-500 focus:bg-white focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
                     >
                       <option value="Dúvida geral">Dúvida geral</option>
-                      <option value="Plano Pro">Plano Pro</option>
-                      <option value="Plano Empresarial">Plano Empresarial</option>
+                      <option value="Pacote de Artigos">Pacote de Artigos</option>
+                      <option value="Pacote Personalizado">Pacote Personalizado</option>
                       <option value="Suporte técnico">Suporte técnico</option>
                     </select>
                   </div>

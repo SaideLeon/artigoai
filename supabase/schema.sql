@@ -79,10 +79,13 @@ create table if not exists public.generations (
   created_at timestamptz not null default now()
 );
 
--- 6. Assinaturas e limites de utilização
+-- 6. Pacotes adquiridos, créditos de artigos e pagamentos
 create table if not exists public.subscriptions (
   user_id uuid primary key references auth.users (id) on delete cascade,
-  plan text not null default 'free' check (plan in ('free', 'pro', 'enterprise')),
+  plan text not null default 'free' check (
+    plan in ('free', 'avulso-1', 'pacote-5', 'pacote-10', 'pacote-16', 'pacote-20', 'pacote-30', 'custom')
+  ),
+  active_package text not null default 'free',
   status text not null default 'active' check (status in ('active', 'canceled', 'past_due')),
   current_period_end timestamptz,
   updated_at timestamptz not null default now()
@@ -90,6 +93,8 @@ create table if not exists public.subscriptions (
 
 create table if not exists public.usage_limits (
   user_id uuid primary key references auth.users (id) on delete cascade,
+  article_credits integer not null default 1 check (article_credits >= 0),
+  articles_generated_total integer not null default 0 check (articles_generated_total >= 0),
   monthly_articles_used integer not null default 0 check (monthly_articles_used >= 0),
   monthly_articles_limit integer not null default 5 check (monthly_articles_limit > 0),
   reset_at timestamptz not null default (date_trunc('month', now()) + interval '1 month')
@@ -98,9 +103,10 @@ create table if not exists public.usage_limits (
 create table if not exists public.payments (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null references auth.users (id) on delete cascade,
-  plan text not null,
+  package_id text not null default 'avulso-1',
+  articles_granted integer not null default 1 check (articles_granted > 0),
   amount_cents integer not null check (amount_cents >= 0),
-  currency text not null default 'BRL',
+  currency text not null default 'BRL' check (currency in ('BRL', 'USD')),
   status text not null default 'paid',
   created_at timestamptz not null default now()
 );

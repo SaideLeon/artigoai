@@ -148,16 +148,16 @@ export default function Sidebar({
           <div className="mx-auto mb-2 flex h-9 w-9 items-center justify-center rounded-xl bg-amber-400/15 text-amber-400">
             <Crown className="h-5 w-5" />
           </div>
-          <p className="text-sm font-semibold text-white">Plano Pro</p>
+          <p className="text-sm font-semibold text-white">Pacotes de Artigos</p>
           <p className="mt-1 text-xs leading-relaxed text-slate-300">
-            Mais recursos, mais limites!
+            Avulso ou pacotes com até 32% off
           </p>
           <button
             type="button"
             onClick={() => onOpenModal("upgrade")}
             className="mt-3 w-full rounded-xl bg-gradient-to-r from-amber-400 to-amber-500 px-3 py-2 text-xs font-semibold text-slate-950 transition-transform duration-150 hover:brightness-105 active:scale-[0.98] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-300 whitespace-nowrap"
           >
-            Upgrade
+            Ver Pacotes
           </button>
         </div>
 

@@ -1,8 +1,16 @@
 "use client";
 
-import { X, Crown, Check, HelpCircle } from "lucide-react";
+import { useState } from "react";
+import { X, Package, Check, HelpCircle } from "lucide-react";
 import { motion } from "motion/react";
 import BrandLogo from "@/components/BrandLogo";
+import {
+  PRICING_TIERS,
+  USD_TO_BRL,
+  formatCurrency,
+  getPerArticlePrice,
+  type CurrencyCode,
+} from "@/lib/pricing";
 
 type InfoModalProps = {
   tipo: "upgrade" | "ajuda" | "sobre" | null;
@@ -10,6 +18,8 @@ type InfoModalProps = {
 };
 
 export default function InfoModal({ tipo, onClose }: InfoModalProps) {
+  const [currency, setCurrency] = useState<CurrencyCode>("BRL");
+
   if (!tipo) return null;
 
   return (
@@ -24,13 +34,15 @@ export default function InfoModal({ tipo, onClose }: InfoModalProps) {
         animate={{ opacity: 1, scale: 1, y: 0 }}
         transition={{ duration: 0.16 }}
         onClick={(e) => e.stopPropagation()}
-        className="w-full max-w-lg rounded-2xl border border-slate-200 bg-white p-6 shadow-xl dark:border-slate-800 dark:bg-slate-900"
+        className={`w-full rounded-2xl border border-slate-200 bg-white p-6 shadow-xl dark:border-slate-800 dark:bg-slate-900 ${
+          tipo === "upgrade" ? "max-w-2xl" : "max-w-lg"
+        }`}
       >
         <div className="flex items-start justify-between gap-4 border-b border-slate-100 pb-4 dark:border-slate-800">
           <div className="flex items-center gap-2.5">
             {tipo === "upgrade" && (
               <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-amber-100 text-amber-600 dark:bg-amber-950/70 dark:text-amber-400">
-                <Crown className="h-5 w-5" />
+                <Package className="h-5 w-5" />
               </span>
             )}
             {tipo === "ajuda" && (
@@ -45,7 +57,7 @@ export default function InfoModal({ tipo, onClose }: InfoModalProps) {
             )}
             <h2 className="text-lg font-bold text-slate-900 dark:text-white">
               {tipo === "upgrade"
-                ? "Plano Pro — Estúdio Completo"
+                ? "Créditos por Artigo & Pacotes"
                 : tipo === "ajuda"
                 ? "Como usar o Gerador de Artigos"
                 : "Sobre o Gerador de Artigos"}
@@ -64,55 +76,109 @@ export default function InfoModal({ tipo, onClose }: InfoModalProps) {
         <div className="mt-4 text-sm leading-relaxed text-slate-600 dark:text-slate-300">
           {tipo === "upgrade" && (
             <div className="space-y-4">
-              <p>
-                Desbloqueie fluxos avançados de produção editorial com controle
-                completo de estrutura, tom e exportação.
-              </p>
-              <div className="grid gap-3 sm:grid-cols-2">
-                <div className="rounded-xl border border-slate-200 p-4 dark:border-slate-800 dark:bg-slate-950/40">
-                  <p className="text-xs font-semibold text-slate-500 dark:text-slate-400">
-                    Plano Atual
-                  </p>
-                  <p className="mt-1 text-base font-bold text-slate-900 dark:text-white">
-                    Essencial
-                  </p>
-                  <ul className="mt-3 space-y-2 text-xs text-slate-600 dark:text-slate-300">
-                    <li className="flex items-center gap-2">
-                      <Check className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
-                      Até 3.200 palavras por artigo
-                    </li>
-                    <li className="flex items-center gap-2">
-                      <Check className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
-                      Ilustração automática por secção
-                    </li>
-                    <li className="flex items-center gap-2">
-                      <Check className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
-                      Exportação em HTML & Texto
-                    </li>
-                  </ul>
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <p className="text-xs text-slate-600 dark:text-slate-300">
+                  Compre 1 artigo avulso ou pacotes com até 32% de desconto.
+                </p>
+                <div className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-slate-50 p-0.5 dark:border-slate-800 dark:bg-slate-950">
+                  <button
+                    type="button"
+                    onClick={() => setCurrency("BRL")}
+                    className={`rounded-md px-2.5 py-1 text-[11px] font-semibold transition-colors ${
+                      currency === "BRL"
+                        ? "bg-indigo-600 text-white"
+                        : "text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white"
+                    }`}
+                  >
+                    R$ (BRL)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setCurrency("USD")}
+                    className={`rounded-md px-2.5 py-1 text-[11px] font-semibold transition-colors ${
+                      currency === "USD"
+                        ? "bg-indigo-600 text-white"
+                        : "text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white"
+                    }`}
+                  >
+                    US$ (USD)
+                  </button>
                 </div>
-                <div className="rounded-xl border border-indigo-200 bg-indigo-50/40 p-4 dark:border-indigo-500/30 dark:bg-indigo-950/30">
-                  <p className="text-xs font-semibold text-indigo-600 dark:text-indigo-400">
-                    Para equipas editoriais
-                  </p>
-                  <p className="mt-1 text-base font-bold text-slate-900 dark:text-white">
-                    Plano Pro
-                  </p>
-                  <ul className="mt-3 space-y-2 text-xs text-slate-700 dark:text-slate-200">
-                    <li className="flex items-center gap-2">
-                      <Check className="h-3.5 w-3.5 text-indigo-600 dark:text-indigo-400" />
-                      Modelos dedicados de alta velocidade
-                    </li>
-                    <li className="flex items-center gap-2">
-                      <Check className="h-3.5 w-3.5 text-indigo-600 dark:text-indigo-400" />
-                      Geração em lote e perfis de marca
-                    </li>
-                    <li className="flex items-center gap-2">
-                      <Check className="h-3.5 w-3.5 text-indigo-600 dark:text-indigo-400" />
-                      Auditoria SEO multi-idiomas
-                    </li>
-                  </ul>
+              </div>
+
+              <div className="grid gap-2.5 sm:grid-cols-2">
+                {PRICING_TIERS.map((tier) => {
+                  const total =
+                    currency === "BRL" ? tier.totalBrl : tier.totalUsd;
+                  const perArticle = getPerArticlePrice(tier, currency);
+                  const isPopular = tier.destaque === "popular";
+                  const isBestValue = tier.destaque === "melhor-valor";
+
+                  return (
+                    <div
+                      key={tier.id}
+                      className={`rounded-xl border p-3.5 transition-colors ${
+                        isPopular
+                          ? "border-indigo-400 bg-indigo-50/50 dark:border-indigo-500/60 dark:bg-indigo-950/30"
+                          : isBestValue
+                          ? "border-blue-300 bg-blue-50/30 dark:border-blue-500/40 dark:bg-blue-950/20"
+                          : "border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-950/40"
+                      }`}
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <div>
+                          <p className="text-xs font-bold text-slate-900 dark:text-white">
+                            {tier.nome}
+                          </p>
+                          <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                            {tier.artigos === 1
+                              ? "Venda avulsa"
+                              : `${tier.artigos} créditos de artigo`}
+                          </p>
+                        </div>
+                        {isPopular && (
+                          <span className="text-[11px] font-semibold text-indigo-600 dark:text-indigo-400">
+                            Popular
+                          </span>
+                        )}
+                        {isBestValue && (
+                          <span className="text-[11px] font-semibold text-blue-600 dark:text-blue-400">
+                            -32% off
+                          </span>
+                        )}
+                      </div>
+
+                      <div className="mt-2.5 flex items-baseline justify-between gap-2">
+                        <span className="font-mono text-lg font-bold text-slate-950 dark:text-white tabular-nums">
+                          {formatCurrency(total, currency)}
+                        </span>
+                        <span className="text-[11px] font-medium text-slate-600 dark:text-slate-300 tabular-nums">
+                          {formatCurrency(perArticle, currency)}/artigo
+                          {tier.descontoPct > 0
+                            ? ` · ${tier.descontoPct}% off`
+                            : ""}
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              <div className="rounded-xl border border-slate-200/80 bg-slate-50 px-3.5 py-2.5 text-xs text-slate-600 dark:border-slate-800 dark:bg-slate-950/50 dark:text-slate-300">
+                <div className="flex items-center gap-2">
+                  <Check className="h-3.5 w-3.5 shrink-0 text-emerald-600 dark:text-emerald-400" />
+                  <span>
+                    Todos os pacotes incluem artigos de ~2.500 palavras, até 7
+                    imagens em qualidade 1K, pesquisa web e exportação HTML.
+                  </span>
                 </div>
+                <p className="mt-1 pl-5.5 text-[11px] text-slate-500 dark:text-slate-400">
+                  Cotação de referência: 1 USD = R${" "}
+                  {USD_TO_BRL.toLocaleString("pt-BR", {
+                    minimumFractionDigits: 4,
+                    maximumFractionDigits: 4,
+                  })}
+                </p>
               </div>
             </div>
           )}
