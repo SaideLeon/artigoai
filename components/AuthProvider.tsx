@@ -7,72 +7,104 @@ import {
   useEffect,
   useState,
 } from "react";
-import {
-  onAuthStateChanged,
-  signInWithPopup,
-  signOut,
-  type User,
-} from "firebase/auth";
-import { auth, googleProvider, testConnection } from "@/lib/firebase";
-import { upsertUserProfile } from "@/lib/firestore-service";
+import type { User as SupabaseUser } from "@supabase/supabase-js";
+import { getSupabaseClient, isSupabaseConfigured } from "@/lib/supabase";
+import { upsertUserProfile } from "@/lib/supabase-service";
+
+export type AppUser = {
+  uid: string;
+  email: string | null;
+  displayName: string | null;
+  photoURL: string | null;
+};
 
 type AuthContextValue = {
-  user: User | null;
+  user: AppUser | null;
   loading: boolean;
   profileReady: boolean;
+  supabaseConfigured: boolean;
   authError: string | null;
   clearAuthError: () => void;
-  signInWithGoogle: () => Promise<User | null>;
+  signInWithGoogle: () => Promise<void>;
   signOutUser: () => Promise<void>;
 };
 
 const AuthContext = createContext<AuthContextValue>({
   user: null,
-  loading: true,
+  loading: false,
   profileReady: false,
+  supabaseConfigured: false,
   authError: null,
   clearAuthError: () => {},
-  signInWithGoogle: async () => null,
+  signInWithGoogle: async () => {},
   signOutUser: async () => {},
 });
 
+function mapSupabaseUser(u: SupabaseUser): AppUser {
+  const displayName =
+    (u.user_metadata?.full_name as string | undefined) ||
+    (u.user_metadata?.name as string | undefined) ||
+    (u.email ? u.email.split("@")[0] : null);
+  const photoURL =
+    (u.user_metadata?.avatar_url as string | undefined) ||
+    (u.user_metadata?.picture as string | undefined) ||
+    null;
+
+  return {
+    uid: u.id,
+    email: u.email ?? null,
+    displayName,
+    photoURL,
+  };
+}
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [user, setUser] = useState<AppUser | null>(null);
+  const [loading, setLoading] = useState<boolean>(isSupabaseConfigured);
   const [profileReady, setProfileReady] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
 
   useEffect(() => {
-    void testConnection();
+    const supabase = getSupabaseClient();
+    if (!supabase) {
+      return;
+    }
 
     let active = true;
-    const unsubscribe = onAuthStateChanged(auth, async (nextUser) => {
-      if (!active) return;
-      setUser(nextUser);
 
-      if (nextUser) {
+    const syncUser = async (supaUser: SupabaseUser | null) => {
+      if (!active) return;
+      if (supaUser) {
+        setUser(mapSupabaseUser(supaUser));
         setProfileReady(false);
-        try {
-          await upsertUserProfile(nextUser);
-          if (active) setProfileReady(true);
-        } catch (err) {
-          console.error("Erro ao sincronizar perfil do utilizador:", err);
-          if (active) {
-            setAuthError(
-              "Não foi possível sincronizar o perfil na nuvem. Tente novamente."
-            );
-          }
-        }
+        await upsertUserProfile(supaUser);
+        if (active) setProfileReady(true);
       } else {
+        setUser(null);
         setProfileReady(false);
       }
-
       if (active) setLoading(false);
+    };
+
+    void supabase.auth.getSession().then(({ data, error }) => {
+      if (!active) return;
+      if (error) {
+        setAuthError("Não foi possível verificar a sessão no Supabase.");
+        setLoading(false);
+        return;
+      }
+      void syncUser(data.session?.user ?? null);
     });
+
+    const { data: listener } = supabase.auth.onAuthStateChange(
+      (_event, session) => {
+        void syncUser(session?.user ?? null);
+      }
+    );
 
     return () => {
       active = false;
-      unsubscribe();
+      listener.subscription.unsubscribe();
     };
   }, []);
 
@@ -80,48 +112,40 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signInWithGoogle = useCallback(async () => {
     setAuthError(null);
-    try {
-      const cred = await signInWithPopup(auth, googleProvider);
-      if (cred.user) {
-        await upsertUserProfile(cred.user);
-        setProfileReady(true);
-      }
-      return cred.user;
-    } catch (error: unknown) {
-      const code =
-        typeof error === "object" && error !== null && "code" in error
-          ? String((error as { code?: string }).code)
-          : "";
+    const supabase = getSupabaseClient();
+    if (!supabase) {
+      setAuthError(
+        "Configure NEXT_PUBLIC_SUPABASE_URL e NEXT_PUBLIC_SUPABASE_ANON_KEY para ativar o login Google com Supabase."
+      );
+      return;
+    }
 
-      if (
-        code === "auth/popup-closed-by-user" ||
-        code === "auth/cancelled-popup-request"
-      ) {
-        return null;
-      }
+    const redirectTo = `${window.location.origin}/auth/callback`;
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: {
+        redirectTo,
+        queryParams: {
+          prompt: "select_account",
+        },
+      },
+    });
 
-      if (code === "auth/popup-blocked") {
-        setAuthError(
-          "O navegador bloqueou a janela de login do Google. Permita popups para continuar."
-        );
-      } else if (code === "auth/unauthorized-domain") {
-        setAuthError(
-          "Este domínio ainda não está autorizado para autenticação Google."
-        );
-      } else {
-        setAuthError("Falha ao entrar com Google. Tente novamente.");
-      }
-      return null;
+    if (error) {
+      setAuthError("Falha ao iniciar sessão Google no Supabase.");
     }
   }, []);
 
   const signOutUser = useCallback(async () => {
     setAuthError(null);
-    try {
-      await signOut(auth);
-      setProfileReady(false);
-    } catch {
+    const supabase = getSupabaseClient();
+    if (!supabase) return;
+    const { error } = await supabase.auth.signOut();
+    if (error) {
       setAuthError("Não foi possível encerrar a sessão.");
+    } else {
+      setUser(null);
+      setProfileReady(false);
     }
   }, []);
 
@@ -131,6 +155,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         user,
         loading,
         profileReady,
+        supabaseConfigured: isSupabaseConfigured,
         authError,
         clearAuthError,
         signInWithGoogle,

@@ -180,7 +180,7 @@ const NAV_LINKS = [
 
 export default function LandingPage() {
   const { theme, toggleTheme } = useTheme();
-  const { user, signInWithGoogle } = useAuth();
+  const { user, authError, clearAuthError, signInWithGoogle } = useAuth();
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [headerHovered, setHeaderHovered] = useState(false);
   const [laptopHovered, setLaptopHovered] = useState(false);
@@ -373,6 +373,24 @@ export default function LandingPage() {
           </nav>
         )}
       </header>
+
+      {authError && (
+        <div
+          role="alert"
+          className="mx-auto mt-3 flex max-w-[1280px] items-center justify-between gap-3 px-4 sm:px-6 lg:px-8"
+        >
+          <div className="flex w-full items-center justify-between gap-3 rounded-xl border border-rose-200 bg-rose-50 px-4 py-2.5 text-xs text-rose-700 dark:border-rose-900/50 dark:bg-rose-950/40 dark:text-rose-300">
+            <span>{authError}</span>
+            <button
+              type="button"
+              onClick={clearAuthError}
+              className="font-semibold underline underline-offset-2 shrink-0"
+            >
+              Fechar
+            </button>
+          </div>
+        </div>
+      )}
 
       <main>
         {/* HERO SECTION */}

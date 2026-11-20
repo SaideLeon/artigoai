@@ -26,7 +26,7 @@ import {
   subscribeUserSettings,
   toggleArticleFavoriteCloud,
   updateArticleContentCloud,
-} from "@/lib/firestore-service";
+} from "@/lib/supabase-service";
 import {
   FAIXAS_PALAVRAS,
   type ArtigoSalvo,
@@ -891,11 +891,10 @@ export default function ArticleStudioApp() {
               config={configPadrao}
               onSaveConfig={salvarConfigPadrao}
               onLimparHistorico={() => {
-                const ids = artigosSalvos.map((a) => a.id);
                 persistirArtigos([]);
                 setArtigoAtualId(null);
                 if (user && profileReady) {
-                  void clearAllArticlesCloud(user.uid, ids);
+                  void clearAllArticlesCloud(user.uid);
                 }
               }}
               totalArtigos={artigosSalvos.length}
