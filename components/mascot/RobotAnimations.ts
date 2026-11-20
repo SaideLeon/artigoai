@@ -118,7 +118,7 @@ export class RobotAnimator {
     let rHipX = 0.05 - Math.sin(t * 2.0) * 0.03;
     let rKneeX = 0.08;
 
-    let chestEmissive = 1.85 + Math.sin(t * 3.0) * 0.28;
+    let chestEmissive = 1.15 + Math.sin(t * 3.0) * 0.2;
 
     // --- Pose State Overrides ---
     switch (animation) {
@@ -197,7 +197,7 @@ export class RobotAnimator {
         rHipX = -0.05 + bounce * 0.08;
         rKneeX = 0.22;
 
-        chestEmissive = 2.6 + Math.sin(t * 8.0) * 0.7;
+        chestEmissive = 1.55 + Math.sin(t * 8.0) * 0.35;
         break;
       }
 
@@ -436,7 +436,7 @@ export class RobotAnimator {
     let targetRightBrowZ = 0;
     let targetSmileScale = 1.0;
     let targetSmileY = -0.095;
-    let targetEyeGlow = 2.3;
+    let targetEyeGlow = 1.15;
 
     switch (effectiveExpr) {
       case "happy":
@@ -445,7 +445,7 @@ export class RobotAnimator {
         targetLeftBrowZ = 0.12;
         targetRightBrowZ = -0.12;
         targetSmileScale = 1.28;
-        targetEyeGlow = 2.55;
+        targetEyeGlow = 1.3;
         break;
       case "excited":
         targetLeftEyeScaleY = 1.18;
@@ -453,7 +453,7 @@ export class RobotAnimator {
         targetLeftBrowZ = 0.16;
         targetRightBrowZ = -0.16;
         targetSmileScale = 1.4;
-        targetEyeGlow = 2.9;
+        targetEyeGlow = 1.5;
         break;
       case "curious":
         targetLeftEyeScaleY = 0.82;
@@ -560,7 +560,7 @@ export class RobotAnimator {
     );
     rig.smileMat.emissiveIntensity = THREE.MathUtils.damp(
       rig.smileMat.emissiveIntensity,
-      effectiveExpr === "sleepy" ? 0.25 : 1.9,
+      effectiveExpr === "sleepy" ? 0.25 : 1.1,
       10,
       safeDt
     );

@@ -118,8 +118,8 @@ export default function FloatingRobotAssistant({
             <RobotScene
               animation={robot.animation}
               expression={robot.expression}
-              scale={0.95}
-              cameraZ={3.6}
+              scale={1.0}
+              cameraZ={4.55}
               rotationDeg={robot.rotationDeg}
               onRotationChange={robot.setRotationDeg}
               onRobotClick={robot.cycleClickInteraction}

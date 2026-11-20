@@ -85,8 +85,8 @@ export default function HeroBanner({ mascotState = "idle" }: HeroBannerProps) {
               <RobotScene
                 animation={effectiveAnimation}
                 expression={effectiveExpression}
-                cameraZ={3.35}
-                scale={1.08}
+                cameraZ={4.35}
+                scale={1.04}
                 onRobotClick={() => setClickedGreeting((v) => !v)}
                 className="h-full w-full"
                 ariaLabel="Mascote 3D Artigen no painel principal"

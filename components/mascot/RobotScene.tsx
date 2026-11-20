@@ -49,7 +49,7 @@ export default function RobotScene({
   scale = 1,
   blinkNonce = 0,
   interactive = true,
-  cameraZ = 3.85,
+  cameraZ = 4.55,
   onRotationChange,
   onRobotClick,
   className = "h-full w-full",
@@ -137,7 +137,7 @@ export default function RobotScene({
     renderer.setClearColor(0x000000, 0);
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 1.08;
+    renderer.toneMappingExposure = 0.98;
     renderer.setPixelRatio(
       isSoftwareGl
         ? 1
@@ -163,8 +163,8 @@ export default function RobotScene({
       0.1,
       50
     );
-    camera.position.set(0, 0.25, cameraZ);
-    camera.lookAt(0, 0.08, 0);
+    camera.position.set(0, 0.28, cameraZ);
+    camera.lookAt(0, 0.18, 0);
     renderer.setSize(initialW, initialH, false);
 
     // Procedural Studio Reflections (RoomEnvironment)
@@ -176,10 +176,10 @@ export default function RobotScene({
     pmremGenerator.dispose();
 
     // Balanced 3-Point Studio Lighting
-    const hemiLight = new THREE.HemisphereLight(0xdbeafe, 0x1e1b4b, 0.75);
+    const hemiLight = new THREE.HemisphereLight(0xdbeafe, 0x1e1b4b, 0.65);
     scene.add(hemiLight);
 
-    const keyLight = new THREE.DirectionalLight(0xfffbeb, 1.45);
+    const keyLight = new THREE.DirectionalLight(0xffffff, 1.25);
     keyLight.position.set(3.2, 4.4, 4.0);
     if (renderer.shadowMap.enabled) {
       keyLight.castShadow = true;
@@ -195,12 +195,12 @@ export default function RobotScene({
     }
     scene.add(keyLight);
 
-    // Cool fill + electric indigo/cyan rim highlight
-    const fillLight = new THREE.DirectionalLight(0x93c5fd, 0.65);
+    // Cool fill + electric indigo rim highlight
+    const fillLight = new THREE.DirectionalLight(0x93c5fd, 0.55);
     fillLight.position.set(-3.5, 2.2, 2.5);
     scene.add(fillLight);
 
-    const rimLight = new THREE.DirectionalLight(0x818cf8, 1.15);
+    const rimLight = new THREE.DirectionalLight(0x818cf8, 0.95);
     rimLight.position.set(-1.5, 2.8, -3.6);
     scene.add(rimLight);
 

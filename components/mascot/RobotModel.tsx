@@ -86,30 +86,33 @@ export function createArtigenRobot(): {
   // --- Shared Premium Materials ---
   const whiteShellMat = trackMat(
     new THREE.MeshPhysicalMaterial({
-      color: 0xf8fafc,
-      roughness: 0.2,
-      metalness: 0.04,
-      clearcoat: 0.92,
-      clearcoatRoughness: 0.1,
+      color: 0xf4f7fb,
+      roughness: 0.22,
+      metalness: 0.02,
+      clearcoat: 0.85,
+      clearcoatRoughness: 0.12,
+      envMapIntensity: 0.55,
       ior: 1.48,
     })
   );
 
   const softTrimMat = trackMat(
     new THREE.MeshPhysicalMaterial({
-      color: 0xe2e8f0,
-      roughness: 0.32,
-      metalness: 0.12,
-      clearcoat: 0.45,
+      color: 0xdbe4f0,
+      roughness: 0.3,
+      metalness: 0.1,
+      clearcoat: 0.4,
+      envMapIntensity: 0.5,
     })
   );
 
   const jointDarkMat = trackMat(
     new THREE.MeshPhysicalMaterial({
       color: 0x1e293b,
-      roughness: 0.36,
-      metalness: 0.65,
+      roughness: 0.35,
+      metalness: 0.45,
       clearcoat: 0.3,
+      envMapIntensity: 0.6,
     })
   );
 
@@ -117,95 +120,106 @@ export function createArtigenRobot(): {
     new THREE.MeshPhysicalMaterial({
       color: 0x2563eb,
       roughness: 0.22,
-      metalness: 0.48,
+      metalness: 0.2,
       clearcoat: 0.85,
       clearcoatRoughness: 0.12,
+      envMapIntensity: 0.7,
     })
   );
 
   const royalPurpleMat = trackMat(
     new THREE.MeshPhysicalMaterial({
-      color: 0x7c3aed,
-      roughness: 0.22,
-      metalness: 0.42,
-      clearcoat: 0.85,
+      color: 0x6d28d9,
+      roughness: 0.24,
+      metalness: 0.18,
+      clearcoat: 0.82,
       clearcoatRoughness: 0.12,
+      envMapIntensity: 0.7,
     })
   );
 
   const visorGlassMat = trackMat(
     new THREE.MeshPhysicalMaterial({
-      color: 0x050a18,
-      roughness: 0.06,
-      metalness: 0.15,
-      clearcoat: 1.0,
-      clearcoatRoughness: 0.04,
-      reflectivity: 0.95,
+      color: 0x050814,
+      roughness: 0.1,
+      metalness: 0.05,
+      clearcoat: 0.9,
+      clearcoatRoughness: 0.06,
+      envMapIntensity: 0.32,
+      reflectivity: 0.75,
+    })
+  );
+
+  const eyePupilMat = trackMat(
+    new THREE.MeshStandardMaterial({
+      color: 0x020617,
+      roughness: 0.15,
+      metalness: 0.1,
     })
   );
 
   const leftEyeMat = trackMat(
     new THREE.MeshStandardMaterial({
-      color: 0x67e8f9,
-      emissive: 0x06b6d4,
-      emissiveIntensity: 2.3,
-      roughness: 0.15,
+      color: 0x00d8ff,
+      emissive: 0x0095ff,
+      emissiveIntensity: 1.15,
+      roughness: 0.18,
       metalness: 0.0,
     })
   );
 
   const rightEyeMat = trackMat(
     new THREE.MeshStandardMaterial({
-      color: 0x67e8f9,
-      emissive: 0x06b6d4,
-      emissiveIntensity: 2.3,
-      roughness: 0.15,
+      color: 0x00d8ff,
+      emissive: 0x0095ff,
+      emissiveIntensity: 1.15,
+      roughness: 0.18,
       metalness: 0.0,
     })
   );
 
   const smileMat = trackMat(
     new THREE.MeshStandardMaterial({
-      color: 0x67e8f9,
-      emissive: 0x22d3ee,
-      emissiveIntensity: 1.9,
+      color: 0x00d8ff,
+      emissive: 0x00a6ff,
+      emissiveIntensity: 1.1,
       roughness: 0.2,
     })
   );
 
   const chestCoreMat = trackMat(
     new THREE.MeshStandardMaterial({
-      color: 0x67e8f9,
-      emissive: 0x0ea5e9,
-      emissiveIntensity: 1.9,
-      roughness: 0.15,
+      color: 0x00d8ff,
+      emissive: 0x0095ff,
+      emissiveIntensity: 1.15,
+      roughness: 0.18,
     })
   );
 
   const chestBarMat = trackMat(
     new THREE.MeshStandardMaterial({
-      color: 0xa78bfa,
-      emissive: 0x7c3aed,
-      emissiveIntensity: 1.35,
+      color: 0x8b5cf6,
+      emissive: 0x6d28d9,
+      emissiveIntensity: 1.05,
       roughness: 0.2,
     })
   );
 
   const leftAntennaTipMat = trackMat(
     new THREE.MeshStandardMaterial({
-      color: 0xa855f7,
-      emissive: 0x9333ea,
-      emissiveIntensity: 1.6,
-      roughness: 0.15,
+      color: 0x9333ea,
+      emissive: 0x7e22ce,
+      emissiveIntensity: 1.15,
+      roughness: 0.18,
     })
   );
 
   const rightAntennaTipMat = trackMat(
     new THREE.MeshStandardMaterial({
-      color: 0x38bdf8,
-      emissive: 0x0ea5e9,
-      emissiveIntensity: 1.6,
-      roughness: 0.15,
+      color: 0x0ea5e9,
+      emissive: 0x0284c7,
+      emissiveIntensity: 1.15,
+      roughness: 0.18,
     })
   );
 
@@ -279,15 +293,15 @@ export function createArtigenRobot(): {
     trackGeo(new THREE.TorusGeometry(0.145, 0.028, 16, 36)),
     royalPurpleMat
   );
-  chestRing.position.set(0, 0.03, 0.265);
+  chestRing.position.set(0, 0.03, 0.268);
   bodyPivot.add(chestRing);
 
   const chestCore = new THREE.Mesh(
     trackGeo(new THREE.SphereGeometry(0.115, 24, 24)),
     chestCoreMat
   );
-  chestCore.scale.set(1, 1, 0.35);
-  chestCore.position.set(0, 0.03, 0.26);
+  chestCore.scale.set(1, 1, 0.32);
+  chestCore.position.set(0, 0.03, 0.268);
   bodyPivot.add(chestCore);
 
   // Small luminous chest bars
@@ -328,52 +342,69 @@ export function createArtigenRobot(): {
   headPivot.position.set(0, 0.85, 0);
   bodyPivot.add(headPivot);
 
-  // Rounded oversized head shell
-  const headGeo = trackGeo(new THREE.SphereGeometry(0.56, 36, 32));
+  // Rounded oversized white helmet shell (shifted back slightly so visor sits cleanly proud in front)
+  const headGeo = trackGeo(new THREE.SphereGeometry(0.56, 40, 36));
   const headShell = new THREE.Mesh(headGeo, whiteShellMat);
-  headShell.scale.set(1.08, 0.92, 0.96);
+  headShell.scale.set(1.08, 0.92, 0.8);
+  headShell.position.set(0, 0, -0.05);
   headShell.castShadow = true;
   headShell.receiveShadow = true;
   headPivot.add(headShell);
 
-  // Visor outer metallic purple/blue bezel
+  // Subtle dark neck/chin collar under head for clean silhouette
+  const headRimRing = new THREE.Mesh(
+    trackGeo(new THREE.TorusGeometry(0.46, 0.022, 12, 36)),
+    softTrimMat
+  );
+  headRimRing.rotation.x = Math.PI / 2;
+  headRimRing.position.set(0, -0.34, -0.03);
+  headPivot.add(headRimRing);
+
+  // Visor outer metallic purple bezel (front at z = 0.36 + 0.11 = 0.47, well clear of headShell front z = 0.398)
   const visorBezel = new THREE.Mesh(
-    trackGeo(new RoundedBoxGeometry(0.92, 0.56, 0.2, 6, 0.14)),
+    trackGeo(new RoundedBoxGeometry(0.92, 0.56, 0.22, 8, 0.13)),
     royalPurpleMat
   );
-  visorBezel.position.set(0, -0.01, 0.39);
+  visorBezel.position.set(0, -0.01, 0.36);
   visorBezel.castShadow = true;
   headPivot.add(visorBezel);
 
-  // Dark glossy digital visor screen
+  // Dark glossy digital OLED visor screen (front at z = 0.382 + 0.11 = 0.492)
   const visor = new THREE.Mesh(
-    trackGeo(new RoundedBoxGeometry(0.84, 0.48, 0.2, 6, 0.12)),
+    trackGeo(new RoundedBoxGeometry(0.84, 0.48, 0.22, 8, 0.11)),
     visorGlassMat
   );
-  visor.position.set(0, -0.01, 0.405);
+  visor.position.set(0, -0.01, 0.382);
   headPivot.add(visor);
 
-  // --- EXPRESSIVE DIGITAL FACE ---
+  // --- EXPRESSIVE DIGITAL FACE (proud of visor front z = 0.492) ---
   const createEyeGroup = (
     x: number,
     eyeMat: THREE.MeshStandardMaterial
   ): { group: THREE.Group; ring: THREE.Mesh } => {
     const group = new THREE.Group();
-    group.position.set(x, 0.02, 0.512);
-
-    const eyeCore = new THREE.Mesh(
-      trackGeo(new THREE.SphereGeometry(0.092, 24, 24)),
-      eyeMat
-    );
-    eyeCore.scale.set(0.95, 1.15, 0.25);
-    group.add(eyeCore);
+    group.position.set(x, 0.02, 0.502);
 
     const ring = new THREE.Mesh(
-      trackGeo(new THREE.TorusGeometry(0.115, 0.016, 12, 28)),
+      trackGeo(new THREE.TorusGeometry(0.106, 0.014, 14, 32)),
       eyeMat
     );
-    ring.position.z = 0.005;
     group.add(ring);
+
+    const eyeCore = new THREE.Mesh(
+      trackGeo(new THREE.SphereGeometry(0.082, 24, 24)),
+      eyeMat
+    );
+    eyeCore.scale.set(0.94, 1.12, 0.22);
+    group.add(eyeCore);
+
+    const pupil = new THREE.Mesh(
+      trackGeo(new THREE.SphereGeometry(0.036, 18, 18)),
+      eyePupilMat
+    );
+    pupil.scale.set(0.92, 1.04, 0.25);
+    pupil.position.set(0, 0, 0.015);
+    group.add(pupil);
 
     headPivot.add(group);
     return { group, ring };
@@ -383,30 +414,30 @@ export function createArtigenRobot(): {
   const rightEyeObj = createEyeGroup(0.185, rightEyeMat);
 
   // Subtle expressive eyebrows
-  const browGeo = trackGeo(new RoundedBoxGeometry(0.13, 0.024, 0.02, 2, 0.01));
+  const browGeo = trackGeo(new RoundedBoxGeometry(0.125, 0.024, 0.02, 2, 0.01));
   const leftEyebrow = new THREE.Mesh(browGeo, leftEyeMat);
-  leftEyebrow.position.set(-0.185, 0.165, 0.515);
+  leftEyebrow.position.set(-0.185, 0.165, 0.505);
   headPivot.add(leftEyebrow);
 
   const rightEyebrow = new THREE.Mesh(browGeo, rightEyeMat);
-  rightEyebrow.position.set(0.185, 0.165, 0.515);
+  rightEyebrow.position.set(0.185, 0.165, 0.505);
   headPivot.add(rightEyebrow);
 
   // Digital smile arc (half torus rotated downward)
   const smileArc = new THREE.Mesh(
-    trackGeo(new THREE.TorusGeometry(0.085, 0.016, 12, 24, Math.PI)),
+    trackGeo(new THREE.TorusGeometry(0.082, 0.015, 12, 24, Math.PI)),
     smileMat
   );
   smileArc.rotation.z = Math.PI;
-  smileArc.position.set(0, -0.095, 0.515);
+  smileArc.position.set(0, -0.095, 0.505);
   headPivot.add(smileArc);
 
   // --- FUTURISTIC INTEGRATED HEADPHONES & ANTENNAS ---
   const headband = new THREE.Mesh(
-    trackGeo(new THREE.TorusGeometry(0.585, 0.036, 16, 48, Math.PI)),
+    trackGeo(new THREE.TorusGeometry(0.595, 0.036, 16, 48, Math.PI)),
     electricBlueMat
   );
-  headband.position.set(0, 0.03, 0);
+  headband.position.set(0, 0.02, -0.04);
   headband.castShadow = true;
   headPivot.add(headband);
 
@@ -415,7 +446,7 @@ export function createArtigenRobot(): {
     tipMat: THREE.MeshStandardMaterial
   ): THREE.Group => {
     const ear = new THREE.Group();
-    ear.position.set(side * 0.6, 0.0, 0);
+    ear.position.set(side * 0.6, 0.0, -0.04);
 
     const cup = new THREE.Mesh(
       trackGeo(new THREE.CylinderGeometry(0.16, 0.16, 0.11, 28)),

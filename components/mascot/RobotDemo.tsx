@@ -165,7 +165,7 @@ export default function RobotDemo() {
             rotationDeg={robot.rotationDeg}
             scale={robot.scale}
             blinkNonce={robot.blinkNonce}
-            cameraZ={3.65}
+            cameraZ={4.65}
             onRotationChange={robot.setRotationDeg}
             onRobotClick={robot.cycleClickInteraction}
             className="h-full w-full"

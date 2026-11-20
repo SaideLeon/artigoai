@@ -854,8 +854,8 @@ export default function LandingPage() {
                           <RobotScene
                             animation={stepAnim}
                             expression={stepExpr}
-                            cameraZ={3.65}
-                            scale={0.98}
+                            cameraZ={4.55}
+                            scale={1.0}
                             onRobotClick={() =>
                               setMascotInteractClicks((c) => c + 1)
                             }
