@@ -142,7 +142,7 @@ export default function ArticleConfigForm({
             <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400">
               {planoGeracao === "paid"
                 ? "Google Gemini"
-                : "Groq + NVIDIA"}
+                : "OpenRouter · Groq · NVIDIA"}
             </span>
           </div>
           <div className="grid grid-cols-2 gap-1.5 rounded-lg border border-slate-200 bg-white p-1 dark:border-slate-700 dark:bg-slate-900">
@@ -174,7 +174,7 @@ export default function ArticleConfigForm({
           <p className="mt-1.5 text-[11px] leading-snug text-slate-500 dark:text-slate-400">
             {planoGeracao === "paid"
               ? "Usa apenas modelos Google Gemini para artigo, pesquisa e imagens."
-              : "Usa apenas modelos Groq (artigo e pesquisa) e NVIDIA (texto e imagens)."}
+              : "Usa OpenRouter para texto, Groq para pesquisa web e NVIDIA para imagens."}
           </p>
         </div>
 

@@ -981,10 +981,9 @@ export default function LandingPage() {
                 <strong className="font-semibold text-slate-700 dark:text-slate-200">
                   Google Gemini
                 </strong>{" "}
-                (~2.500 palavras e até 7 imagens 1K) · Plano gratuito utiliza
-                modelos{" "}
+                (~2.500 palavras e até 7 imagens 1K) · Plano gratuito utiliza{" "}
                 <strong className="font-semibold text-slate-700 dark:text-slate-200">
-                  Groq e NVIDIA
+                  OpenRouter (texto), Groq (pesquisa) e NVIDIA (imagens)
                 </strong>{" "}
                 · Cotação: 1 USD = R${" "}
                 {USD_TO_BRL.toLocaleString("pt-BR", {

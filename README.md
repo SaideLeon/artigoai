@@ -8,7 +8,7 @@ Plataforma SaaS construída em **Next.js (App Router)**, **TypeScript**, **Tailw
 
 - **Estúdio de Criação (`/studio`)**: sugestão automática de palavras-chave, descrição, tom e estilo (`/api/suggest`), pesquisa web em tempo real (`/api/research`), esboço estruturado (`/api/outline`), redação progressiva por secção (`/api/section`) e geração de imagens (`/api/image`).
 - **Roteamento de IA por Plano**:
-  - **Plano Gratuito (`free`)**: utiliza exclusivamente modelos **Groq** (texto e pesquisa web) e **NVIDIA** (fallback de texto e geração de imagens via `black-forest-labs/flux.2-klein-4b`).
+  - **Plano Gratuito (`free`)**: utiliza **OpenRouter** para geração de texto (`openrouter/free`), **Groq** para pesquisa web (`openai/gpt-oss-120b` com `browser_search`) e **NVIDIA** para geração de imagens (`black-forest-labs/flux.2-klein-4b`).
   - **Plano Pago (`paid`)**: utiliza exclusivamente modelos **Google Gemini** via `@google/genai` (`gemini-4-hydrogen` para texto e pesquisa com `googleSearch`, e `gemini-nano-banana-2.1` para imagens em `1K`).
 - **Landing Page & Mascote 3D (`/`, `/mascote`)**: computador 3D interativo no hero (abre ao passar o cursor no cabeçalho) e mascote humanoide 3D em Three.js com expressões e animações em tempo real (*idle*, *wave*, *thinking*, *writing*, *excited*, *pointing*, *sleeping*).
 - **Persistência no Supabase**: autenticação Google OAuth (`/auth/callback`), sincronização em tempo real de artigos, favoritos, configurações pessoais e pacotes de créditos (`supabase/schema.sql`), com fallback local em `localStorage` quando o Supabase não estiver configurado.
@@ -18,10 +18,10 @@ Plataforma SaaS construída em **Next.js (App Router)**, **TypeScript**, **Tailw
 
 ## Como Funciona a Geração
 
-1. `/api/suggest` *(opcional)*: sugere palavras-chave, descrição, tom, extensão e modo de pesquisa a partir do título.
+1. `/api/suggest` *(opcional)*: sugere palavras-chave, descrição, tom, extensão e modo de pesquisa a partir do título (OpenRouter no gratuito; Gemini no pago).
 2. `/api/research`: avalia se o tema precisa de dados recentes e consulta fontes na web (Groq `browser_search` no plano gratuito; Google Gemini `googleSearch` grounding no plano pago).
-3. `/api/outline`: gera o título final e a lista estruturada de secções.
-4. `/api/section`: escreve cada secção mantendo continuidade com o que já foi produzido e extrai o prompt visual.
+3. `/api/outline`: gera o título final e a lista estruturada de secções (OpenRouter no gratuito; Gemini no pago).
+4. `/api/section`: escreve cada secção mantendo continuidade com o que já foi produzido e extrai o prompt visual (OpenRouter no gratuito; Gemini no pago).
 5. `/api/image`: gera a ilustração da secção (NVIDIA `flux.2-klein-4b` no plano gratuito; Gemini `gemini-nano-banana-2.1` no plano pago).
 
 ---
@@ -52,11 +52,11 @@ Abra [http://localhost:3000](http://localhost:3000).
 | `GEMINI_API_KEY` | Pago (Google Gemini) | Chave da API Gemini usada no servidor (`@google/genai`) |
 | `GEMINI_TEXT_MODEL` | Pago (Google Gemini) | Modelo de texto e pesquisa (padrão: `gemini-4-hydrogen`) |
 | `GEMINI_IMAGE_MODEL` | Pago (Google Gemini) | Modelo de imagem (padrão: `gemini-nano-banana-2.1`) |
-| `GROQ_API_KEY` | Gratuito (Groq) | Chave da API Groq para texto e `browser_search` |
-| `GROQ_TEXT_MODEL` | Gratuito (Groq) | Modelo de texto na Groq (padrão: `llama-3.3-70b-versatile`) |
+| `OPENROUTER_API_KEY` | Gratuito (OpenRouter) | Chave da API OpenRouter usada para gerar texto no plano gratuito |
+| `OPENROUTER_TEXT_MODEL` | Gratuito (OpenRouter) | Modelo de texto no OpenRouter (padrão: `openrouter/free`) |
+| `GROQ_API_KEY` | Gratuito (Groq) | Chave da API Groq usada para pesquisa web (`browser_search`) |
 | `GROQ_RESEARCH_MODEL` | Gratuito (Groq) | Modelo de pesquisa web na Groq (padrão: `openai/gpt-oss-120b`) |
-| `NVIDIA_API_KEY` | Gratuito (NVIDIA) | Chave da API NVIDIA para imagens e fallback de texto |
-| `NVIDIA_TEXT_MODEL` | Gratuito (NVIDIA) | Modelo de texto NVIDIA NIM (padrão: `meta/llama-3.3-70b-instruct`) |
+| `NVIDIA_API_KEY` | Gratuito (NVIDIA) | Chave da API NVIDIA usada para geração de imagens |
 | `NEXT_PUBLIC_SUPABASE_URL` | Supabase | URL pública do projeto Supabase |
 | `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Supabase | Chave publicável (`sb_publishable_...`) do Supabase para SSR/Client |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase | Chave anónima legada opcional (`anon`) |

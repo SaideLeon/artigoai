@@ -156,7 +156,7 @@ export default function Sidebar({
           <p className="mt-1 text-xs leading-relaxed text-slate-300">
             {planoGeracao === "paid"
               ? "Artigos e imagens exclusivos Google Gemini"
-              : "Groq + NVIDIA · Upgrade para Gemini"}
+              : "OpenRouter · NVIDIA · Groq"}
           </p>
           <button
             type="button"

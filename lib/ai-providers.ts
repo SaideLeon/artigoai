@@ -1,5 +1,4 @@
 import { GoogleGenAI, type Schema } from "@google/genai";
-import { Groq } from "groq-sdk";
 import type { PlanoGeracao } from "@/lib/types";
 
 export const GEMINI_TEXT_MODEL =
@@ -7,15 +6,16 @@ export const GEMINI_TEXT_MODEL =
 export const GEMINI_IMAGE_MODEL =
   process.env.GEMINI_IMAGE_MODEL || "gemini-nano-banana-2.1";
 
-export const GROQ_TEXT_MODEL =
-  process.env.GROQ_TEXT_MODEL || "llama-3.3-70b-versatile";
+export const OPENROUTER_CHAT_URL =
+  "https://openrouter.ai/api/v1/chat/completions";
+export const OPENROUTER_TEXT_MODEL =
+  process.env.OPENROUTER_TEXT_MODEL ||
+  process.env.TEXT_MODEL ||
+  "openrouter/free";
+
 export const GROQ_RESEARCH_MODEL =
   process.env.GROQ_RESEARCH_MODEL || "openai/gpt-oss-120b";
 
-export const NVIDIA_TEXT_MODEL =
-  process.env.NVIDIA_TEXT_MODEL || "meta/llama-3.3-70b-instruct";
-export const NVIDIA_CHAT_URL =
-  "https://integrate.api.nvidia.com/v1/chat/completions";
 export const NVIDIA_IMAGE_URL =
   "https://ai.api.nvidia.com/v1/genai/black-forest-labs/flux.2-klein-4b";
 
@@ -66,108 +66,73 @@ export function formatGeminiError(error: unknown): Error {
     );
   }
 
-  return error instanceof Error ? error : new Error(raw || "Erro na API Gemini.");
-}
-
-async function callGroqText(prompt: string): Promise<string> {
-  const apiKey = process.env.GROQ_API_KEY?.trim();
-  if (!apiKey) {
-    throw new Error("GROQ_API_KEY não configurada.");
-  }
-
-  const groq = new Groq({ apiKey });
-  const completion = await groq.chat.completions.create({
-    model: GROQ_TEXT_MODEL,
-    messages: [{ role: "user", content: prompt }],
-    temperature: 0.7,
-    max_completion_tokens: 4096,
-  });
-
-  const text = completion.choices?.[0]?.message?.content?.trim();
-  if (!text) {
-    throw new Error("O modelo da Groq retornou uma resposta vazia.");
-  }
-  return text;
-}
-
-async function callNvidiaText(prompt: string): Promise<string> {
-  const apiKey = process.env.NVIDIA_API_KEY?.trim();
-  if (!apiKey) {
-    throw new Error("NVIDIA_API_KEY não configurada.");
-  }
-
-  const response = await fetch(NVIDIA_CHAT_URL, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      Accept: "application/json",
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      model: NVIDIA_TEXT_MODEL,
-      messages: [{ role: "user", content: prompt }],
-      temperature: 0.7,
-      max_tokens: 4096,
-    }),
-  });
-
-  if (!response.ok) {
-    const errText = await response.text();
-    throw new Error(
-      `Falha na NVIDIA (${response.status}): ${errText.slice(0, 240)}`
-    );
-  }
-
-  const data = (await response.json()) as {
-    choices?: Array<{ message?: { content?: string } }>;
-  };
-  const text = data.choices?.[0]?.message?.content?.trim();
-  if (!text) {
-    throw new Error("O modelo da NVIDIA retornou uma resposta vazia.");
-  }
-  return text;
+  return error instanceof Error
+    ? error
+    : new Error(raw || "Erro na API Gemini.");
 }
 
 /**
- * Plano gratuito: usa APENAS modelos hospedados na Groq ou NVIDIA.
+ * Plano gratuito (texto): usa EXCLUSIVAMENTE OpenRouter.
  */
-export async function generateFreeText(prompt: string): Promise<{
+export async function generateFreeText(
+  prompt: string,
+  tentativas = 3
+): Promise<{
   text: string;
-  provedor: "groq" | "nvidia";
+  provedor: "openrouter";
   modelo: string;
 }> {
-  const hasGroq = Boolean(process.env.GROQ_API_KEY?.trim());
-  const hasNvidia = Boolean(process.env.NVIDIA_API_KEY?.trim());
-
-  if (!hasGroq && !hasNvidia) {
+  const apiKey = process.env.OPENROUTER_API_KEY?.trim();
+  if (!apiKey) {
     throw new Error(
-      "Configure GROQ_API_KEY ou NVIDIA_API_KEY no servidor para gerar artigos no plano gratuito."
+      "OPENROUTER_API_KEY não configurada no servidor para gerar texto no plano gratuito."
     );
   }
 
-  if (hasGroq) {
-    try {
-      const text = await callGroqText(prompt);
-      return { text, provedor: "groq", modelo: GROQ_TEXT_MODEL };
-    } catch (groqErr) {
-      if (!hasNvidia) throw groqErr;
-      try {
-        const text = await callNvidiaText(prompt);
-        return { text, provedor: "nvidia", modelo: NVIDIA_TEXT_MODEL };
-      } catch (nvidiaErr) {
-        throw new Error(
-          `Groq falhou (${(groqErr as Error).message}); fallback NVIDIA falhou (${(nvidiaErr as Error).message})`
-        );
-      }
+  for (let i = 0; i < tentativas; i++) {
+    const response = await fetch(OPENROUTER_CHAT_URL, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: OPENROUTER_TEXT_MODEL,
+        messages: [{ role: "user", content: prompt }],
+      }),
+    });
+
+    if (response.status === 429 && i < tentativas - 1) {
+      await new Promise((resolve) => setTimeout(resolve, 4000 * (i + 1)));
+      continue;
     }
+
+    const data = (await response.json()) as {
+      choices?: Array<{ message?: { content?: string } }>;
+      error?: { message?: string };
+    };
+
+    if (!response.ok) {
+      throw new Error(
+        data?.error?.message ?? `Erro no OpenRouter (${response.status})`
+      );
+    }
+
+    const text = data.choices?.[0]?.message?.content?.trim();
+    if (!text) {
+      throw new Error("O modelo do OpenRouter retornou uma resposta vazia.");
+    }
+
+    return { text, provedor: "openrouter", modelo: OPENROUTER_TEXT_MODEL };
   }
 
-  const text = await callNvidiaText(prompt);
-  return { text, provedor: "nvidia", modelo: NVIDIA_TEXT_MODEL };
+  throw new Error(
+    "Limite de pedidos excedido no OpenRouter. Tenta novamente daqui a um minuto."
+  );
 }
 
 /**
- * Plano pago: usa APENAS modelos Google Gemini via @google/genai.
+ * Plano pago (texto): usa EXCLUSIVAMENTE Google Gemini via @google/genai.
  */
 export async function generatePaidGeminiText(
   prompt: string,

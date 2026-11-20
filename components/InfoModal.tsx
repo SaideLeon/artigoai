@@ -176,8 +176,8 @@ export default function InfoModal({
                 <div className="flex items-center gap-2">
                   <Check className="h-3.5 w-3.5 shrink-0 text-emerald-600 dark:text-emerald-400" />
                   <span>
-                    <strong>Plano Gratuito:</strong> usa apenas modelos Groq
-                    (texto e pesquisa) e NVIDIA (texto e imagens).
+                    <strong>Plano Gratuito:</strong> usa OpenRouter para texto,
+                    Groq para pesquisa web e NVIDIA para imagens.
                   </span>
                 </div>
                 <div className="flex items-center gap-2">
@@ -211,7 +211,7 @@ export default function InfoModal({
                         : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300"
                     }`}
                   >
-                    Usar Plano Gratuito (Groq + NVIDIA)
+                    Usar Plano Gratuito (OpenRouter + NVIDIA + Groq)
                   </button>
                   <button
                     type="button"
