@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import BrandLogo from "@/components/BrandLogo";
 import {
   Home,
@@ -11,6 +12,8 @@ import {
   HelpCircle,
   Info,
   X,
+  ArrowLeft,
+  Bot,
 } from "lucide-react";
 import type { NavTab } from "@/lib/types";
 
@@ -58,7 +61,10 @@ export default function Sidebar({
       <div className="relative z-10 flex flex-col gap-7">
         {/* Brand Block */}
         <div className="flex items-start justify-between px-2">
-          <div className="group flex flex-col items-center text-center w-full">
+          <Link
+            href="/"
+            className="group flex w-full flex-col items-center text-center focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-indigo-400 rounded-xl"
+          >
             <div className="mb-3 flex h-15 w-15 items-center justify-center rounded-2xl border border-white/15 bg-gradient-to-br from-[#5B4AF4] via-[#4F46E5] to-[#2563EB] p-2.5 shadow-lg shadow-indigo-950/50 transition-transform duration-200 group-hover:scale-105">
               <BrandLogo
                 variant={ocupado ? "write" : "static"}
@@ -74,7 +80,7 @@ export default function Sidebar({
             <p className="mt-1.5 text-xs leading-snug text-slate-400">
               Crie conteúdos incríveis com IA
             </p>
-          </div>
+          </Link>
           <button
             type="button"
             onClick={onCloseMobile}
@@ -172,6 +178,20 @@ export default function Sidebar({
             <Info className="h-4 w-4 text-slate-400" />
             <span>Sobre</span>
           </button>
+          <Link
+            href="/mascote"
+            className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-xs font-medium text-cyan-300 transition-colors hover:bg-white/8 hover:text-white focus-visible:outline-2 focus-visible:outline-indigo-400"
+          >
+            <Bot className="h-4 w-4 text-cyan-400" />
+            <span>Mascote 3D</span>
+          </Link>
+          <Link
+            href="/"
+            className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-xs font-medium text-slate-400 transition-colors hover:bg-white/8 hover:text-white focus-visible:outline-2 focus-visible:outline-indigo-400"
+          >
+            <ArrowLeft className="h-4 w-4 text-slate-400" />
+            <span>Página inicial</span>
+          </Link>
         </div>
       </div>
     </aside>

@@ -1,13 +1,42 @@
 "use client";
 
-import { CheckCircle2, Bot, Sparkles } from "lucide-react";
+import { useState } from "react";
+import Link from "next/link";
+import { CheckCircle2 } from "lucide-react";
 import BrandLogo from "@/components/BrandLogo";
+import RobotScene from "@/components/mascot/RobotScene";
+import type {
+  RobotAnimationState,
+  RobotExpression,
+} from "@/components/mascot/RobotAnimations";
 
-export default function HeroBanner() {
+type HeroBannerProps = {
+  mascotState?: RobotAnimationState;
+};
+
+export default function HeroBanner({ mascotState = "idle" }: HeroBannerProps) {
+  const [clickedGreeting, setClickedGreeting] = useState(false);
+
+  const effectiveAnimation: RobotAnimationState =
+    mascotState !== "idle"
+      ? mascotState
+      : clickedGreeting
+      ? "greeting"
+      : "idle";
+
+  const effectiveExpression: RobotExpression =
+    effectiveAnimation === "thinking"
+      ? "curious"
+      : effectiveAnimation === "excited"
+      ? "excited"
+      : effectiveAnimation === "greeting"
+      ? "happy"
+      : "neutral";
+
   return (
     <section
       aria-label="Apresentação do Gerador de Artigos"
-      className="relative overflow-hidden rounded-2xl border border-indigo-200/70 bg-gradient-to-r from-[#EBF0FF] via-[#E1DBFE] to-[#CCE7FF] px-6 py-5 shadow-xs dark:border-indigo-500/25 dark:from-[#161E3D] dark:via-[#1E1B4B] dark:to-[#0F2747]"
+      className="relative overflow-hidden rounded-2xl border border-indigo-200/70 bg-gradient-to-r from-[#EBF0FF] via-[#E1DBFE] to-[#CCE7FF] px-6 py-4 shadow-xs dark:border-indigo-500/25 dark:from-[#161E3D] dark:via-[#1E1B4B] dark:to-[#0F2747]"
     >
       {/* Decorative atmospheric shapes */}
       <div
@@ -47,15 +76,29 @@ export default function HeroBanner() {
             </span>
             <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-300" />
           </div>
-          <div
-            aria-hidden="true"
-            className="hidden sm:flex h-12 w-12 items-center justify-center rounded-2xl border border-white/60 bg-gradient-to-br from-indigo-600 to-blue-500 text-white shadow-sm dark:border-white/15"
-          >
-            <Bot className="h-6 w-6" />
+
+          <div className="hidden sm:flex items-center gap-2">
+            <div
+              title="Artigen AI Assistant 3D — Clique para interagir"
+              className="relative h-20 w-20 overflow-hidden rounded-2xl border border-white/70 bg-white/60 shadow-sm backdrop-blur-xs dark:border-white/15 dark:bg-slate-900/60"
+            >
+              <RobotScene
+                animation={effectiveAnimation}
+                expression={effectiveExpression}
+                cameraZ={3.35}
+                scale={1.08}
+                onRobotClick={() => setClickedGreeting((v) => !v)}
+                className="h-full w-full"
+                ariaLabel="Mascote 3D Artigen no painel principal"
+              />
+            </div>
+            <Link
+              href="/mascote"
+              className="hidden xl:inline-flex items-center rounded-lg border border-indigo-300/60 bg-white/70 px-2.5 py-1.5 text-[11px] font-semibold text-indigo-700 transition-colors hover:bg-white dark:border-indigo-500/30 dark:bg-slate-900/70 dark:text-indigo-300 dark:hover:bg-slate-900 whitespace-nowrap"
+            >
+              Demo 3D
+            </Link>
           </div>
-          <span className="sr-only">
-            <Sparkles className="h-4 w-4" />
-          </span>
         </div>
       </div>
     </section>
