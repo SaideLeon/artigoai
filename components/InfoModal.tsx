@@ -11,13 +11,21 @@ import {
   getPerArticlePrice,
   type CurrencyCode,
 } from "@/lib/pricing";
+import type { PlanoGeracao } from "@/lib/types";
 
 type InfoModalProps = {
   tipo: "upgrade" | "ajuda" | "sobre" | null;
   onClose: () => void;
+  planoGeracao?: PlanoGeracao;
+  onSelectPlanoGeracao?: (plano: PlanoGeracao) => void;
 };
 
-export default function InfoModal({ tipo, onClose }: InfoModalProps) {
+export default function InfoModal({
+  tipo,
+  onClose,
+  planoGeracao = "free",
+  onSelectPlanoGeracao,
+}: InfoModalProps) {
   const [currency, setCurrency] = useState<CurrencyCode>("BRL");
 
   if (!tipo) return null;
@@ -164,15 +172,23 @@ export default function InfoModal({ tipo, onClose }: InfoModalProps) {
                 })}
               </div>
 
-              <div className="rounded-xl border border-slate-200/80 bg-slate-50 px-3.5 py-2.5 text-xs text-slate-600 dark:border-slate-800 dark:bg-slate-950/50 dark:text-slate-300">
+              <div className="rounded-xl border border-slate-200/80 bg-slate-50 px-3.5 py-2.5 text-xs text-slate-600 dark:border-slate-800 dark:bg-slate-950/50 dark:text-slate-300 space-y-1.5">
                 <div className="flex items-center gap-2">
                   <Check className="h-3.5 w-3.5 shrink-0 text-emerald-600 dark:text-emerald-400" />
                   <span>
-                    Todos os pacotes incluem artigos de ~2.500 palavras, até 7
-                    imagens em qualidade 1K, pesquisa web e exportação HTML.
+                    <strong>Plano Gratuito:</strong> usa apenas modelos Groq
+                    (texto e pesquisa) e NVIDIA (texto e imagens).
                   </span>
                 </div>
-                <p className="mt-1 pl-5.5 text-[11px] text-slate-500 dark:text-slate-400">
+                <div className="flex items-center gap-2">
+                  <Check className="h-3.5 w-3.5 shrink-0 text-indigo-600 dark:text-indigo-400" />
+                  <span>
+                    <strong>Pacotes Pagos:</strong> usam exclusivamente Google
+                    Gemini para gerar artigos (~2.500 palavras) e até 7 imagens
+                    1K por artigo.
+                  </span>
+                </div>
+                <p className="pl-5.5 text-[11px] text-slate-500 dark:text-slate-400">
                   Cotação de referência: 1 USD = R${" "}
                   {USD_TO_BRL.toLocaleString("pt-BR", {
                     minimumFractionDigits: 4,
@@ -180,6 +196,39 @@ export default function InfoModal({ tipo, onClose }: InfoModalProps) {
                   })}
                 </p>
               </div>
+
+              {onSelectPlanoGeracao && (
+                <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onSelectPlanoGeracao("free");
+                      onClose();
+                    }}
+                    className={`rounded-xl border px-3.5 py-2 text-xs font-semibold transition-colors ${
+                      planoGeracao === "free"
+                        ? "border-indigo-600 bg-indigo-50 text-indigo-700 dark:border-indigo-500 dark:bg-indigo-950/50 dark:text-indigo-300"
+                        : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300"
+                    }`}
+                  >
+                    Usar Plano Gratuito (Groq + NVIDIA)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onSelectPlanoGeracao("paid");
+                      onClose();
+                    }}
+                    className={`rounded-xl px-3.5 py-2 text-xs font-semibold transition-colors ${
+                      planoGeracao === "paid"
+                        ? "bg-indigo-600 text-white"
+                        : "bg-gradient-to-r from-[#5B4AF4] to-[#2563EB] text-white hover:brightness-110"
+                    }`}
+                  >
+                    Ativar Motor Pago (Google Gemini)
+                  </button>
+                </div>
+              )}
             </div>
           )}
 

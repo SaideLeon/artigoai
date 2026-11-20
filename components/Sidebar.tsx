@@ -15,7 +15,7 @@ import {
   ArrowLeft,
   Bot,
 } from "lucide-react";
-import type { NavTab } from "@/lib/types";
+import type { NavTab, PlanoGeracao } from "@/lib/types";
 
 type SidebarProps = {
   activeTab: NavTab;
@@ -26,6 +26,7 @@ type SidebarProps = {
   mobileOpen: boolean;
   onCloseMobile: () => void;
   ocupado?: boolean;
+  planoGeracao?: PlanoGeracao;
 };
 
 const NAV_ITEMS: { id: NavTab; label: string; icon: typeof Home }[] = [
@@ -45,6 +46,7 @@ export default function Sidebar({
   mobileOpen,
   onCloseMobile,
   ocupado = false,
+  planoGeracao = "free",
 }: SidebarProps) {
   const content = (
     <aside className="relative flex h-full w-[252px] shrink-0 flex-col justify-between overflow-hidden bg-gradient-to-b from-[#0E162E] via-[#121C3A] to-[#111936] px-4 py-6 text-slate-200 select-none dark:border-r dark:border-slate-800/80">
@@ -148,9 +150,13 @@ export default function Sidebar({
           <div className="mx-auto mb-2 flex h-9 w-9 items-center justify-center rounded-xl bg-amber-400/15 text-amber-400">
             <Crown className="h-5 w-5" />
           </div>
-          <p className="text-sm font-semibold text-white">Pacotes de Artigos</p>
+          <p className="text-sm font-semibold text-white">
+            {planoGeracao === "paid" ? "Plano Pago · Gemini" : "Plano Gratuito"}
+          </p>
           <p className="mt-1 text-xs leading-relaxed text-slate-300">
-            Avulso ou pacotes com até 32% off
+            {planoGeracao === "paid"
+              ? "Artigos e imagens exclusivos Google Gemini"
+              : "Groq + NVIDIA · Upgrade para Gemini"}
           </p>
           <button
             type="button"

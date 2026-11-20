@@ -1,5 +1,10 @@
 import { NextResponse } from "next/server";
-import { chat, MODELO_TEXTO } from "@/lib/openrouter";
+import { Type, type Schema } from "@google/genai";
+import {
+  generateFreeText,
+  generatePaidGeminiText,
+  normalizePlano,
+} from "@/lib/ai-providers";
 import {
   FAIXAS_PALAVRAS,
   TONS_TEXTO,
@@ -11,12 +16,36 @@ const VALID_TONS = new Set<string>(TONS_TEXTO);
 const VALID_FAIXAS = new Set<string>(FAIXAS_PALAVRAS.map((f) => f.id));
 const VALID_PESQUISA = new Set<ModoPesquisa>(["auto", "sempre", "desativada"]);
 
+const SUGGEST_SCHEMA: Schema = {
+  type: Type.OBJECT,
+  properties: {
+    palavrasChave: {
+      type: Type.ARRAY,
+      items: { type: Type.STRING },
+    },
+    descricao: { type: Type.STRING },
+    tom: { type: Type.STRING },
+    faixaPalavras: { type: Type.STRING },
+    primeiraPessoa: { type: Type.BOOLEAN },
+    pesquisaWeb: { type: Type.STRING },
+  },
+  required: [
+    "palavrasChave",
+    "descricao",
+    "tom",
+    "faixaPalavras",
+    "primeiraPessoa",
+    "pesquisaWeb",
+  ],
+};
+
 export async function POST(req: Request) {
   try {
     const {
       tema,
       idioma = "Português (Brasil)",
-    }: { tema: string; idioma?: string } = await req.json();
+      plano: rawPlano,
+    }: { tema: string; idioma?: string; plano?: string } = await req.json();
 
     if (!tema || !tema.trim()) {
       return NextResponse.json(
@@ -25,12 +54,8 @@ export async function POST(req: Request) {
       );
     }
 
-    const data = await chat({
-      model: MODELO_TEXTO,
-      messages: [
-        {
-          role: "user",
-          content: `Com base apenas no título principal "${tema.trim()}" (idioma: ${idioma}), sugere as melhores configurações para gerar um artigo completo e bem posicionado em SEO.
+    const plano = normalizePlano(rawPlano);
+    const prompt = `Com base apenas no título principal "${tema.trim()}" (idioma: ${idioma}), sugere as melhores configurações para gerar um artigo completo e bem posicionado em SEO.
 
 Responde APENAS com JSON válido (sem texto antes ou depois) neste formato exato:
 {
@@ -40,13 +65,16 @@ Responde APENAS com JSON válido (sem texto antes ou depois) neste formato exato
   "faixaPalavras": "um dos valores exatos: ${FAIXAS_PALAVRAS.map((f) => f.id).join(" | ")}",
   "primeiraPessoa": true,
   "pesquisaWeb": "auto ou sempre (usa sempre se for notícia, evento recente, dado técnico ou atualidade) ou desativada"
-}`,
-        },
-      ],
-    });
+}`;
 
-    const bruto: string = data.choices?.[0]?.message?.content ?? "";
-    const jsonMatch = bruto.match(/\{[\s\S]*\}/)?.[0];
+    const result =
+      plano === "paid"
+        ? await generatePaidGeminiText(prompt, {
+            responseSchema: SUGGEST_SCHEMA,
+          })
+        : await generateFreeText(prompt);
+
+    const jsonMatch = result.text.match(/\{[\s\S]*\}/)?.[0];
     if (!jsonMatch) {
       throw new Error("O modelo não devolveu sugestões válidas. Tenta de novo.");
     }
@@ -88,6 +116,8 @@ Responde APENAS com JSON válido (sem texto antes ou depois) neste formato exato
       faixaPalavras,
       primeiraPessoa,
       pesquisaWeb,
+      provedor: result.provedor,
+      modelo: result.modelo,
     });
   } catch (e) {
     return NextResponse.json({ erro: (e as Error).message }, { status: 500 });

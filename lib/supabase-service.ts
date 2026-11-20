@@ -7,6 +7,7 @@ import {
   type FaixaPalavrasId,
   type FontePesquisa,
   type ModoPesquisa,
+  type PlanoGeracao,
   type Secao,
 } from "@/lib/types";
 
@@ -413,4 +414,53 @@ export async function clearAllArticlesCloud(userId: string): Promise<void> {
   if (error) {
     console.error("Erro ao limpar artigos no Supabase:", error.message);
   }
+}
+
+export function subscribeUserPlan(
+  userId: string,
+  onPlan: (info: { plan: string; planoGeracao: PlanoGeracao }) => void
+): () => void {
+  const supabase = getSupabaseClient();
+  if (!supabase) return () => {};
+
+  let active = true;
+
+  const loadPlan = async () => {
+    const { data, error } = await supabase
+      .from("subscriptions")
+      .select("plan, status")
+      .eq("user_id", userId)
+      .maybeSingle();
+
+    if (!active || error || !data) return;
+    const planName = typeof data.plan === "string" ? data.plan : "free";
+    const isActivePaid = planName !== "free" && data.status === "active";
+    onPlan({
+      plan: planName,
+      planoGeracao: isActivePaid ? "paid" : "free",
+    });
+  };
+
+  void loadPlan();
+
+  const channel = supabase
+    .channel(`subscriptions-${userId}`)
+    .on(
+      "postgres_changes",
+      {
+        event: "*",
+        schema: "public",
+        table: "subscriptions",
+        filter: `user_id=eq.${userId}`,
+      },
+      () => {
+        void loadPlan();
+      }
+    )
+    .subscribe();
+
+  return () => {
+    active = false;
+    void supabase.removeChannel(channel);
+  };
 }

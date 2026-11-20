@@ -18,6 +18,7 @@ import {
   UserCheck,
   Search,
   Sparkles,
+  Cpu,
 } from "lucide-react";
 import {
   FAIXAS_PALAVRAS,
@@ -25,6 +26,7 @@ import {
   IDIOMAS,
   type FaixaPalavrasId,
   type ModoPesquisa,
+  type PlanoGeracao,
 } from "@/lib/types";
 
 type ArticleConfigFormProps = {
@@ -46,6 +48,8 @@ type ArticleConfigFormProps = {
   onChangePrimeiraPessoa: (val: boolean) => void;
   pesquisaWeb: ModoPesquisa;
   onChangePesquisaWeb: (val: ModoPesquisa) => void;
+  planoGeracao: PlanoGeracao;
+  onChangePlanoGeracao: (val: PlanoGeracao) => void;
   sugerindo: boolean;
   erroSugestao?: string;
   descricaoSugerida?: boolean;
@@ -74,6 +78,8 @@ export default function ArticleConfigForm({
   onChangePrimeiraPessoa,
   pesquisaWeb,
   onChangePesquisaWeb,
+  planoGeracao,
+  onChangePlanoGeracao,
   sugerindo,
   erroSugestao,
   descricaoSugerida,
@@ -126,6 +132,52 @@ export default function ArticleConfigForm({
       </div>
 
       <div className="space-y-4">
+        {/* Plano / Motor de IA */}
+        <div className="rounded-xl border border-slate-200/90 bg-slate-50/70 p-3 dark:border-slate-800 dark:bg-slate-800/40">
+          <div className="mb-2 flex items-center justify-between gap-2">
+            <span className="flex items-center gap-1.5 text-xs font-semibold text-slate-800 dark:text-slate-200">
+              <Cpu className="h-3.5 w-3.5 text-indigo-600 dark:text-indigo-400" />
+              <span>Plano de geração</span>
+            </span>
+            <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400">
+              {planoGeracao === "paid"
+                ? "Google Gemini"
+                : "Groq + NVIDIA"}
+            </span>
+          </div>
+          <div className="grid grid-cols-2 gap-1.5 rounded-lg border border-slate-200 bg-white p-1 dark:border-slate-700 dark:bg-slate-900">
+            <button
+              type="button"
+              disabled={ocupado}
+              onClick={() => onChangePlanoGeracao("free")}
+              className={`rounded-md px-2.5 py-1.5 text-xs font-semibold transition-colors disabled:opacity-60 ${
+                planoGeracao === "free"
+                  ? "bg-indigo-600 text-white"
+                  : "text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white"
+              }`}
+            >
+              Gratuito
+            </button>
+            <button
+              type="button"
+              disabled={ocupado}
+              onClick={() => onChangePlanoGeracao("paid")}
+              className={`rounded-md px-2.5 py-1.5 text-xs font-semibold transition-colors disabled:opacity-60 ${
+                planoGeracao === "paid"
+                  ? "bg-indigo-600 text-white"
+                  : "text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white"
+              }`}
+            >
+              Pago (Gemini)
+            </button>
+          </div>
+          <p className="mt-1.5 text-[11px] leading-snug text-slate-500 dark:text-slate-400">
+            {planoGeracao === "paid"
+              ? "Usa apenas modelos Google Gemini para artigo, pesquisa e imagens."
+              : "Usa apenas modelos Groq (artigo e pesquisa) e NVIDIA (texto e imagens)."}
+          </p>
+        </div>
+
         {/* Tema ou Título Principal */}
         <div>
           <div className="mb-1.5 flex items-center justify-between gap-2">

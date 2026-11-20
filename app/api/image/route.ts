@@ -1,12 +1,15 @@
 import { NextResponse } from "next/server";
-import { gerarImagem, MODELO_IMAGEM } from "@/lib/openrouter";
+import {
+  formatGeminiError,
+  GEMINI_IMAGE_MODEL,
+  getGeminiClient,
+  normalizePlano,
+  NVIDIA_IMAGE_URL,
+} from "@/lib/ai-providers";
 
 // Estilo fixo no início de todos os prompts para as imagens parecerem do mesmo conjunto.
 const ESTILO =
   "Flat editorial illustration, muted teal and sand palette, clean composition, no text, no letters. ";
-
-const NVIDIA_INVOKE_URL =
-  "https://ai.api.nvidia.com/v1/genai/black-forest-labs/flux.2-klein-4b";
 
 function toImageDataUri(raw: string): string {
   const trimmed = raw.trim();
@@ -25,7 +28,6 @@ function isLikelyImagePayload(value: string): boolean {
   const trimmed = value.trim();
   if (trimmed.startsWith("data:image/")) return true;
   if (/^https?:\/\/\S+/i.test(trimmed)) return true;
-  // Raw base64 image payload
   return trimmed.length >= 128 && /^[A-Za-z0-9+/=_\r\n-]+$/.test(trimmed);
 }
 
@@ -58,7 +60,6 @@ function findImageInPayload(node: unknown, depth = 0): string | null {
 
   if (typeof node === "object") {
     const obj = node as Record<string, unknown>;
-    // Prioritise known image keys first
     for (const key of Object.keys(obj)) {
       if (IMAGE_KEYS.has(key.toLowerCase())) {
         const val = obj[key];
@@ -67,7 +68,6 @@ function findImageInPayload(node: unknown, depth = 0): string | null {
         }
       }
     }
-    // Recurse into nested objects/arrays
     for (const key of Object.keys(obj)) {
       const val = obj[key];
       if (val && typeof val === "object") {
@@ -80,29 +80,18 @@ function findImageInPayload(node: unknown, depth = 0): string | null {
   return null;
 }
 
-async function gerarImagemOpenRouter(prompt: string): Promise<string> {
-  if (!process.env.OPENROUTER_API_KEY) {
-    throw new Error("OPENROUTER_API_KEY não configurada.");
-  }
-
-  const result = await gerarImagem({
-    model: MODELO_IMAGEM,
-    prompt,
-  });
-
-  const image = result.data?.[0];
-  const raw = image?.b64_json || image?.url || findImageInPayload(result);
-  if (!raw) throw new Error("O modelo do OpenRouter não devolveu nenhuma imagem.");
-  return toImageDataUri(raw);
-}
-
+/**
+ * Plano gratuito: gera imagens exclusivamente com modelo NVIDIA (FLUX.2 Klein 4B).
+ */
 async function gerarImagemNvidia(prompt: string): Promise<string> {
-  const apiKey = process.env.NVIDIA_API_KEY;
+  const apiKey = process.env.NVIDIA_API_KEY?.trim();
   if (!apiKey) {
-    throw new Error("NVIDIA_API_KEY não configurada.");
+    throw new Error(
+      "NVIDIA_API_KEY não configurada no servidor para gerar imagens no plano gratuito."
+    );
   }
 
-  const response = await fetch(NVIDIA_INVOKE_URL, {
+  const response = await fetch(NVIDIA_IMAGE_URL, {
     method: "POST",
     headers: {
       Authorization: `Bearer ${apiKey}`,
@@ -156,9 +145,12 @@ async function gerarImagemNvidia(prompt: string): Promise<string> {
     responseBody &&
     typeof responseBody === "object" &&
     "artifacts" in responseBody &&
-    Array.isArray((responseBody as { artifacts?: Array<{ finishReason?: string }> }).artifacts)
-      ? (responseBody as { artifacts?: Array<{ finishReason?: string }> }).artifacts?.[0]
-          ?.finishReason
+    Array.isArray(
+      (responseBody as { artifacts?: Array<{ finishReason?: string }> })
+        .artifacts
+    )
+      ? (responseBody as { artifacts?: Array<{ finishReason?: string }> })
+          .artifacts?.[0]?.finishReason
       : undefined;
 
   throw new Error(
@@ -168,27 +160,60 @@ async function gerarImagemNvidia(prompt: string): Promise<string> {
   );
 }
 
-export async function POST(req: Request) {
-  try {
-    const { prompt } = await req.json();
-    const promptCompleto = ESTILO + prompt;
+/**
+ * Plano pago: gera imagens exclusivamente com Google Gemini (Nano Banana 2.1).
+ */
+async function gerarImagemGemini(prompt: string): Promise<string> {
+  const ai = getGeminiClient();
 
-    try {
-      const url = await gerarImagemOpenRouter(promptCompleto);
-      return NextResponse.json({ url, provedor: "openrouter" });
-    } catch (openRouterErro) {
-      if (!process.env.NVIDIA_API_KEY) {
-        throw openRouterErro;
-      }
-      try {
-        const url = await gerarImagemNvidia(promptCompleto);
-        return NextResponse.json({ url, provedor: "nvidia" });
-      } catch (nvidiaErro) {
-        throw new Error(
-          `OpenRouter falhou (${(openRouterErro as Error).message}); fallback NVIDIA falhou (${(nvidiaErro as Error).message})`
-        );
+  try {
+    const response = await ai.models.generateContent({
+      model: GEMINI_IMAGE_MODEL,
+      contents: {
+        parts: [{ text: prompt }],
+      },
+      config: {
+        imageConfig: {
+          aspectRatio: "16:9",
+          imageSize: "1K",
+        },
+      },
+    });
+
+    for (const part of response.candidates?.[0]?.content?.parts ?? []) {
+      if (part.inlineData?.data) {
+        const mime = part.inlineData.mimeType ?? "image/png";
+        return `data:${mime};base64,${part.inlineData.data}`;
       }
     }
+
+    throw new Error("O modelo Gemini de imagem não devolveu nenhuma imagem.");
+  } catch (err) {
+    throw formatGeminiError(err);
+  }
+}
+
+export async function POST(req: Request) {
+  try {
+    const { prompt, plano: rawPlano } = await req.json();
+    const plano = normalizePlano(rawPlano);
+    const promptCompleto = ESTILO + String(prompt ?? "");
+
+    if (plano === "paid") {
+      const url = await gerarImagemGemini(promptCompleto);
+      return NextResponse.json({
+        url,
+        provedor: "gemini",
+        modelo: GEMINI_IMAGE_MODEL,
+      });
+    }
+
+    const url = await gerarImagemNvidia(promptCompleto);
+    return NextResponse.json({
+      url,
+      provedor: "nvidia",
+      modelo: "black-forest-labs/flux.2-klein-4b",
+    });
   } catch (e) {
     return NextResponse.json({ erro: (e as Error).message }, { status: 500 });
   }

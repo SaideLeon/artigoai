@@ -23,6 +23,7 @@ import {
   saveArticleCloud,
   saveUserSettings,
   subscribeUserArticles,
+  subscribeUserPlan,
   subscribeUserSettings,
   toggleArticleFavoriteCloud,
   updateArticleContentCloud,
@@ -36,11 +37,13 @@ import {
   type ModoPesquisa,
   type NavTab,
   type NotificacaoItem,
+  type PlanoGeracao,
   type Secao,
 } from "@/lib/types";
 
 const STORAGE_ARTICLES = "artigoai:artigos:v1";
 const STORAGE_CONFIG = "artigoai:config:v1";
+const STORAGE_PLAN = "artigoai:plano:v1";
 
 const DEFAULT_CONFIG: ConfiguracoesPadrao = {
   tomPadrao: "Informativo e Didático",
@@ -172,6 +175,7 @@ export default function ArticleStudioApp() {
   const [pesquisaWeb, setPesquisaWeb] = useState<ModoPesquisa>(
     DEFAULT_CONFIG.pesquisaWebPadrao ?? "auto"
   );
+  const [planoGeracao, setPlanoGeracao] = useState<PlanoGeracao>("free");
 
   // Active article workspace state
   const [artigoAtualId, setArtigoAtualId] = useState<string | null>(null);
@@ -205,7 +209,32 @@ export default function ArticleStudioApp() {
     latestWorkspaceRef.current = { titulo, descricao, secoes };
   }, [titulo, descricao, secoes]);
 
-  // Load persisted data after mount (localStorage fallback + Firestore real-time sync)
+  useEffect(() => {
+    let mounted = true;
+    Promise.resolve().then(() => {
+      if (!mounted) return;
+      try {
+        const params = new URLSearchParams(window.location.search);
+        const pacoteParam = params.get("pacote");
+        if (pacoteParam && pacoteParam !== "free") {
+          setPlanoGeracao("paid");
+          localStorage.setItem(STORAGE_PLAN, "paid");
+          return;
+        }
+        const rawPlan = localStorage.getItem(STORAGE_PLAN);
+        if (rawPlan === "paid" || rawPlan === "free") {
+          setPlanoGeracao(rawPlan);
+        }
+      } catch {
+        // Ignora erro de localStorage
+      }
+    });
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  // Load persisted data after mount (localStorage fallback + Supabase real-time sync)
   useEffect(() => {
     let mounted = true;
 
@@ -311,10 +340,18 @@ export default function ArticleStudioApp() {
       }
     });
 
+    const unsubPlan = subscribeUserPlan(uid, (info) => {
+      if (!mounted) return;
+      if (info.planoGeracao === "paid") {
+        setPlanoGeracao("paid");
+      }
+    });
+
     return () => {
       mounted = false;
       unsubSettings();
       unsubArticles();
+      unsubPlan();
     };
   }, [user, profileReady, setTheme]);
 
@@ -410,7 +447,11 @@ export default function ArticleStudioApp() {
   ): Promise<string | undefined> {
     atualizarSecao(index, { aGerarImagem: true, erro: undefined });
     try {
-      const { url } = await postJson("/api/image", { prompt }, signal);
+      const { url } = await postJson(
+        "/api/image",
+        { prompt, plano: planoGeracao },
+        signal
+      );
       atualizarSecao(index, { img: url, aGerarImagem: false });
       return url;
     } catch (e) {
@@ -437,6 +478,7 @@ export default function ArticleStudioApp() {
       const sug = await postJson("/api/suggest", {
         tema: tema.trim(),
         idioma,
+        plano: planoGeracao,
       });
       if (Array.isArray(sug.palavrasChave)) {
         setPalavrasChave(sug.palavrasChave);
@@ -485,7 +527,7 @@ export default function ArticleStudioApp() {
           setEstado("A sugerir descrição, palavras-chave e estilo com IA…");
           const sug = await postJson(
             "/api/suggest",
-            { tema: tema.trim(), idioma },
+            { tema: tema.trim(), idioma, plano: planoGeracao },
             controller.signal
           );
           if (Array.isArray(sug.palavrasChave) && sug.palavrasChave.length > 0) {
@@ -538,6 +580,7 @@ export default function ArticleStudioApp() {
             tom: tomEfetivo,
             idioma,
             modo: pesquisaEfetiva,
+            plano: planoGeracao,
           },
           controller.signal
         );
@@ -560,6 +603,7 @@ export default function ArticleStudioApp() {
           idioma,
           primeiraPessoa: primeiraPessoaEfetiva,
           contextoPesquisa,
+          plano: planoGeracao,
         },
         controller.signal
       );
@@ -589,6 +633,7 @@ export default function ArticleStudioApp() {
             descricao: descEfetiva,
             primeiraPessoa: primeiraPessoaEfetiva,
             contextoPesquisa,
+            plano: planoGeracao,
           },
           controller.signal
         );
@@ -748,6 +793,15 @@ export default function ArticleStudioApp() {
     }
   }
 
+  function handleChangePlanoGeracao(novoPlano: PlanoGeracao) {
+    setPlanoGeracao(novoPlano);
+    try {
+      localStorage.setItem(STORAGE_PLAN, novoPlano);
+    } catch {
+      // Ignora
+    }
+  }
+
   const artigoAtualObj = artigosSalvos.find((a) => a.id === artigoAtualId);
   const totalFavoritos = artigosSalvos.filter((a) => a.favorito).length;
   const mascotState: RobotAnimationState =
@@ -771,6 +825,7 @@ export default function ArticleStudioApp() {
         mobileOpen={mobileMenuOpen}
         onCloseMobile={() => setMobileMenuOpen(false)}
         ocupado={ocupado}
+        planoGeracao={planoGeracao}
       />
 
       <div className="flex min-w-0 flex-1 flex-col px-4 py-4 sm:px-6 lg:px-8">
@@ -811,6 +866,8 @@ export default function ArticleStudioApp() {
                   onChangePrimeiraPessoa={setPrimeiraPessoa}
                   pesquisaWeb={pesquisaWeb}
                   onChangePesquisaWeb={setPesquisaWeb}
+                  planoGeracao={planoGeracao}
+                  onChangePlanoGeracao={handleChangePlanoGeracao}
                   sugerindo={sugerindo}
                   erroSugestao={erroSugestao}
                   descricaoSugerida={descricaoSugerida}
@@ -903,7 +960,12 @@ export default function ArticleStudioApp() {
         </div>
       </div>
 
-      <InfoModal tipo={modalTipo} onClose={() => setModalTipo(null)} />
+      <InfoModal
+        tipo={modalTipo}
+        onClose={() => setModalTipo(null)}
+        planoGeracao={planoGeracao}
+        onSelectPlanoGeracao={handleChangePlanoGeracao}
+      />
       <FloatingRobotAssistant
         context="studio"
         externalState={mascotState}

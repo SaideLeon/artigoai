@@ -53,6 +53,8 @@ export const TONS_TEXTO = [
   "Persuasivo e Marketing",
 ] as const;
 
+export type PlanoGeracao = "free" | "paid";
+
 export type ModoPesquisa = "auto" | "sempre" | "desativada";
 
 export type FontePesquisa = {

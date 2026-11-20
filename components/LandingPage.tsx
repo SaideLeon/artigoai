@@ -977,8 +977,16 @@ export default function LandingPage() {
                 </button>
               </div>
               <p className="mt-3 text-xs text-slate-500 dark:text-slate-400">
-                Artigos de ~2.500 palavras com até 7 imagens em qualidade 1K ·
-                Cotação de referência: 1 USD = R${" "}
+                Pacotes pagos geram artigos e imagens exclusivamente com modelos{" "}
+                <strong className="font-semibold text-slate-700 dark:text-slate-200">
+                  Google Gemini
+                </strong>{" "}
+                (~2.500 palavras e até 7 imagens 1K) · Plano gratuito utiliza
+                modelos{" "}
+                <strong className="font-semibold text-slate-700 dark:text-slate-200">
+                  Groq e NVIDIA
+                </strong>{" "}
+                · Cotação: 1 USD = R${" "}
                 {USD_TO_BRL.toLocaleString("pt-BR", {
                   minimumFractionDigits: 4,
                   maximumFractionDigits: 4,
