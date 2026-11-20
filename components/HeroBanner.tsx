@@ -1,6 +1,7 @@
 "use client";
 
-import { Wand2, CheckCircle2, Bot, Sparkles } from "lucide-react";
+import Image from "next/image";
+import { CheckCircle2, Bot, Sparkles } from "lucide-react";
 
 export default function HeroBanner() {
   return (
@@ -20,8 +21,16 @@ export default function HeroBanner() {
 
       <div className="relative z-10 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div className="flex items-center gap-4">
-          <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border border-white/70 bg-gradient-to-br from-sky-200/80 via-indigo-100 to-white shadow-sm dark:border-white/10 dark:from-indigo-900/80 dark:via-slate-900 dark:to-slate-900">
-            <Wand2 className="h-7 w-7 text-indigo-700 dark:text-indigo-300" />
+          <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border border-white/25 bg-gradient-to-br from-[#161E3D] via-[#312E81] to-[#2563EB] p-1.5 shadow-sm">
+            <Image
+              src="/assets/aistudio/file_00000000d284820ab132c09897d7ac4e_25c0f76a.png"
+              alt="Logo Gerador de Artigos"
+              width={44}
+              height={44}
+              referrerPolicy="no-referrer"
+              className="h-full w-full object-contain mix-blend-screen"
+              priority
+            />
           </div>
           <div>
             <h1 className="text-2xl font-bold tracking-tight text-[#1E2448] dark:text-white sm:text-[28px] text-balance">

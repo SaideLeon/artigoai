@@ -32,6 +32,9 @@ export const metadata: Metadata = {
   title: "Gerador de Artigos — Estúdio de Conteúdo com IA",
   description:
     "Crie artigos longos, bem estruturados e ilustrados secção a secção com auxílio de inteligência artificial.",
+  icons: {
+    icon: "/assets/aistudio/file_00000000d284820ab132c09897d7ac4e_25c0f76a.png",
+  },
 };
 
 const themeInitScript = `

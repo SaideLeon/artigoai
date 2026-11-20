@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import {
   Home,
   FileText,
@@ -9,7 +10,6 @@ import {
   Crown,
   HelpCircle,
   Info,
-  PenTool,
   X,
 } from "lucide-react";
 import type { NavTab } from "@/lib/types";
@@ -57,8 +57,16 @@ export default function Sidebar({
         {/* Brand Block */}
         <div className="flex items-start justify-between px-2">
           <div className="flex flex-col items-center text-center w-full">
-            <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-indigo-400 to-blue-600 shadow-lg shadow-indigo-950/50">
-              <PenTool className="h-6 w-6 text-white" />
+            <div className="mb-3 flex h-16 w-16 items-center justify-center rounded-2xl border border-white/15 bg-gradient-to-br from-indigo-500/30 to-blue-600/30 p-1.5 shadow-lg shadow-indigo-950/50">
+              <Image
+                src="/assets/aistudio/file_00000000d284820ab132c09897d7ac4e_25c0f76a.png"
+                alt="Logo Gerador de Artigos"
+                width={52}
+                height={52}
+                referrerPolicy="no-referrer"
+                className="h-full w-full object-contain mix-blend-screen"
+                priority
+              />
             </div>
             <span className="text-[19px] font-bold leading-tight tracking-tight text-white">
               Gerador
