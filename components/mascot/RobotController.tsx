@@ -72,7 +72,7 @@ export function useRobotStateController(
       setExpressionState("sleepy");
     } else if (next === "greeting") {
       setExpressionState("happy");
-    } else if (next === "thinking") {
+    } else if (next === "thinking" || next === "writing") {
       setExpressionState("curious");
     } else if (next === "excited") {
       setExpressionState("excited");

@@ -595,7 +595,9 @@ export default function ArticleStudioApp() {
   const artigoAtualObj = artigosSalvos.find((a) => a.id === artigoAtualId);
   const totalFavoritos = artigosSalvos.filter((a) => a.favorito).length;
   const mascotState: RobotAnimationState =
-    ocupado || sugerindo
+    ocupado && secoes.length > 0
+      ? "writing"
+      : ocupado || sugerindo
       ? "thinking"
       : estado.includes("concluído") ||
         (secoes.length > 0 && !erroGeral && secoes.every((s) => Boolean(s.texto)))

@@ -23,6 +23,7 @@ import {
 } from "lucide-react";
 import { motion } from "motion/react";
 import BrandLogo from "@/components/BrandLogo";
+import RobotScene from "@/components/mascot/RobotScene";
 import type { FontePesquisa, Secao, WorkspaceTab } from "@/lib/types";
 
 type ArticleWorkspaceProps = {
@@ -111,6 +112,7 @@ export default function ArticleWorkspace({
   const imagensProntas = secoes.filter((s) => Boolean(s.img)).length;
   const primeiraImagem = secoes.find((s) => s.img)?.img;
   const temConteudo = Boolean(titulo || secoes.length > 0);
+  const activeWritingIndex = ocupado ? secoes.findIndex((s) => !s.texto) : -1;
 
   async function copiarTexto() {
     if (!temConteudo) return;
@@ -316,9 +318,15 @@ export default function ArticleWorkspace({
       <div className="p-5 sm:p-7">
         {!temConteudo && ocupado ? (
           /* Generating Outline / Research State */
-          <div className="flex flex-col items-center justify-center py-16 text-center">
-            <div className="mb-5 flex h-24 w-24 items-center justify-center rounded-3xl border border-indigo-100 bg-indigo-50/70 text-indigo-600 shadow-xs dark:border-indigo-900/50 dark:bg-indigo-950/40 dark:text-indigo-400">
-              <BrandLogo variant="sequence" className="size-16" />
+          <div className="flex flex-col items-center justify-center py-12 text-center">
+            <div className="mb-4 h-40 w-40 overflow-hidden rounded-3xl border border-indigo-100 bg-gradient-to-b from-indigo-50/70 to-white shadow-xs dark:border-indigo-900/50 dark:from-indigo-950/40 dark:to-slate-900">
+              <RobotScene
+                animation="thinking"
+                expression="curious"
+                cameraZ={4.45}
+                className="h-full w-full"
+                ariaLabel="Mascote 3D Artigen a preparar o esboço do artigo"
+              />
             </div>
             <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100">
               A preparar o seu artigo…
@@ -506,11 +514,62 @@ export default function ArticleWorkspace({
                         <p key={pIdx}>{paragrafo}</p>
                       ))}
                     </div>
+                  ) : i === activeWritingIndex ? (
+                    <div className="flex flex-col sm:flex-row items-center gap-4 rounded-2xl border border-indigo-200/80 bg-gradient-to-r from-indigo-50/70 via-white to-sky-50/60 p-4 dark:border-indigo-500/25 dark:from-[#0E162E] dark:via-slate-900 dark:to-[#0F2342]">
+                      <div className="h-32 w-32 shrink-0 overflow-hidden rounded-2xl border border-indigo-100 bg-white/80 shadow-xs dark:border-indigo-500/20 dark:bg-slate-950/70">
+                        <RobotScene
+                          animation="writing"
+                          expression="curious"
+                          cameraZ={4.35}
+                          className="h-full w-full"
+                          ariaLabel={`Mascote 3D Artigen a escrever a secção ${i + 1}`}
+                        />
+                      </div>
+                      <div className="min-w-0 flex-1 text-center sm:text-left space-y-1.5">
+                        <div className="inline-flex items-center gap-2 text-xs font-semibold text-indigo-700 dark:text-indigo-300">
+                          <BrandLogo
+                            variant="write"
+                            className="size-4 shrink-0"
+                          />
+                          <span>Artigen AI Assistant está a escrever…</span>
+                        </div>
+                        <p className="text-sm font-medium text-slate-800 dark:text-slate-200">
+                          {sec.objetivo ||
+                            "A redigir os parágrafos desta secção com fluidez e contexto."}
+                        </p>
+                        <p className="text-xs text-slate-500 dark:text-slate-400">
+                          O texto aparecerá aqui assim que a secção ficar pronta.
+                        </p>
+                      </div>
+                    </div>
+                  ) : ocupado ? (
+                    <div className="flex items-center gap-3 rounded-xl border border-dashed border-slate-200 bg-slate-50/60 px-4 py-3 text-xs text-slate-600 dark:border-slate-800 dark:bg-slate-800/35 dark:text-slate-400">
+                      <BrandLogo
+                        variant="write"
+                        className="size-5 shrink-0 text-indigo-500 dark:text-indigo-400"
+                      />
+                      <div className="min-w-0">
+                        <span className="font-semibold text-slate-700 dark:text-slate-300">
+                          Na fila de escrita — o mascote vai redigir a seguir
+                        </span>
+                        {sec.objetivo && (
+                          <p className="mt-0.5 truncate text-[11px] text-slate-500 dark:text-slate-400">
+                            {sec.objetivo}
+                          </p>
+                        )}
+                      </div>
+                    </div>
                   ) : (
-                    <div className="space-y-2.5 py-2">
-                      <div className="h-4 w-full animate-pulse rounded bg-slate-100 dark:bg-slate-800" />
-                      <div className="h-4 w-5/6 animate-pulse rounded bg-slate-100 dark:bg-slate-800" />
-                      <div className="h-4 w-4/6 animate-pulse rounded bg-slate-100 dark:bg-slate-800" />
+                    <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-dashed border-slate-200 bg-slate-50/50 px-4 py-3 text-xs text-slate-500 dark:border-slate-800 dark:bg-slate-800/30 dark:text-slate-400">
+                      <span>Secção ainda sem texto.</span>
+                      <button
+                        type="button"
+                        onClick={() => setTab("editor")}
+                        className="inline-flex items-center gap-1.5 font-semibold text-indigo-600 hover:underline dark:text-indigo-400"
+                      >
+                        <PenLine className="h-3.5 w-3.5" />
+                        <span>Escrever no Editor</span>
+                      </button>
                     </div>
                   )}
                 </section>

@@ -7,7 +7,8 @@ export type RobotAnimationState =
   | "thinking"
   | "excited"
   | "pointing"
-  | "sleeping";
+  | "sleeping"
+  | "writing";
 
 export type RobotExpression =
   | "neutral"
@@ -243,6 +244,31 @@ export class RobotAnimator {
         chestEmissive = 0.55 + Math.sin(t * 1.1) * 0.2;
         break;
       }
+
+      case "writing": {
+        bodyY = Math.sin(t * 2.4) * 0.035;
+        bodyRotX = 0.1;
+        headRotX = 0.22 - pointerY * 0.06;
+        headRotY = Math.sin(t * 2.2) * 0.1 + pointerX * 0.12;
+        headRotZ = -0.05;
+
+        // Both arms angled forward in energetic typing/writing motion
+        lShoulderX = -0.82;
+        lShoulderZ = -0.22;
+        lElbowX = -0.78 + Math.sin(t * 9.5) * 0.18;
+        lElbowZ = 0.18;
+
+        rShoulderX = -0.88;
+        rShoulderY = 0.18;
+        rShoulderZ = 0.22;
+        rElbowX = -0.75 + Math.cos(t * 10.5) * 0.22;
+        rElbowZ = -0.18;
+        rHandRotY = Math.sin(t * 11.0) * 0.22;
+        rOtherFingersCurl = 0.45 + Math.sin(t * 12.0) * 0.18;
+
+        chestEmissive = 1.35 + Math.sin(t * 6.0) * 0.3;
+        break;
+      }
     }
 
     if (reducedMotion) {
@@ -427,7 +453,7 @@ export class RobotAnimator {
         ? "excited"
         : animation === "greeting"
         ? "happy"
-        : animation === "thinking"
+        : animation === "thinking" || animation === "writing"
         ? "curious"
         : "neutral";
 

@@ -14,6 +14,7 @@ import {
   MousePointerClick,
   PartyPopper,
   Pause,
+  PenLine,
   Play,
   RotateCcw,
   Sparkles,
@@ -58,6 +59,12 @@ const ANIMATIONS: {
     label: "Apontando",
     desc: "Indica recursos",
     icon: MousePointerClick,
+  },
+  {
+    id: "writing",
+    label: "Escrevendo",
+    desc: "Redige o artigo",
+    icon: PenLine,
   },
   { id: "sleeping", label: "Dormindo", desc: "Modo repouso", icon: Moon },
 ];
@@ -235,7 +242,7 @@ export default function RobotDemo() {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">
+                <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-7">
                   {ANIMATIONS.map((item) => {
                     const Icon = item.icon;
                     const active = robot.animation === item.id;

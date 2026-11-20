@@ -25,7 +25,7 @@ export default function HeroBanner({ mascotState = "idle" }: HeroBannerProps) {
       : "idle";
 
   const effectiveExpression: RobotExpression =
-    effectiveAnimation === "thinking"
+    effectiveAnimation === "thinking" || effectiveAnimation === "writing"
       ? "curious"
       : effectiveAnimation === "excited"
       ? "excited"
