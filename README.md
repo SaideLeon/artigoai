@@ -41,7 +41,7 @@ Abra [http://localhost:3000](http://localhost:3000).
 1. Crie um projeto no [Supabase](https://supabase.com).
 2. Execute o script [`supabase/schema.sql`](./supabase/schema.sql) no **SQL Editor** do Supabase (cria tabelas, RLS, triggers, Realtime e bucket `article-images`).
 3. Ative o provedor **Google** em **Authentication > Providers** e adicione `http://localhost:3000/auth/callback` (e a URL de produção) nas Redirect URLs.
-4. Preencha `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY` e `SUPABASE_SERVICE_ROLE_KEY` em `.env.local`.
+4. Preencha `NEXT_PUBLIC_SUPABASE_URL` e `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` (ou `NEXT_PUBLIC_SUPABASE_ANON_KEY`) em `.env.local`.
 
 ---
 
@@ -58,5 +58,6 @@ Abra [http://localhost:3000](http://localhost:3000).
 | `NVIDIA_API_KEY` | Gratuito (NVIDIA) | Chave da API NVIDIA para imagens e fallback de texto |
 | `NVIDIA_TEXT_MODEL` | Gratuito (NVIDIA) | Modelo de texto NVIDIA NIM (padrão: `meta/llama-3.3-70b-instruct`) |
 | `NEXT_PUBLIC_SUPABASE_URL` | Supabase | URL pública do projeto Supabase |
-| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase | Chave pública anónima (`anon`) do Supabase |
+| `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Supabase | Chave publicável (`sb_publishable_...`) do Supabase para SSR/Client |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase | Chave anónima legada opcional (`anon`) |
 | `SUPABASE_SERVICE_ROLE_KEY` | Supabase | Chave de serviço (apenas servidor) |
