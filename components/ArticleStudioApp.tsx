@@ -14,6 +14,19 @@ import {
 import InfoModal from "@/components/InfoModal";
 import FloatingRobotAssistant from "@/components/mascot/FloatingRobotAssistant";
 import type { RobotAnimationState } from "@/components/mascot/RobotAnimations";
+import { useAuth } from "@/components/AuthProvider";
+import { useTheme } from "@/components/ThemeProvider";
+import {
+  clearAllArticlesCloud,
+  deleteArticleCloud,
+  sanitizeDocumentId,
+  saveArticleCloud,
+  saveUserSettings,
+  subscribeUserArticles,
+  subscribeUserSettings,
+  toggleArticleFavoriteCloud,
+  updateArticleContentCloud,
+} from "@/lib/firestore-service";
 import {
   FAIXAS_PALAVRAS,
   type ArtigoSalvo,
@@ -133,6 +146,8 @@ function downloadArtigoHtml(
 }
 
 export default function ArticleStudioApp() {
+  const { user, profileReady } = useAuth();
+  const { theme, setTheme } = useTheme();
   const [activeTab, setActiveTab] = useState<NavTab>("inicio");
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [modalTipo, setModalTipo] = useState<
@@ -178,40 +193,161 @@ export default function ArticleStudioApp() {
   const [notificacoes, setNotificacoes] = useState<NotificacaoItem[]>([]);
 
   const abortRef = useRef<AbortController | null>(null);
+  const cloudSyncTimerRef = useRef<number | null>(null);
+  const migratedUidsRef = useRef<Set<string>>(new Set());
+  const latestWorkspaceRef = useRef({
+    titulo: "",
+    descricao: "",
+    secoes: [] as Secao[],
+  });
 
-  // Load persisted data after mount
+  useEffect(() => {
+    latestWorkspaceRef.current = { titulo, descricao, secoes };
+  }, [titulo, descricao, secoes]);
+
+  // Load persisted data after mount (localStorage fallback + Firestore real-time sync)
   useEffect(() => {
     let mounted = true;
-    Promise.resolve().then(() => {
+
+    if (!user) {
+      Promise.resolve().then(() => {
+        if (!mounted) return;
+        try {
+          const rawArtigos = localStorage.getItem(STORAGE_ARTICLES);
+          if (rawArtigos) {
+            setArtigosSalvos(JSON.parse(rawArtigos));
+          }
+          const rawConfig = localStorage.getItem(STORAGE_CONFIG);
+          if (rawConfig) {
+            const parsed: Partial<ConfiguracoesPadrao> = JSON.parse(rawConfig);
+            const merged: ConfiguracoesPadrao = {
+              ...DEFAULT_CONFIG,
+              ...parsed,
+            };
+            setConfigPadrao(merged);
+            setTom(merged.tomPadrao);
+            setIdioma(merged.idiomaPadrao);
+            setFaixaPalavras(merged.faixaPalavrasPadrao);
+            setIncluirImagens(merged.incluirImagensPadrao);
+            setPrimeiraPessoa(Boolean(merged.primeiraPessoaPadrao));
+            setPesquisaWeb(merged.pesquisaWebPadrao ?? "auto");
+          }
+        } catch {
+          // Ignora erro de localStorage indisponível
+        }
+      });
+      return () => {
+        mounted = false;
+      };
+    }
+
+    if (!profileReady) {
+      return () => {
+        mounted = false;
+      };
+    }
+
+    const uid = user.uid;
+
+    const unsubSettings = subscribeUserSettings(uid, (remote) => {
       if (!mounted) return;
-      try {
-        const rawArtigos = localStorage.getItem(STORAGE_ARTICLES);
-        if (rawArtigos) {
-          setArtigosSalvos(JSON.parse(rawArtigos));
-        }
-        const rawConfig = localStorage.getItem(STORAGE_CONFIG);
-        if (rawConfig) {
-          const parsed: Partial<ConfiguracoesPadrao> = JSON.parse(rawConfig);
-          const merged: ConfiguracoesPadrao = {
-            ...DEFAULT_CONFIG,
-            ...parsed,
-          };
-          setConfigPadrao(merged);
-          setTom(merged.tomPadrao);
-          setIdioma(merged.idiomaPadrao);
-          setFaixaPalavras(merged.faixaPalavrasPadrao);
-          setIncluirImagens(merged.incluirImagensPadrao);
-          setPrimeiraPessoa(Boolean(merged.primeiraPessoaPadrao));
-          setPesquisaWeb(merged.pesquisaWebPadrao ?? "auto");
-        }
-      } catch {
-        // Ignora erro de localStorage indisponível
+      setConfigPadrao((prev) => {
+        const merged: ConfiguracoesPadrao = {
+          tomPadrao: remote.tomPadrao ?? prev.tomPadrao,
+          idiomaPadrao: remote.idiomaPadrao ?? prev.idiomaPadrao,
+          faixaPalavrasPadrao:
+            remote.faixaPalavrasPadrao ?? prev.faixaPalavrasPadrao,
+          incluirImagensPadrao:
+            remote.incluirImagensPadrao ?? prev.incluirImagensPadrao,
+          primeiraPessoaPadrao:
+            remote.primeiraPessoaPadrao ?? prev.primeiraPessoaPadrao,
+          pesquisaWebPadrao: remote.pesquisaWebPadrao ?? prev.pesquisaWebPadrao,
+        };
+        setTom(merged.tomPadrao);
+        setIdioma(merged.idiomaPadrao);
+        setFaixaPalavras(merged.faixaPalavrasPadrao);
+        setIncluirImagens(merged.incluirImagensPadrao);
+        setPrimeiraPessoa(Boolean(merged.primeiraPessoaPadrao));
+        setPesquisaWeb(merged.pesquisaWebPadrao ?? "auto");
+        return merged;
+      });
+      if (remote.theme) {
+        setTheme(remote.theme);
       }
     });
+
+    const unsubArticles = subscribeUserArticles(uid, (remoteArticles) => {
+      if (!mounted) return;
+
+      // Migrate local guest articles into user's Firestore collection once after sign-in
+      if (!migratedUidsRef.current.has(uid)) {
+        migratedUidsRef.current.add(uid);
+        try {
+          const rawLocal = localStorage.getItem(STORAGE_ARTICLES);
+          if (rawLocal) {
+            const localList: ArtigoSalvo[] = JSON.parse(rawLocal);
+            if (Array.isArray(localList) && localList.length > 0) {
+              const existingIds = new Set(
+                remoteArticles.map((a) => sanitizeDocumentId(a.id))
+              );
+              const toUpload = localList.filter(
+                (item) => !existingIds.has(sanitizeDocumentId(item.id))
+              );
+              for (const item of toUpload) {
+                void saveArticleCloud(uid, item);
+              }
+            }
+          }
+        } catch {
+          // Ignora erro ao migrar histórico local
+        }
+      }
+
+      setArtigosSalvos(remoteArticles);
+      try {
+        localStorage.setItem(STORAGE_ARTICLES, JSON.stringify(remoteArticles));
+      } catch {
+        // Ignora quota cheia
+      }
+    });
+
     return () => {
       mounted = false;
+      unsubSettings();
+      unsubArticles();
+    };
+  }, [user, profileReady, setTheme]);
+
+  useEffect(() => {
+    return () => {
+      if (cloudSyncTimerRef.current) {
+        window.clearTimeout(cloudSyncTimerRef.current);
+      }
     };
   }, []);
+
+  function agendarSyncConteudoNuvem(
+    articleId: string,
+    novoTitulo: string,
+    novaDescricao: string,
+    novasSecoes: Secao[]
+  ) {
+    if (!user || !profileReady) return;
+    const uid = user.uid;
+    if (cloudSyncTimerRef.current) {
+      window.clearTimeout(cloudSyncTimerRef.current);
+    }
+    cloudSyncTimerRef.current = window.setTimeout(() => {
+      void updateArticleContentCloud(
+        uid,
+        articleId,
+        novoTitulo,
+        novaDescricao,
+        novasSecoes,
+        contarPalavras(novasSecoes)
+      );
+    }, 650);
+  }
 
   function persistirArtigos(lista: ArtigoSalvo[]) {
     setArtigosSalvos(lista);
@@ -256,6 +392,12 @@ export default function ArticleStudioApp() {
           }
           return atualizada;
         });
+        agendarSyncConteudoNuvem(
+          artigoAtualId,
+          latestWorkspaceRef.current.titulo,
+          latestWorkspaceRef.current.descricao,
+          next
+        );
       }
       return next;
     });
@@ -467,7 +609,7 @@ export default function ArticleStudioApp() {
       }
 
       if (!controller.signal.aborted) {
-        const novoId = `${Date.now()}`;
+        const novoId = `art_${Date.now()}`;
         const novoArtigo: ArtigoSalvo = {
           id: novoId,
           tema: tema.trim(),
@@ -487,6 +629,9 @@ export default function ArticleStudioApp() {
         };
         setArtigoAtualId(novoId);
         persistirArtigos([novoArtigo, ...artigosSalvos]);
+        if (user && profileReady) {
+          void saveArticleCloud(user.uid, novoArtigo);
+        }
         setEstado("Artigo concluído e guardado em Meus Artigos.");
         registrarNotificacao("Artigo concluído", esb.titulo);
       }
@@ -515,6 +660,7 @@ export default function ArticleStudioApp() {
           a.id === artigoAtualId ? { ...a, titulo: novo } : a
         )
       );
+      agendarSyncConteudoNuvem(artigoAtualId, novo, descricao, secoes);
     }
   }
 
@@ -532,6 +678,7 @@ export default function ArticleStudioApp() {
           a.id === artigoAtualId ? { ...a, secoes: next } : a
         )
       );
+      agendarSyncConteudoNuvem(artigoAtualId, titulo, descricao, next);
     }
   }
 
@@ -546,15 +693,21 @@ export default function ArticleStudioApp() {
             : a
         )
       );
+      agendarSyncConteudoNuvem(artigoAtualId, titulo, descricao, next);
     }
   }
 
   function toggleFavoritoPorId(id: string) {
+    const target = artigosSalvos.find((a) => a.id === id);
+    const nextFav = target ? !target.favorito : true;
     persistirArtigos(
       artigosSalvos.map((a) =>
         a.id === id ? { ...a, favorito: !a.favorito } : a
       )
     );
+    if (user && profileReady) {
+      void toggleArticleFavoriteCloud(user.uid, id, nextFav);
+    }
   }
 
   function abrirArtigoSalvo(artigo: ArtigoSalvo) {
@@ -589,6 +742,9 @@ export default function ArticleStudioApp() {
       localStorage.setItem(STORAGE_CONFIG, JSON.stringify(nova));
     } catch {
       // Ignora
+    }
+    if (user && profileReady) {
+      void saveUserSettings(user.uid, nova, theme);
     }
   }
 
@@ -711,6 +867,9 @@ export default function ArticleStudioApp() {
               onExcluirArtigo={(id) => {
                 persistirArtigos(artigosSalvos.filter((a) => a.id !== id));
                 if (artigoAtualId === id) setArtigoAtualId(null);
+                if (user && profileReady) {
+                  void deleteArticleCloud(user.uid, id);
+                }
               }}
               onBaixarHtml={(a) =>
                 downloadArtigoHtml(a.titulo, a.descricao, a.secoes, a.fontes ?? [])
@@ -728,11 +887,16 @@ export default function ArticleStudioApp() {
 
           {activeTab === "configuracoes" && (
             <SettingsView
+              key={`${configPadrao.tomPadrao}-${configPadrao.idiomaPadrao}-${configPadrao.faixaPalavrasPadrao}-${configPadrao.incluirImagensPadrao}-${configPadrao.primeiraPessoaPadrao}-${configPadrao.pesquisaWebPadrao}`}
               config={configPadrao}
               onSaveConfig={salvarConfigPadrao}
               onLimparHistorico={() => {
+                const ids = artigosSalvos.map((a) => a.id);
                 persistirArtigos([]);
                 setArtigoAtualId(null);
+                if (user && profileReady) {
+                  void clearAllArticlesCloud(user.uid, ids);
+                }
               }}
               totalArtigos={artigosSalvos.length}
             />

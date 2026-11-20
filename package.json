@@ -9,8 +9,10 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@firebase/eslint-plugin-security-rules": "^0.0.2",
     "@tailwindcss/postcss": "^4.3.5",
     "@types/three": "^0.187.0",
+    "firebase": "^13.4.0",
     "groq-sdk": "^1.6.0",
     "lucide-react": "^1.76.0",
     "motion": "^14.14.0",

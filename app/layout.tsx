@@ -5,6 +5,8 @@ import {
   JetBrains_Mono,
 } from "next/font/google";
 import { ThemeProvider } from "@/components/ThemeProvider";
+import { AuthProvider } from "@/components/AuthProvider";
+import FirebaseErrorBoundary from "@/components/FirebaseErrorBoundary";
 import { BrandLogoDefs } from "@/components/BrandLogo";
 import "./globals.css";
 
@@ -67,7 +69,11 @@ export default function RootLayout({
       </head>
       <body className="min-h-screen bg-[#F4F6FB] text-slate-900 dark:bg-slate-950 dark:text-slate-100 font-sans antialiased transition-colors duration-150">
         <BrandLogoDefs />
-        <ThemeProvider>{children}</ThemeProvider>
+        <ThemeProvider>
+          <FirebaseErrorBoundary>
+            <AuthProvider>{children}</AuthProvider>
+          </FirebaseErrorBoundary>
+        </ThemeProvider>
       </body>
     </html>
   );

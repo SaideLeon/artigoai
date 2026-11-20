@@ -1,0 +1,312 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Global Safety Net — default deny catch-all
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Core helper primitives
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isVerified() {
+      return request.auth.token.email_verified == true;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isValidId(id) {
+      return id is string &&
+        id.size() >= 1 &&
+        id.size() <= 128 &&
+        id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function userExists(userId) {
+      return exists(/databases/$(database)/documents/users/$(userId));
+    }
+
+    // Entity validation helpers (safe for both create and update)
+    function isValidUserProfile(data, userId) {
+      return data.keys().hasAll([
+          'uid',
+          'displayName',
+          'email',
+          'photoURL',
+          'createdAt',
+          'updatedAt'
+        ]) &&
+        data.keys().hasOnly([
+          'uid',
+          'displayName',
+          'email',
+          'photoURL',
+          'createdAt',
+          'updatedAt'
+        ]) &&
+        data.uid is string &&
+        data.uid.size() >= 1 &&
+        data.uid.size() <= 128 &&
+        data.uid == request.auth.uid &&
+        data.uid == userId &&
+        data.displayName is string &&
+        data.displayName.size() <= 160 &&
+        data.email is string &&
+        data.email.size() <= 254 &&
+        data.photoURL is string &&
+        data.photoURL.size() <= 1024 &&
+        data.createdAt is timestamp &&
+        data.updatedAt is timestamp;
+    }
+
+    function isValidUserSettings(data, userId) {
+      return data.keys().hasAll([
+          'userId',
+          'tomPadrao',
+          'idiomaPadrao',
+          'faixaPalavrasPadrao',
+          'incluirImagensPadrao',
+          'primeiraPessoaPadrao',
+          'pesquisaWebPadrao',
+          'theme',
+          'createdAt',
+          'updatedAt'
+        ]) &&
+        data.keys().hasOnly([
+          'userId',
+          'tomPadrao',
+          'idiomaPadrao',
+          'faixaPalavrasPadrao',
+          'incluirImagensPadrao',
+          'primeiraPessoaPadrao',
+          'pesquisaWebPadrao',
+          'theme',
+          'createdAt',
+          'updatedAt'
+        ]) &&
+        data.userId is string &&
+        data.userId.size() >= 1 &&
+        data.userId.size() <= 128 &&
+        data.userId == request.auth.uid &&
+        data.userId == userId &&
+        data.tomPadrao is string &&
+        data.tomPadrao.size() >= 1 &&
+        data.tomPadrao.size() <= 80 &&
+        data.idiomaPadrao is string &&
+        data.idiomaPadrao.size() >= 1 &&
+        data.idiomaPadrao.size() <= 60 &&
+        data.faixaPalavrasPadrao is string &&
+        data.faixaPalavrasPadrao in ['800-1200', '1200-1800', '2000-2500', '2600-3200'] &&
+        data.incluirImagensPadrao is bool &&
+        data.primeiraPessoaPadrao is bool &&
+        data.pesquisaWebPadrao is string &&
+        data.pesquisaWebPadrao in ['auto', 'sempre', 'desativada'] &&
+        data.theme is string &&
+        data.theme in ['light', 'dark'] &&
+        data.createdAt is timestamp &&
+        data.updatedAt is timestamp;
+    }
+
+    function isValidSavedArticle(data, userId) {
+      return data.keys().hasAll([
+          'id',
+          'userId',
+          'tema',
+          'titulo',
+          'descricao',
+          'palavrasChave',
+          'tom',
+          'idioma',
+          'faixaPalavras',
+          'primeiraPessoa',
+          'pesquisaUsada',
+          'fontes',
+          'secoes',
+          'criadoEm',
+          'favorito',
+          'totalPalavras',
+          'createdAt',
+          'updatedAt'
+        ]) &&
+        data.keys().hasOnly([
+          'id',
+          'userId',
+          'tema',
+          'titulo',
+          'descricao',
+          'palavrasChave',
+          'tom',
+          'idioma',
+          'faixaPalavras',
+          'primeiraPessoa',
+          'pesquisaUsada',
+          'fontes',
+          'secoes',
+          'criadoEm',
+          'favorito',
+          'totalPalavras',
+          'createdAt',
+          'updatedAt'
+        ]) &&
+        isValidId(data.id) &&
+        data.userId is string &&
+        data.userId.size() >= 1 &&
+        data.userId.size() <= 128 &&
+        data.userId == request.auth.uid &&
+        data.userId == userId &&
+        data.tema is string &&
+        data.tema.size() >= 1 &&
+        data.tema.size() <= 300 &&
+        data.titulo is string &&
+        data.titulo.size() >= 1 &&
+        data.titulo.size() <= 300 &&
+        data.descricao is string &&
+        data.descricao.size() <= 1000 &&
+        data.palavrasChave is list &&
+        data.palavrasChave.size() <= 20 &&
+        (data.palavrasChave.size() == 0 || (data.palavrasChave[0] is string && data.palavrasChave[0].size() <= 80)) &&
+        data.tom is string &&
+        data.tom.size() >= 1 &&
+        data.tom.size() <= 80 &&
+        data.idioma is string &&
+        data.idioma.size() >= 1 &&
+        data.idioma.size() <= 60 &&
+        data.faixaPalavras is string &&
+        data.faixaPalavras in ['800-1200', '1200-1800', '2000-2500', '2600-3200'] &&
+        data.primeiraPessoa is bool &&
+        data.pesquisaUsada is bool &&
+        data.fontes is list &&
+        data.fontes.size() <= 30 &&
+        (data.fontes.size() == 0 || data.fontes[0] is map) &&
+        data.secoes is list &&
+        data.secoes.size() <= 15 &&
+        (data.secoes.size() == 0 || data.secoes[0] is map) &&
+        data.criadoEm is string &&
+        data.criadoEm.size() >= 10 &&
+        data.criadoEm.size() <= 64 &&
+        data.favorito is bool &&
+        data.totalPalavras is int &&
+        data.totalPalavras >= 0 &&
+        data.totalPalavras <= 50000 &&
+        data.createdAt is timestamp &&
+        data.updatedAt is timestamp;
+    }
+
+    // User profile documents (PII strictly isolated to owner)
+    match /users/{userId} {
+      allow get: if isOwner(userId) && isValidId(userId);
+      allow create: if isOwner(userId) &&
+        isVerified() &&
+        isValidId(userId) &&
+        isValidUserProfile(incoming(), userId) &&
+        incoming().createdAt == request.time &&
+        incoming().updatedAt == request.time;
+      allow update: if isOwner(userId) &&
+        isVerified() &&
+        isValidId(userId) &&
+        isValidUserProfile(incoming(), userId) &&
+        incoming().uid == existing().uid &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().updatedAt == request.time &&
+        incoming().diff(existing()).affectedKeys().hasOnly([
+          'displayName',
+          'email',
+          'photoURL',
+          'updatedAt'
+        ]);
+      allow delete: if isOwner(userId) && isVerified() && isValidId(userId);
+
+      // Personal default settings
+      match /settings/{settingId} {
+        allow get: if isOwner(userId) && isValidId(userId) && isValidId(settingId);
+        allow create: if isOwner(userId) &&
+          isVerified() &&
+          isValidId(userId) &&
+          isValidId(settingId) &&
+          isValidUserSettings(incoming(), userId) &&
+          incoming().createdAt == request.time &&
+          incoming().updatedAt == request.time &&
+          userExists(userId);
+        allow update: if isOwner(userId) &&
+          isVerified() &&
+          isValidId(userId) &&
+          isValidId(settingId) &&
+          isValidUserSettings(incoming(), userId) &&
+          incoming().userId == existing().userId &&
+          incoming().createdAt == existing().createdAt &&
+          incoming().updatedAt == request.time &&
+          incoming().diff(existing()).affectedKeys().hasOnly([
+            'tomPadrao',
+            'idiomaPadrao',
+            'faixaPalavrasPadrao',
+            'incluirImagensPadrao',
+            'primeiraPessoaPadrao',
+            'pesquisaWebPadrao',
+            'theme',
+            'updatedAt'
+          ]) &&
+          userExists(userId);
+        allow delete: if isOwner(userId) && isVerified() && isValidId(userId) && isValidId(settingId);
+      }
+
+      // User saved articles
+      match /articles/{articleId} {
+        allow get: if isOwner(userId) && isValidId(userId) && isValidId(articleId);
+        allow list: if isOwner(userId) && resource.data.userId == request.auth.uid;
+        allow create: if isOwner(userId) &&
+          isVerified() &&
+          isValidId(userId) &&
+          isValidId(articleId) &&
+          isValidSavedArticle(incoming(), userId) &&
+          incoming().id == articleId &&
+          incoming().createdAt == request.time &&
+          incoming().updatedAt == request.time &&
+          userExists(userId);
+        allow update: if isOwner(userId) &&
+          isVerified() &&
+          isValidId(userId) &&
+          isValidId(articleId) &&
+          isValidSavedArticle(incoming(), userId) &&
+          incoming().id == existing().id &&
+          incoming().userId == existing().userId &&
+          incoming().criadoEm == existing().criadoEm &&
+          incoming().createdAt == existing().createdAt &&
+          incoming().updatedAt == request.time &&
+          (
+            incoming().diff(existing()).affectedKeys().hasOnly(['favorito', 'updatedAt']) ||
+            incoming().diff(existing()).affectedKeys().hasOnly(['titulo', 'descricao', 'secoes', 'totalPalavras', 'updatedAt']) ||
+            incoming().diff(existing()).affectedKeys().hasOnly([
+              'tema',
+              'titulo',
+              'descricao',
+              'palavrasChave',
+              'tom',
+              'idioma',
+              'faixaPalavras',
+              'primeiraPessoa',
+              'pesquisaUsada',
+              'fontes',
+              'secoes',
+              'favorito',
+              'totalPalavras',
+              'updatedAt'
+            ])
+          ) &&
+          userExists(userId);
+        allow delete: if isOwner(userId) && isVerified() && isValidId(userId) && isValidId(articleId);
+      }
+    }
+  }
+}

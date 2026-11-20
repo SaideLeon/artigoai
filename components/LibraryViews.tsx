@@ -228,7 +228,7 @@ export function StatisticsView({
             Estatísticas de Produção
           </h2>
           <p className="text-xs text-slate-500 dark:text-slate-400">
-            Resumo real dos artigos gerados e guardados neste navegador
+            Resumo real dos artigos gerados e guardados na sua biblioteca
           </p>
         </div>
       </div>
