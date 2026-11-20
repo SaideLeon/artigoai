@@ -13,6 +13,8 @@ import {
 
 const ALLOWED_FAIXAS = new Set<string>(FAIXAS_PALAVRAS.map((f) => f.id));
 const ALLOWED_PESQUISA = new Set<string>(["auto", "sempre", "desativada"]);
+const ARTICLE_IMAGES_BUCKET = "article-images";
+const MAX_DATA_URL_LENGTH = 2_500_000;
 
 export function sanitizeDocumentId(rawId: string): string {
   const cleaned = rawId.replace(/[^a-zA-Z0-9_-]/g, "-").slice(0, 128);
@@ -23,6 +25,182 @@ function clampStr(val: string | undefined | null, max: number): string {
   return String(val ?? "").slice(0, max);
 }
 
+function dataUrlToBlob(
+  dataUrl: string
+): { blob: Blob; ext: string; mime: string } | null {
+  const match = /^data:(image\/[a-zA-Z0-9.+-]+);base64,([\s\S]+)$/.exec(
+    dataUrl.trim()
+  );
+  if (!match) return null;
+  const mime = match[1].toLowerCase();
+  const base64 = match[2].replace(/\s+/g, "");
+  try {
+    const binary = atob(base64);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) {
+      bytes[i] = binary.charCodeAt(i);
+    }
+    const ext =
+      mime === "image/jpeg" || mime === "image/jpg"
+        ? "jpg"
+        : mime === "image/webp"
+        ? "webp"
+        : "png";
+    return { blob: new Blob([bytes], { type: mime }), ext, mime };
+  } catch {
+    return null;
+  }
+}
+
+export async function compressImageDataUrl(
+  dataUrl: string,
+  maxDimension = 1024,
+  quality = 0.84
+): Promise<string> {
+  if (
+    typeof window === "undefined" ||
+    !dataUrl.startsWith("data:image/") ||
+    dataUrl.length <= 240_000
+  ) {
+    return dataUrl;
+  }
+
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => {
+      try {
+        const scale = Math.min(
+          1,
+          maxDimension / Math.max(img.width || maxDimension, img.height || maxDimension)
+        );
+        const width = Math.max(1, Math.round((img.width || maxDimension) * scale));
+        const height = Math.max(
+          1,
+          Math.round((img.height || maxDimension) * scale)
+        );
+        const canvas = document.createElement("canvas");
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) {
+          resolve(dataUrl);
+          return;
+        }
+        ctx.drawImage(img, 0, 0, width, height);
+        const webp = canvas.toDataURL("image/webp", quality);
+        if (webp.startsWith("data:image/webp") && webp.length < dataUrl.length) {
+          resolve(webp);
+          return;
+        }
+        const jpeg = canvas.toDataURL("image/jpeg", quality);
+        resolve(jpeg.length < dataUrl.length ? jpeg : dataUrl);
+      } catch {
+        resolve(dataUrl);
+      }
+    };
+    img.onerror = () => resolve(dataUrl);
+    img.src = dataUrl;
+  });
+}
+
+async function uploadSectionImageToStorage(
+  userId: string,
+  articleId: string,
+  sectionIndex: number,
+  imageValue: string
+): Promise<string> {
+  const trimmed = imageValue.trim();
+  if (!trimmed) return "";
+
+  if (trimmed.includes(`/storage/v1/object/public/${ARTICLE_IMAGES_BUCKET}/`)) {
+    return trimmed;
+  }
+
+  const supabase = getSupabaseClient();
+  if (!supabase) {
+    return trimmed.startsWith("data:image/")
+      ? await compressImageDataUrl(trimmed)
+      : trimmed;
+  }
+
+  let parsed = dataUrlToBlob(trimmed);
+
+  // Se for uma URL temporária externa (não do nosso bucket), tenta persistir no Storage
+  if (!parsed && /^https?:\/\//i.test(trimmed)) {
+    try {
+      const resp = await fetch(trimmed);
+      if (resp.ok) {
+        const blob = await resp.blob();
+        const mime = blob.type || "image/png";
+        const ext =
+          mime === "image/jpeg"
+            ? "jpg"
+            : mime === "image/webp"
+            ? "webp"
+            : "png";
+        parsed = { blob, ext, mime };
+      }
+    } catch {
+      return trimmed;
+    }
+  }
+
+  if (!parsed) {
+    return trimmed;
+  }
+
+  const safeArticleId = sanitizeDocumentId(articleId);
+  const rand = Math.random().toString(36).slice(2, 7);
+  const path = `${userId}/${safeArticleId}/sec-${sectionIndex}-${Date.now()}-${rand}.${parsed.ext}`;
+
+  const { error: uploadError } = await supabase.storage
+    .from(ARTICLE_IMAGES_BUCKET)
+    .upload(path, parsed.blob, {
+      contentType: parsed.mime,
+      cacheControl: "31536000",
+      upsert: false,
+    });
+
+  if (!uploadError) {
+    const { data: pub } = supabase.storage
+      .from(ARTICLE_IMAGES_BUCKET)
+      .getPublicUrl(path);
+    if (pub?.publicUrl) {
+      return pub.publicUrl;
+    }
+  } else {
+    console.warn(
+      `Falha ao enviar imagem para Supabase Storage (${ARTICLE_IMAGES_BUCKET}):`,
+      uploadError.message
+    );
+  }
+
+  // Fallback seguro: comprime e mantém a imagem no JSONB da coluna secoes para nunca perder a imagem
+  return trimmed.startsWith("data:image/")
+    ? await compressImageDataUrl(trimmed)
+    : trimmed;
+}
+
+async function prepareSecoesForCloud(
+  userId: string,
+  articleId: string,
+  secoes: Secao[]
+): Promise<Secao[]> {
+  const prepared = await Promise.all(
+    secoes.slice(0, 15).map(async (s, idx) => {
+      if (!s.img) return s;
+      const persistedUrl = await uploadSectionImageToStorage(
+        userId,
+        articleId,
+        idx,
+        s.img
+      );
+      return { ...s, img: persistedUrl };
+    })
+  );
+  return sanitizeSecoesForCloud(prepared);
+}
+
 function sanitizeSecoesForCloud(secoes: Secao[]): Secao[] {
   return secoes.slice(0, 15).map((s) => {
     const clean: Secao = {
@@ -31,8 +209,14 @@ function sanitizeSecoesForCloud(secoes: Secao[]): Secao[] {
       texto: clampStr(s.texto ?? "", 25000),
     };
     if (s.prompt) clean.prompt = clampStr(s.prompt, 1000);
-    if (s.img && s.img.length <= 2048 && !s.img.startsWith("data:")) {
-      clean.img = s.img;
+    if (s.img) {
+      if (s.img.startsWith("data:image/")) {
+        if (s.img.length <= MAX_DATA_URL_LENGTH) {
+          clean.img = s.img;
+        }
+      } else if (s.img.length <= 4096) {
+        clean.img = s.img;
+      }
     }
     return clean;
   });
@@ -270,12 +454,24 @@ export function subscribeUserArticles(
   };
 }
 
+export type CloudSaveResult = {
+  ok: boolean;
+  secoes: Secao[];
+  error?: string;
+};
+
 export async function saveArticleCloud(
   userId: string,
   artigo: ArtigoSalvo
-): Promise<void> {
+): Promise<CloudSaveResult> {
   const supabase = getSupabaseClient();
-  if (!supabase) return;
+  if (!supabase) {
+    return {
+      ok: false,
+      secoes: sanitizeSecoesForCloud(artigo.secoes ?? []),
+      error: "Supabase não configurado.",
+    };
+  }
 
   const safeId = sanitizeDocumentId(artigo.id);
   const safeFaixa: FaixaPalavrasId = ALLOWED_FAIXAS.has(artigo.faixaPalavras)
@@ -290,6 +486,11 @@ export async function saveArticleCloud(
     300
   );
   const safeTitulo = clampStr(artigo.titulo.trim() || safeTema, 300);
+  const preparedSecoes = await prepareSecoesForCloud(
+    userId,
+    safeId,
+    artigo.secoes ?? []
+  );
 
   const { error } = await supabase.from("articles").upsert(
     {
@@ -308,7 +509,7 @@ export async function saveArticleCloud(
       primeira_pessoa: Boolean(artigo.primeiraPessoa),
       pesquisa_usada: Boolean(artigo.pesquisaUsada),
       fontes: sanitizeFontesForCloud(artigo.fontes ?? []),
-      secoes: sanitizeSecoesForCloud(artigo.secoes ?? []),
+      secoes: preparedSecoes,
       criado_em: artigo.criadoEm || new Date().toISOString(),
       favorito: Boolean(artigo.favorito),
       total_palavras: safeTotal,
@@ -319,7 +520,7 @@ export async function saveArticleCloud(
 
   if (error) {
     console.error("Erro ao salvar artigo no Supabase:", error.message);
-    return;
+    return { ok: false, secoes: preparedSecoes, error: error.message };
   }
 
   await supabase.from("generations").insert({
@@ -329,6 +530,8 @@ export async function saveArticleCloud(
     total_palavras: safeTotal,
     pesquisa_usada: Boolean(artigo.pesquisaUsada),
   });
+
+  return { ok: true, secoes: preparedSecoes };
 }
 
 export async function updateArticleContentCloud(
@@ -338,17 +541,25 @@ export async function updateArticleContentCloud(
   descricao: string,
   secoes: Secao[],
   totalPalavras: number
-): Promise<void> {
+): Promise<CloudSaveResult> {
   const supabase = getSupabaseClient();
-  if (!supabase) return;
+  if (!supabase) {
+    return {
+      ok: false,
+      secoes: sanitizeSecoesForCloud(secoes),
+      error: "Supabase não configurado.",
+    };
+  }
 
   const safeId = sanitizeDocumentId(articleId);
+  const preparedSecoes = await prepareSecoesForCloud(userId, safeId, secoes);
+
   const { error } = await supabase
     .from("articles")
     .update({
       titulo: clampStr(titulo.trim() || "Artigo", 300),
       descricao: clampStr(descricao ?? "", 1000),
-      secoes: sanitizeSecoesForCloud(secoes),
+      secoes: preparedSecoes,
       total_palavras: Math.min(50000, Math.max(0, Math.round(totalPalavras))),
       updated_at: new Date().toISOString(),
     })
@@ -357,7 +568,10 @@ export async function updateArticleContentCloud(
 
   if (error) {
     console.error("Erro ao atualizar artigo no Supabase:", error.message);
+    return { ok: false, secoes: preparedSecoes, error: error.message };
   }
+
+  return { ok: true, secoes: preparedSecoes };
 }
 
 export async function toggleArticleFavoriteCloud(
@@ -399,6 +613,21 @@ export async function deleteArticleCloud(
 
   if (error) {
     console.error("Erro ao excluir artigo no Supabase:", error.message);
+    return;
+  }
+
+  try {
+    const folder = `${userId}/${safeId}`;
+    const { data: files } = await supabase.storage
+      .from(ARTICLE_IMAGES_BUCKET)
+      .list(folder);
+    if (files && files.length > 0) {
+      await supabase.storage
+        .from(ARTICLE_IMAGES_BUCKET)
+        .remove(files.map((f) => `${folder}/${f.name}`));
+    }
+  } catch {
+    // Ignora falha não-crítica ao limpar ficheiros antigos do Storage
   }
 }
 

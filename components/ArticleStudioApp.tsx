@@ -18,6 +18,7 @@ import { useAuth } from "@/components/AuthProvider";
 import { useTheme } from "@/components/ThemeProvider";
 import {
   clearAllArticlesCloud,
+  compressImageDataUrl,
   deleteArticleCloud,
   sanitizeDocumentId,
   saveArticleCloud,
@@ -369,7 +370,7 @@ export default function ArticleStudioApp() {
     novaDescricao: string,
     novasSecoes: Secao[]
   ) {
-    if (!user || !profileReady) return;
+    if (!user) return;
     const uid = user.uid;
     if (cloudSyncTimerRef.current) {
       window.clearTimeout(cloudSyncTimerRef.current);
@@ -382,7 +383,34 @@ export default function ArticleStudioApp() {
         novaDescricao,
         novasSecoes,
         contarPalavras(novasSecoes)
-      );
+      ).then((res) => {
+        if (!res.ok) return;
+        setArtigosSalvos((lista) => {
+          const atualizada = lista.map((a) =>
+            a.id === articleId
+              ? {
+                  ...a,
+                  secoes: a.secoes.map((sec, idx) =>
+                    res.secoes[idx]?.img ? { ...sec, img: res.secoes[idx].img } : sec
+                  ),
+                }
+              : a
+          );
+          try {
+            localStorage.setItem(STORAGE_ARTICLES, JSON.stringify(atualizada));
+          } catch {
+            // Ignora quota cheia
+          }
+          return atualizada;
+        });
+        setSecoes((prev) =>
+          prev.map((sec, idx) =>
+            res.secoes[idx]?.img && sec.img?.startsWith("data:")
+              ? { ...sec, img: res.secoes[idx].img }
+              : sec
+          )
+        );
+      });
     }, 650);
   }
 
@@ -452,8 +480,12 @@ export default function ArticleStudioApp() {
         { prompt, plano: planoGeracao },
         signal
       );
-      atualizarSecao(index, { img: url, aGerarImagem: false });
-      return url;
+      const finalUrl =
+        typeof url === "string" && url.startsWith("data:image/") && !user
+          ? await compressImageDataUrl(url)
+          : url;
+      atualizarSecao(index, { img: finalUrl, aGerarImagem: false });
+      return finalUrl;
     } catch (e) {
       if ((e as Error).name === "AbortError") {
         atualizarSecao(index, { aGerarImagem: false });
@@ -655,6 +687,16 @@ export default function ArticleStudioApp() {
 
       if (!controller.signal.aborted) {
         const novoId = `art_${Date.now()}`;
+        const secoesParaLocal = !user
+          ? await Promise.all(
+              lista.map(async (s) =>
+                s.img?.startsWith("data:image/")
+                  ? { ...s, img: await compressImageDataUrl(s.img) }
+                  : s
+              )
+            )
+          : lista;
+
         const novoArtigo: ArtigoSalvo = {
           id: novoId,
           tema: tema.trim(),
@@ -667,16 +709,53 @@ export default function ArticleStudioApp() {
           primeiraPessoa: primeiraPessoaEfetiva,
           pesquisaUsada: usouPesquisa,
           fontes: fontesPesquisadas,
-          secoes: lista,
+          secoes: secoesParaLocal,
           criadoEm: new Date().toISOString(),
           favorito: false,
-          totalPalavras: contarPalavras(lista),
+          totalPalavras: contarPalavras(secoesParaLocal),
         };
+
         setArtigoAtualId(novoId);
-        persistirArtigos([novoArtigo, ...artigosSalvos]);
-        if (user && profileReady) {
-          void saveArticleCloud(user.uid, novoArtigo);
+        setArtigosSalvos((prev) => {
+          const atualizada = [
+            novoArtigo,
+            ...prev.filter((a) => a.id !== novoId),
+          ];
+          try {
+            localStorage.setItem(STORAGE_ARTICLES, JSON.stringify(atualizada));
+          } catch {
+            // Ignora quota cheia
+          }
+          return atualizada;
+        });
+
+        if (user) {
+          setEstado("A guardar artigo e imagens no banco de dados…");
+          const cloudRes = await saveArticleCloud(user.uid, novoArtigo);
+          const artigoPersistido: ArtigoSalvo = {
+            ...novoArtigo,
+            secoes: cloudRes.secoes,
+            totalPalavras: contarPalavras(cloudRes.secoes),
+          };
+          setSecoes(artigoPersistido.secoes);
+          setArtigosSalvos((prev) => {
+            const atualizada = prev.map((a) =>
+              a.id === novoId ? artigoPersistido : a
+            );
+            try {
+              localStorage.setItem(STORAGE_ARTICLES, JSON.stringify(atualizada));
+            } catch {
+              // Ignora quota cheia
+            }
+            return atualizada;
+          });
+          if (!cloudRes.ok && cloudRes.error) {
+            setErroGeral(
+              `Artigo guardado localmente, mas houve falha ao sincronizar no Supabase: ${cloudRes.error}`
+            );
+          }
         }
+
         setEstado("Artigo concluído e guardado em Meus Artigos.");
         registrarNotificacao("Artigo concluído", esb.titulo);
       }
