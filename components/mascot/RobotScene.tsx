@@ -209,7 +209,7 @@ export default function RobotScene({
     const shadowCatcherMat = new THREE.ShadowMaterial({ opacity: 0.14 });
     const shadowCatcher = new THREE.Mesh(shadowCatcherGeo, shadowCatcherMat);
     shadowCatcher.rotation.x = -Math.PI / 2;
-    shadowCatcher.position.y = -1.165;
+    shadowCatcher.position.y = -1.105;
     shadowCatcher.receiveShadow = true;
     scene.add(shadowCatcher);
 

@@ -129,21 +129,23 @@ export class RobotAnimator {
       }
 
       case "greeting": {
-        bodyY = Math.sin(t * 2.6) * 0.06 + 0.03;
+        bodyY = Math.sin(t * 2.6) * 0.055 + 0.03;
         bodyRotZ = -0.04;
-        headRotZ = -0.1;
-        headRotY = pointerX * 0.22 + 0.08;
+        headRotZ = -0.09;
+        headRotY = pointerX * 0.22 + 0.06;
 
-        // Right arm raised and waving warmly
-        rShoulderX = -0.25;
-        rShoulderZ = 2.35;
-        rElbowX = -0.22;
-        rElbowZ = -0.45 + Math.sin(t * 7.2) * 0.34;
-        rHandRotY = Math.sin(t * 7.2) * 0.18;
+        // Right arm raised waving warmly
+        rShoulderX = -0.22;
+        rShoulderZ = 2.28;
+        rElbowX = -0.2;
+        rElbowZ = -0.38 + Math.sin(t * 7.2) * 0.32;
+        rHandRotY = Math.sin(t * 7.2) * 0.16;
 
-        // Left arm relaxed slightly outward
-        lShoulderZ = -0.26;
-        lElbowX = -0.3;
+        // Left hand resting confidently on hip (matching reference silhouette)
+        lShoulderX = 0.1;
+        lShoulderZ = -0.52;
+        lElbowX = -0.58;
+        lElbowZ = 0.56;
         break;
       }
 
@@ -155,20 +157,19 @@ export class RobotAnimator {
         headRotZ = 0.14;
 
         // Right arm bent bringing hand toward chin
-        rShoulderX = -0.95;
+        rShoulderX = -1.05;
         rShoulderY = 0.42;
-        rShoulderZ = 0.38;
-        rElbowX = -1.68;
-        rElbowZ = 0.55;
-        rHandRotY = -0.45;
+        rShoulderZ = 0.35;
+        rElbowX = -1.62;
+        rElbowZ = 0.52;
+        rHandRotY = -0.42;
 
-        // Left arm tucked across lower chest like the reference pose
+        // Left arm tucked across lower chest
         lShoulderX = -0.45;
         lShoulderZ = -0.22;
         lElbowX = -1.15;
         lElbowZ = -0.65;
-
-        chestEmissive = 1.7 + Math.sin(t * 5.2) * 0.65;
+        chestEmissive = 1.45 + Math.sin(t * 5.2) * 0.35;
         break;
       }
 
@@ -497,17 +498,17 @@ export class RobotAnimator {
     );
 
     // Subtle eye tracking on visor
-    const eyeTrackX = pointerX * 0.018;
-    const eyeTrackY = pointerY * 0.014;
+    const eyeTrackX = pointerX * 0.016;
+    const eyeTrackY = pointerY * 0.012;
     rig.leftEye.position.x = THREE.MathUtils.damp(
       rig.leftEye.position.x,
-      -0.185 + eyeTrackX,
+      -0.168 + eyeTrackX,
       12,
       safeDt
     );
     rig.rightEye.position.x = THREE.MathUtils.damp(
       rig.rightEye.position.x,
-      0.185 + eyeTrackX,
+      0.168 + eyeTrackX,
       12,
       safeDt
     );
