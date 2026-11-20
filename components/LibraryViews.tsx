@@ -56,8 +56,8 @@ export function ArticlesListView({
     );
 
   return (
-    <section className="rounded-2xl border border-slate-200/90 bg-white p-6 shadow-xs dark:border-slate-800 dark:bg-slate-900">
-      <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-100 pb-4 dark:border-slate-800">
+    <section className="flex max-h-[78vh] flex-col overflow-hidden rounded-2xl border border-slate-200/90 bg-white shadow-xs dark:border-slate-800 dark:bg-slate-900 xl:h-full xl:max-h-none">
+      <div className="flex shrink-0 flex-wrap items-center justify-between gap-4 border-b border-slate-100 px-6 py-4 dark:border-slate-800">
         <div className="flex items-center gap-2.5">
           <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600 dark:bg-indigo-950/70 dark:text-indigo-400">
             {apenasFavoritos ? (
@@ -101,20 +101,21 @@ export function ArticlesListView({
         </div>
       </div>
 
-      {filtrados.length === 0 ? (
-        <div className="py-14 text-center">
-          <p className="text-sm font-semibold text-slate-700 dark:text-slate-200">
-            {apenasFavoritos
-              ? "Nenhum artigo marcado como favorito ainda."
-              : "Nenhum artigo guardado no histórico."}
-          </p>
-          <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-            Gere um artigo no painel principal para salvá-lo automaticamente
-            aqui.
-          </p>
-        </div>
-      ) : (
-        <div className="mt-4 divide-y divide-slate-100 dark:divide-slate-800">
+      <div className="studio-scroll min-h-0 flex-1 overflow-y-auto px-6 py-4">
+        {filtrados.length === 0 ? (
+          <div className="py-14 text-center">
+            <p className="text-sm font-semibold text-slate-700 dark:text-slate-200">
+              {apenasFavoritos
+                ? "Nenhum artigo marcado como favorito ainda."
+                : "Nenhum artigo guardado no histórico."}
+            </p>
+            <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+              Gere um artigo no painel principal para salvá-lo automaticamente
+              aqui.
+            </p>
+          </div>
+        ) : (
+          <div className="divide-y divide-slate-100 dark:divide-slate-800">
           {filtrados.map((artigo) => {
             const imagens = artigo.secoes.filter((s) => s.img).length;
             const dataFmt = new Date(artigo.criadoEm).toLocaleDateString(
@@ -196,8 +197,9 @@ export function ArticlesListView({
               </div>
             );
           })}
-        </div>
-      )}
+          </div>
+        )}
+      </div>
     </section>
   );
 }
@@ -218,8 +220,8 @@ export function StatisticsView({
   const totalFavoritos = artigos.filter((a) => a.favorito).length;
 
   return (
-    <section className="space-y-6 rounded-2xl border border-slate-200/90 bg-white p-6 shadow-xs dark:border-slate-800 dark:bg-slate-900">
-      <div className="flex items-center gap-2.5 border-b border-slate-100 pb-4 dark:border-slate-800">
+    <section className="flex max-h-[78vh] flex-col overflow-hidden rounded-2xl border border-slate-200/90 bg-white shadow-xs dark:border-slate-800 dark:bg-slate-900 xl:h-full xl:max-h-none">
+      <div className="flex shrink-0 items-center gap-2.5 border-b border-slate-100 px-6 py-4 dark:border-slate-800">
         <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600 dark:bg-indigo-950/70 dark:text-indigo-400">
           <BarChart3 className="h-5 w-5" />
         </span>
@@ -233,7 +235,8 @@ export function StatisticsView({
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+      <div className="studio-scroll min-h-0 flex-1 space-y-6 overflow-y-auto p-6">
+        <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
         <div className="rounded-xl border border-slate-200 p-4 dark:border-slate-800 dark:bg-slate-950/40">
           <p className="text-xs font-medium text-slate-500 dark:text-slate-400">
             Artigos criados
@@ -316,6 +319,7 @@ export function StatisticsView({
             </table>
           </div>
         )}
+        </div>
       </div>
     </section>
   );
@@ -343,8 +347,8 @@ export function SettingsView({
   }
 
   return (
-    <section className="max-w-2xl space-y-6 rounded-2xl border border-slate-200/90 bg-white p-6 shadow-xs dark:border-slate-800 dark:bg-slate-900">
-      <div className="flex items-center gap-2.5 border-b border-slate-100 pb-4 dark:border-slate-800">
+    <section className="flex max-h-[78vh] max-w-2xl flex-col overflow-hidden rounded-2xl border border-slate-200/90 bg-white shadow-xs dark:border-slate-800 dark:bg-slate-900 xl:h-full xl:max-h-none">
+      <div className="flex shrink-0 items-center gap-2.5 border-b border-slate-100 px-6 py-4 dark:border-slate-800">
         <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600 dark:bg-indigo-950/70 dark:text-indigo-400">
           <Settings className="h-5 w-5" />
         </span>
@@ -358,8 +362,9 @@ export function SettingsView({
         </div>
       </div>
 
-      {/* Aparência / Tema */}
-      <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 p-4 dark:border-slate-800 dark:bg-slate-950/40">
+      <div className="studio-scroll min-h-0 flex-1 space-y-6 overflow-y-auto p-6">
+        {/* Aparência / Tema */}
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 p-4 dark:border-slate-800 dark:bg-slate-950/40">
         <div>
           <p className="text-xs font-semibold text-slate-900 dark:text-slate-100">
             Aparência da interface
@@ -529,10 +534,11 @@ export function SettingsView({
             <option value="sempre">Sempre pesquisar</option>
             <option value="desativada">Desativada</option>
           </select>
+          </div>
         </div>
       </div>
 
-      <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 pt-4 dark:border-slate-800">
+      <div className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-t border-slate-100 bg-white/95 px-6 py-4 dark:border-slate-800 dark:bg-slate-900/95">
         <button
           type="button"
           onClick={onLimparHistorico}

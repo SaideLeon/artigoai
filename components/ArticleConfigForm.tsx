@@ -120,9 +120,9 @@ export default function ArticleConfigForm({
   return (
     <section
       aria-label="Configuração do artigo"
-      className="rounded-2xl border border-slate-200/90 bg-white p-5 shadow-xs dark:border-slate-800 dark:bg-slate-900"
+      className="flex max-h-[72vh] flex-col overflow-hidden rounded-2xl border border-slate-200/90 bg-white shadow-xs dark:border-slate-800 dark:bg-slate-900 xl:h-full xl:max-h-none"
     >
-      <div className="mb-5 flex items-center gap-2.5">
+      <div className="flex shrink-0 items-center gap-2.5 border-b border-slate-100 px-5 py-4 dark:border-slate-800">
         <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600 dark:bg-indigo-950/70 dark:text-indigo-400">
           <Settings className="h-[18px] w-[18px]" />
         </span>
@@ -131,7 +131,7 @@ export default function ArticleConfigForm({
         </h2>
       </div>
 
-      <div className="space-y-4">
+      <div className="studio-scroll min-h-0 flex-1 space-y-4 overflow-y-auto px-5 py-4">
         {/* Plano / Motor de IA */}
         <div className="rounded-xl border border-slate-200/90 bg-slate-50/70 p-3 dark:border-slate-800 dark:bg-slate-800/40">
           <div className="mb-2 flex items-center justify-between gap-2">
@@ -471,41 +471,42 @@ export default function ArticleConfigForm({
           </select>
         </div>
 
-        {/* Submit / Cancel CTA */}
-        <div className="pt-2">
-          {ocupado ? (
-            <div className="flex gap-2">
-              <button
-                type="button"
-                disabled
-                className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#6344F5] to-[#2563EB] px-4 py-3 text-sm font-semibold text-white opacity-85"
-              >
-                <Loader2 className="h-4 w-4 animate-spin" />
-                <span>A gerar artigo…</span>
-              </button>
-              <button
-                type="button"
-                onClick={onCancelar}
-                title="Interromper geração"
-                className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-rose-200 bg-rose-50 px-3.5 py-3 text-xs font-semibold text-rose-700 hover:bg-rose-100 dark:border-rose-900/60 dark:bg-rose-950/60 dark:text-rose-300 dark:hover:bg-rose-950 whitespace-nowrap"
-              >
-                <Square className="h-3.5 w-3.5 fill-current" />
-                <span>Parar</span>
-              </button>
-            </div>
-          ) : (
+      </div>
+
+      {/* Submit / Cancel CTA (pinned footer) */}
+      <div className="shrink-0 border-t border-slate-100 bg-white/95 px-5 py-3.5 dark:border-slate-800 dark:bg-slate-900/95">
+        {ocupado ? (
+          <div className="flex gap-2">
             <button
               type="button"
-              onClick={onGerar}
-              disabled={!tema.trim()}
-              className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#6344F5] via-[#4F46E5] to-[#2563EB] px-5 py-3 text-sm font-semibold text-white shadow-md shadow-indigo-600/20 transition-all duration-150 hover:brightness-105 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
+              disabled
+              className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#6344F5] to-[#2563EB] px-4 py-3 text-sm font-semibold text-white opacity-85"
             >
-              <Wand2 className="h-4 w-4 shrink-0" />
-              <span>Gerar Artigo</span>
-              <ChevronRight className="h-4 w-4 shrink-0" />
+              <Loader2 className="h-4 w-4 animate-spin" />
+              <span>A gerar artigo…</span>
             </button>
-          )}
-        </div>
+            <button
+              type="button"
+              onClick={onCancelar}
+              title="Interromper geração"
+              className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-rose-200 bg-rose-50 px-3.5 py-3 text-xs font-semibold text-rose-700 hover:bg-rose-100 dark:border-rose-900/60 dark:bg-rose-950/60 dark:text-rose-300 dark:hover:bg-rose-950 whitespace-nowrap"
+            >
+              <Square className="h-3.5 w-3.5 fill-current" />
+              <span>Parar</span>
+            </button>
+          </div>
+        ) : (
+          <button
+            type="button"
+            onClick={onGerar}
+            disabled={!tema.trim()}
+            className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#6344F5] via-[#4F46E5] to-[#2563EB] px-5 py-3 text-sm font-semibold text-white shadow-md shadow-indigo-600/20 transition-all duration-150 hover:brightness-105 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
+          >
+            <Wand2 className="h-4 w-4 shrink-0" />
+            <span>Gerar Artigo</span>
+            <ChevronRight className="h-4 w-4 shrink-0" />
+          </button>
+        )}
       </div>
     </section>
   );

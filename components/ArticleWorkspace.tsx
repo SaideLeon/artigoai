@@ -186,10 +186,10 @@ export default function ArticleWorkspace({
   return (
     <section
       aria-label="Área de trabalho do artigo"
-      className="flex min-w-0 flex-col rounded-2xl border border-slate-200/90 bg-white shadow-xs dark:border-slate-800 dark:bg-slate-900"
+      className="flex max-h-[78vh] min-w-0 flex-col overflow-hidden rounded-2xl border border-slate-200/90 bg-white shadow-xs dark:border-slate-800 dark:bg-slate-900 xl:h-full xl:max-h-none"
     >
       {/* Top Toolbar */}
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 px-5 py-3.5 dark:border-slate-800">
+      <div className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-b border-slate-100 px-5 py-3.5 dark:border-slate-800">
         {/* Segmented tabs */}
         <div
           role="tablist"
@@ -286,7 +286,7 @@ export default function ArticleWorkspace({
       {(ocupado || estado || erroGeral) && (
         <div
           aria-live="polite"
-          className={`flex flex-wrap items-center justify-between gap-3 border-b px-5 py-2.5 text-xs ${
+          className={`flex shrink-0 flex-wrap items-center justify-between gap-3 border-b px-5 py-2.5 text-xs ${
             erroGeral
               ? "border-rose-100 bg-rose-50/70 text-rose-700 dark:border-rose-900/50 dark:bg-rose-950/40 dark:text-rose-300"
               : "border-indigo-100 bg-indigo-50/50 text-indigo-900 dark:border-indigo-900/40 dark:bg-indigo-950/30 dark:text-indigo-200"
@@ -314,8 +314,8 @@ export default function ArticleWorkspace({
         </div>
       )}
 
-      {/* Workspace Body */}
-      <div className="p-5 sm:p-7">
+      {/* Workspace Body (independent internal scroll) */}
+      <div className="studio-scroll min-h-0 flex-1 overflow-y-auto p-5 sm:p-7">
         {!temConteudo && ocupado ? (
           /* Generating Outline / Research State */
           <div className="flex flex-col items-center justify-center py-12 text-center">

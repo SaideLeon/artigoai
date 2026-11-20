@@ -815,7 +815,7 @@ export default function ArticleStudioApp() {
       : "idle";
 
   return (
-    <div className="flex min-h-screen bg-[#F4F6FB] dark:bg-slate-950 transition-colors duration-150">
+    <div className="flex min-h-screen xl:h-screen xl:overflow-hidden bg-[#F4F6FB] dark:bg-slate-950 transition-colors duration-150">
       <Sidebar
         activeTab={activeTab}
         onSelectTab={setActiveTab}
@@ -828,22 +828,26 @@ export default function ArticleStudioApp() {
         planoGeracao={planoGeracao}
       />
 
-      <div className="flex min-w-0 flex-1 flex-col px-4 py-4 sm:px-6 lg:px-8">
-        <TopBar
-          onOpenMobileMenu={() => setMobileMenuOpen(true)}
-          notificacoes={notificacoes}
-          onMarcarLidas={() =>
-            setNotificacoes((prev) => prev.map((n) => ({ ...n, lida: true })))
-          }
-          onNavigate={setActiveTab}
-        />
+      <div className="flex min-w-0 min-h-0 flex-1 flex-col px-4 py-4 sm:px-6 lg:px-8 xl:overflow-hidden">
+        <div className="shrink-0">
+          <TopBar
+            onOpenMobileMenu={() => setMobileMenuOpen(true)}
+            notificacoes={notificacoes}
+            onMarcarLidas={() =>
+              setNotificacoes((prev) => prev.map((n) => ({ ...n, lida: true })))
+            }
+            onNavigate={setActiveTab}
+          />
+        </div>
 
-        <div className="mx-auto w-full max-w-[1360px] space-y-5 pb-10">
-          <HeroBanner mascotState={mascotState} />
+        <div className="mx-auto flex min-h-0 w-full max-w-[1360px] flex-1 flex-col gap-4 pb-6 xl:pb-1">
+          <div className="shrink-0">
+            <HeroBanner mascotState={mascotState} />
+          </div>
 
           {activeTab === "inicio" && (
-            <div className="grid grid-cols-1 gap-5 xl:grid-cols-[410px_minmax(0,1fr)] items-start">
-              <div className="xl:sticky xl:top-5">
+            <div className="grid min-h-0 flex-1 grid-cols-1 gap-5 xl:grid-cols-[410px_minmax(0,1fr)] xl:grid-rows-[minmax(0,1fr)]">
+              <div className="min-h-0 xl:h-full">
                 <ArticleConfigForm
                   tema={tema}
                   onChangeTema={setTema}
@@ -878,84 +882,92 @@ export default function ArticleStudioApp() {
                 />
               </div>
 
-              <ArticleWorkspace
-                titulo={titulo}
-                descricao={descricao}
-                palavrasChave={palavrasChave}
-                tom={tom}
-                idioma={idioma}
-                primeiraPessoa={primeiraPessoa}
-                pesquisaUsada={pesquisaUsada}
-                fontes={fontes}
-                alvoPalavras={faixaAtual.alvoPalavras}
-                secoes={secoes}
-                estado={estado}
-                erroGeral={erroGeral}
-                ocupado={ocupado}
-                favorito={artigoAtualObj?.favorito ?? false}
-                temArtigoSalvo={Boolean(artigoAtualObj)}
-                onToggleFavorito={() => {
-                  if (artigoAtualId) toggleFavoritoPorId(artigoAtualId);
-                }}
-                onUpdateTitulo={handleUpdateTitulo}
-                onUpdateSecao={atualizarSecao}
-                onAddSecao={handleAddSecao}
-                onRemoveSecao={handleRemoveSecao}
-                onRegenerarImagem={(i, prompt) => gerarImagemSecao(i, prompt)}
-                onExportarHtml={() => {
-                  downloadArtigoHtml(titulo, descricao, secoes, fontes);
-                  registrarNotificacao("HTML descarregado", titulo);
-                }}
-                onAplicarSugestao={(t, tags, desc) => {
-                  setTema(t);
-                  setPalavrasChave(tags);
-                  setDescricao(desc);
-                }}
-              />
+              <div className="min-h-0 xl:h-full">
+                <ArticleWorkspace
+                  titulo={titulo}
+                  descricao={descricao}
+                  palavrasChave={palavrasChave}
+                  tom={tom}
+                  idioma={idioma}
+                  primeiraPessoa={primeiraPessoa}
+                  pesquisaUsada={pesquisaUsada}
+                  fontes={fontes}
+                  alvoPalavras={faixaAtual.alvoPalavras}
+                  secoes={secoes}
+                  estado={estado}
+                  erroGeral={erroGeral}
+                  ocupado={ocupado}
+                  favorito={artigoAtualObj?.favorito ?? false}
+                  temArtigoSalvo={Boolean(artigoAtualObj)}
+                  onToggleFavorito={() => {
+                    if (artigoAtualId) toggleFavoritoPorId(artigoAtualId);
+                  }}
+                  onUpdateTitulo={handleUpdateTitulo}
+                  onUpdateSecao={atualizarSecao}
+                  onAddSecao={handleAddSecao}
+                  onRemoveSecao={handleRemoveSecao}
+                  onRegenerarImagem={(i, prompt) => gerarImagemSecao(i, prompt)}
+                  onExportarHtml={() => {
+                    downloadArtigoHtml(titulo, descricao, secoes, fontes);
+                    registrarNotificacao("HTML descarregado", titulo);
+                  }}
+                  onAplicarSugestao={(t, tags, desc) => {
+                    setTema(t);
+                    setPalavrasChave(tags);
+                    setDescricao(desc);
+                  }}
+                />
+              </div>
             </div>
           )}
 
           {(activeTab === "artigos" || activeTab === "favoritos") && (
-            <ArticlesListView
-              apenasFavoritos={activeTab === "favoritos"}
-              artigos={artigosSalvos}
-              onAbrirArtigo={abrirArtigoSalvo}
-              onToggleFavorito={toggleFavoritoPorId}
-              onExcluirArtigo={(id) => {
-                persistirArtigos(artigosSalvos.filter((a) => a.id !== id));
-                if (artigoAtualId === id) setArtigoAtualId(null);
-                if (user && profileReady) {
-                  void deleteArticleCloud(user.uid, id);
+            <div className="min-h-0 flex-1">
+              <ArticlesListView
+                apenasFavoritos={activeTab === "favoritos"}
+                artigos={artigosSalvos}
+                onAbrirArtigo={abrirArtigoSalvo}
+                onToggleFavorito={toggleFavoritoPorId}
+                onExcluirArtigo={(id) => {
+                  persistirArtigos(artigosSalvos.filter((a) => a.id !== id));
+                  if (artigoAtualId === id) setArtigoAtualId(null);
+                  if (user && profileReady) {
+                    void deleteArticleCloud(user.uid, id);
+                  }
+                }}
+                onBaixarHtml={(a) =>
+                  downloadArtigoHtml(a.titulo, a.descricao, a.secoes, a.fontes ?? [])
                 }
-              }}
-              onBaixarHtml={(a) =>
-                downloadArtigoHtml(a.titulo, a.descricao, a.secoes, a.fontes ?? [])
-              }
-              onIrParaInicio={() => setActiveTab("inicio")}
-            />
+                onIrParaInicio={() => setActiveTab("inicio")}
+              />
+            </div>
           )}
 
           {activeTab === "estatisticas" && (
-            <StatisticsView
-              artigos={artigosSalvos}
-              onAbrirArtigo={abrirArtigoSalvo}
-            />
+            <div className="min-h-0 flex-1">
+              <StatisticsView
+                artigos={artigosSalvos}
+                onAbrirArtigo={abrirArtigoSalvo}
+              />
+            </div>
           )}
 
           {activeTab === "configuracoes" && (
-            <SettingsView
-              key={`${configPadrao.tomPadrao}-${configPadrao.idiomaPadrao}-${configPadrao.faixaPalavrasPadrao}-${configPadrao.incluirImagensPadrao}-${configPadrao.primeiraPessoaPadrao}-${configPadrao.pesquisaWebPadrao}`}
-              config={configPadrao}
-              onSaveConfig={salvarConfigPadrao}
-              onLimparHistorico={() => {
-                persistirArtigos([]);
-                setArtigoAtualId(null);
-                if (user && profileReady) {
-                  void clearAllArticlesCloud(user.uid);
-                }
-              }}
-              totalArtigos={artigosSalvos.length}
-            />
+            <div className="min-h-0 flex-1">
+              <SettingsView
+                key={`${configPadrao.tomPadrao}-${configPadrao.idiomaPadrao}-${configPadrao.faixaPalavrasPadrao}-${configPadrao.incluirImagensPadrao}-${configPadrao.primeiraPessoaPadrao}-${configPadrao.pesquisaWebPadrao}`}
+                config={configPadrao}
+                onSaveConfig={salvarConfigPadrao}
+                onLimparHistorico={() => {
+                  persistirArtigos([]);
+                  setArtigoAtualId(null);
+                  if (user && profileReady) {
+                    void clearAllArticlesCloud(user.uid);
+                  }
+                }}
+                totalArtigos={artigosSalvos.length}
+              />
+            </div>
           )}
         </div>
       </div>

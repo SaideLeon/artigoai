@@ -49,7 +49,7 @@ export default function Sidebar({
   planoGeracao = "free",
 }: SidebarProps) {
   const content = (
-    <aside className="relative flex h-full w-[252px] shrink-0 flex-col justify-between overflow-hidden bg-gradient-to-b from-[#0E162E] via-[#121C3A] to-[#111936] px-4 py-6 text-slate-200 select-none dark:border-r dark:border-slate-800/80">
+    <aside className="relative flex h-full min-h-0 w-[252px] shrink-0 flex-col overflow-hidden bg-gradient-to-b from-[#0E162E] via-[#121C3A] to-[#111936] px-4 py-5 text-slate-200 select-none dark:border-r dark:border-slate-800/80">
       {/* Subtle atmospheric glow at bottom matching the design */}
       <div
         aria-hidden="true"
@@ -60,39 +60,40 @@ export default function Sidebar({
         className="pointer-events-none absolute -bottom-10 right-0 h-40 w-40 rounded-full bg-blue-500/15 blur-2xl"
       />
 
-      <div className="relative z-10 flex flex-col gap-7">
-        {/* Brand Block */}
-        <div className="flex items-start justify-between px-2">
-          <Link
-            href="/"
-            className="group flex w-full flex-col items-center text-center focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-indigo-400 rounded-xl"
-          >
-            <div className="mb-3 flex h-15 w-15 items-center justify-center rounded-2xl border border-white/15 bg-gradient-to-br from-[#5B4AF4] via-[#4F46E5] to-[#2563EB] p-2.5 shadow-lg shadow-indigo-950/50 transition-transform duration-200 group-hover:scale-105">
-              <BrandLogo
-                variant={ocupado ? "write" : "static"}
-                className="size-10 text-white"
-                ariaLabel="Logotipo Gerador de Artigos"
-              />
-            </div>
-            <span className="text-[19px] font-bold leading-tight tracking-tight text-white">
-              Gerador
-              <br />
-              de Artigos
-            </span>
-            <p className="mt-1.5 text-xs leading-snug text-slate-400">
-              Crie conteúdos incríveis com IA
-            </p>
-          </Link>
-          <button
-            type="button"
-            onClick={onCloseMobile}
-            aria-label="Fechar menu"
-            className="rounded-lg p-1.5 text-slate-400 hover:bg-white/10 hover:text-white lg:hidden"
-          >
-            <X className="h-5 w-5" />
-          </button>
-        </div>
+      {/* Brand Block (pinned) */}
+      <div className="relative z-10 flex shrink-0 items-start justify-between px-2 pb-5">
+        <Link
+          href="/"
+          className="group flex w-full flex-col items-center text-center focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-indigo-400 rounded-xl"
+        >
+          <div className="mb-3 flex h-15 w-15 items-center justify-center rounded-2xl border border-white/15 bg-gradient-to-br from-[#5B4AF4] via-[#4F46E5] to-[#2563EB] p-2.5 shadow-lg shadow-indigo-950/50 transition-transform duration-200 group-hover:scale-105">
+            <BrandLogo
+              variant={ocupado ? "write" : "static"}
+              className="size-10 text-white"
+              ariaLabel="Logotipo Gerador de Artigos"
+            />
+          </div>
+          <span className="text-[19px] font-bold leading-tight tracking-tight text-white">
+            Gerador
+            <br />
+            de Artigos
+          </span>
+          <p className="mt-1.5 text-xs leading-snug text-slate-400">
+            Crie conteúdos incríveis com IA
+          </p>
+        </Link>
+        <button
+          type="button"
+          onClick={onCloseMobile}
+          aria-label="Fechar menu"
+          className="rounded-lg p-1.5 text-slate-400 hover:bg-white/10 hover:text-white lg:hidden"
+        >
+          <X className="h-5 w-5" />
+        </button>
+      </div>
 
+      {/* Independent internal scroll area for Sidebar nav & actions */}
+      <div className="studio-scroll-dark relative z-10 flex min-h-0 flex-1 flex-col justify-between gap-6 overflow-y-auto pr-1">
         {/* Navigation Links */}
         <nav aria-label="Navegação principal" className="flex flex-col gap-1.5">
           {NAV_ITEMS.map((item) => {
@@ -142,62 +143,62 @@ export default function Sidebar({
             );
           })}
         </nav>
-      </div>
 
-      {/* Bottom Plan Card + Support Links */}
-      <div className="relative z-10 mt-6 flex flex-col gap-4">
-        <div className="rounded-2xl border border-white/10 bg-white/[0.06] p-4 text-center backdrop-blur-sm">
-          <div className="mx-auto mb-2 flex h-9 w-9 items-center justify-center rounded-xl bg-amber-400/15 text-amber-400">
-            <Crown className="h-5 w-5" />
+        {/* Bottom Plan Card + Support Links */}
+        <div className="flex shrink-0 flex-col gap-4">
+          <div className="rounded-2xl border border-white/10 bg-white/[0.06] p-4 text-center backdrop-blur-sm">
+            <div className="mx-auto mb-2 flex h-9 w-9 items-center justify-center rounded-xl bg-amber-400/15 text-amber-400">
+              <Crown className="h-5 w-5" />
+            </div>
+            <p className="text-sm font-semibold text-white">
+              {planoGeracao === "paid" ? "Plano Pago · Gemini" : "Plano Gratuito"}
+            </p>
+            <p className="mt-1 text-xs leading-relaxed text-slate-300">
+              {planoGeracao === "paid"
+                ? "Artigos e imagens exclusivos Google Gemini"
+                : "OpenRouter · NVIDIA · Groq"}
+            </p>
+            <button
+              type="button"
+              onClick={() => onOpenModal("upgrade")}
+              className="mt-3 w-full rounded-xl bg-gradient-to-r from-amber-400 to-amber-500 px-3 py-2 text-xs font-semibold text-slate-950 transition-transform duration-150 hover:brightness-105 active:scale-[0.98] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-300 whitespace-nowrap"
+            >
+              Ver Pacotes
+            </button>
           </div>
-          <p className="text-sm font-semibold text-white">
-            {planoGeracao === "paid" ? "Plano Pago · Gemini" : "Plano Gratuito"}
-          </p>
-          <p className="mt-1 text-xs leading-relaxed text-slate-300">
-            {planoGeracao === "paid"
-              ? "Artigos e imagens exclusivos Google Gemini"
-              : "OpenRouter · NVIDIA · Groq"}
-          </p>
-          <button
-            type="button"
-            onClick={() => onOpenModal("upgrade")}
-            className="mt-3 w-full rounded-xl bg-gradient-to-r from-amber-400 to-amber-500 px-3 py-2 text-xs font-semibold text-slate-950 transition-transform duration-150 hover:brightness-105 active:scale-[0.98] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-300 whitespace-nowrap"
-          >
-            Ver Pacotes
-          </button>
-        </div>
 
-        <div className="flex flex-col gap-1 border-t border-white/10 pt-3">
-          <button
-            type="button"
-            onClick={() => onOpenModal("ajuda")}
-            className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-xs font-medium text-slate-300 transition-colors hover:bg-white/8 hover:text-white focus-visible:outline-2 focus-visible:outline-indigo-400"
-          >
-            <HelpCircle className="h-4 w-4 text-slate-400" />
-            <span>Ajuda</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => onOpenModal("sobre")}
-            className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-xs font-medium text-slate-300 transition-colors hover:bg-white/8 hover:text-white focus-visible:outline-2 focus-visible:outline-indigo-400"
-          >
-            <Info className="h-4 w-4 text-slate-400" />
-            <span>Sobre</span>
-          </button>
-          <Link
-            href="/mascote"
-            className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-xs font-medium text-cyan-300 transition-colors hover:bg-white/8 hover:text-white focus-visible:outline-2 focus-visible:outline-indigo-400"
-          >
-            <Bot className="h-4 w-4 text-cyan-400" />
-            <span>Mascote 3D</span>
-          </Link>
-          <Link
-            href="/"
-            className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-xs font-medium text-slate-400 transition-colors hover:bg-white/8 hover:text-white focus-visible:outline-2 focus-visible:outline-indigo-400"
-          >
-            <ArrowLeft className="h-4 w-4 text-slate-400" />
-            <span>Página inicial</span>
-          </Link>
+          <div className="flex flex-col gap-1 border-t border-white/10 pt-3">
+            <button
+              type="button"
+              onClick={() => onOpenModal("ajuda")}
+              className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-xs font-medium text-slate-300 transition-colors hover:bg-white/8 hover:text-white focus-visible:outline-2 focus-visible:outline-indigo-400"
+            >
+              <HelpCircle className="h-4 w-4 text-slate-400" />
+              <span>Ajuda</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => onOpenModal("sobre")}
+              className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-xs font-medium text-slate-300 transition-colors hover:bg-white/8 hover:text-white focus-visible:outline-2 focus-visible:outline-indigo-400"
+            >
+              <Info className="h-4 w-4 text-slate-400" />
+              <span>Sobre</span>
+            </button>
+            <Link
+              href="/mascote"
+              className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-xs font-medium text-cyan-300 transition-colors hover:bg-white/8 hover:text-white focus-visible:outline-2 focus-visible:outline-indigo-400"
+            >
+              <Bot className="h-4 w-4 text-cyan-400" />
+              <span>Mascote 3D</span>
+            </Link>
+            <Link
+              href="/"
+              className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-xs font-medium text-slate-400 transition-colors hover:bg-white/8 hover:text-white focus-visible:outline-2 focus-visible:outline-indigo-400"
+            >
+              <ArrowLeft className="h-4 w-4 text-slate-400" />
+              <span>Página inicial</span>
+            </Link>
+          </div>
         </div>
       </div>
     </aside>
