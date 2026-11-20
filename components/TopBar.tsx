@@ -13,6 +13,7 @@ import {
   Moon,
 } from "lucide-react";
 import { useTheme } from "@/components/ThemeProvider";
+import BrandLogo from "@/components/BrandLogo";
 import type { NavTab, NotificacaoItem } from "@/lib/types";
 
 type TopBarProps = {
@@ -60,9 +61,12 @@ export default function TopBar({
         >
           <Menu className="h-5 w-5" />
         </button>
-        <span className="text-sm font-semibold text-slate-800 dark:text-slate-100 lg:hidden">
-          Gerador de Artigos
-        </span>
+        <div className="flex items-center gap-2 lg:hidden">
+          <BrandLogo className="size-6 text-indigo-600 dark:text-indigo-400" />
+          <span className="text-sm font-semibold text-slate-800 dark:text-slate-100">
+            Gerador de Artigos
+          </span>
+        </div>
       </div>
 
       <div className="flex items-center gap-2.5 sm:gap-3">

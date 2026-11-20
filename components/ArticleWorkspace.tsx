@@ -22,6 +22,7 @@ import {
   SearchCheck,
 } from "lucide-react";
 import { motion } from "motion/react";
+import BrandLogo from "@/components/BrandLogo";
 import type { FontePesquisa, Secao, WorkspaceTab } from "@/lib/types";
 
 type ArticleWorkspaceProps = {
@@ -289,9 +290,12 @@ export default function ArticleWorkspace({
               : "border-indigo-100 bg-indigo-50/50 text-indigo-900 dark:border-indigo-900/40 dark:bg-indigo-950/30 dark:text-indigo-200"
           }`}
         >
-          <div className="flex items-center gap-2 font-medium">
+          <div className="flex items-center gap-2.5 font-medium">
             {ocupado ? (
-              <Loader2 className="h-3.5 w-3.5 animate-spin text-indigo-600 dark:text-indigo-400" />
+              <BrandLogo
+                variant="write"
+                className="size-5 shrink-0 text-indigo-600 dark:text-indigo-400"
+              />
             ) : erroGeral ? (
               <AlertCircle className="h-3.5 w-3.5 text-rose-600 dark:text-rose-400" />
             ) : (
@@ -310,7 +314,20 @@ export default function ArticleWorkspace({
 
       {/* Workspace Body */}
       <div className="p-5 sm:p-7">
-        {!temConteudo ? (
+        {!temConteudo && ocupado ? (
+          /* Generating Outline / Research State */
+          <div className="flex flex-col items-center justify-center py-16 text-center">
+            <div className="mb-5 flex h-24 w-24 items-center justify-center rounded-3xl border border-indigo-100 bg-indigo-50/70 text-indigo-600 shadow-xs dark:border-indigo-900/50 dark:bg-indigo-950/40 dark:text-indigo-400">
+              <BrandLogo variant="sequence" className="size-16" />
+            </div>
+            <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100">
+              A preparar o seu artigo…
+            </h3>
+            <p className="mt-1.5 max-w-md text-sm text-slate-500 dark:text-slate-400">
+              {estado || "A estruturar secções e a preparar a redação."}
+            </p>
+          </div>
+        ) : !temConteudo ? (
           /* Empty State */
           <div className="flex flex-col items-center justify-center py-10 text-center">
             <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-indigo-50 text-indigo-600 dark:bg-indigo-950/70 dark:text-indigo-400">

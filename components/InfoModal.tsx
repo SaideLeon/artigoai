@@ -1,7 +1,8 @@
 "use client";
 
-import { X, Crown, Check, HelpCircle, Info } from "lucide-react";
+import { X, Crown, Check, HelpCircle } from "lucide-react";
 import { motion } from "motion/react";
+import BrandLogo from "@/components/BrandLogo";
 
 type InfoModalProps = {
   tipo: "upgrade" | "ajuda" | "sobre" | null;
@@ -38,8 +39,8 @@ export default function InfoModal({ tipo, onClose }: InfoModalProps) {
               </span>
             )}
             {tipo === "sobre" && (
-              <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-blue-100 text-blue-600 dark:bg-blue-950/70 dark:text-blue-400">
-                <Info className="h-5 w-5" />
+              <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-[#5B4AF4] to-[#2563EB] text-white shadow-xs">
+                <BrandLogo className="size-5" />
               </span>
             )}
             <h2 className="text-lg font-bold text-slate-900 dark:text-white">

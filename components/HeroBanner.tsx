@@ -1,7 +1,7 @@
 "use client";
 
-import Image from "next/image";
 import { CheckCircle2, Bot, Sparkles } from "lucide-react";
+import BrandLogo from "@/components/BrandLogo";
 
 export default function HeroBanner() {
   return (
@@ -21,15 +21,11 @@ export default function HeroBanner() {
 
       <div className="relative z-10 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div className="flex items-center gap-4">
-          <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border border-white/25 bg-gradient-to-br from-[#161E3D] via-[#312E81] to-[#2563EB] p-1.5 shadow-sm">
-            <Image
-              src="/assets/aistudio/file_00000000d284820ab132c09897d7ac4e_25c0f76a.png"
-              alt="Logo Gerador de Artigos"
-              width={44}
-              height={44}
-              referrerPolicy="no-referrer"
-              className="h-full w-full object-contain mix-blend-screen"
-              priority
+          <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border border-indigo-400/30 bg-gradient-to-br from-[#5B4AF4] via-[#4F46E5] to-[#2563EB] p-2 shadow-md shadow-indigo-600/20">
+            <BrandLogo
+              variant="static"
+              className="size-9 text-white"
+              ariaLabel="Logotipo Gerador de Artigos"
             />
           </div>
           <div>

@@ -1,6 +1,6 @@
 "use client";
 
-import Image from "next/image";
+import BrandLogo from "@/components/BrandLogo";
 import {
   Home,
   FileText,
@@ -22,6 +22,7 @@ type SidebarProps = {
   onOpenModal: (tipo: "upgrade" | "ajuda" | "sobre") => void;
   mobileOpen: boolean;
   onCloseMobile: () => void;
+  ocupado?: boolean;
 };
 
 const NAV_ITEMS: { id: NavTab; label: string; icon: typeof Home }[] = [
@@ -40,6 +41,7 @@ export default function Sidebar({
   onOpenModal,
   mobileOpen,
   onCloseMobile,
+  ocupado = false,
 }: SidebarProps) {
   const content = (
     <aside className="relative flex h-full w-[252px] shrink-0 flex-col justify-between overflow-hidden bg-gradient-to-b from-[#0E162E] via-[#121C3A] to-[#111936] px-4 py-6 text-slate-200 select-none dark:border-r dark:border-slate-800/80">
@@ -56,16 +58,12 @@ export default function Sidebar({
       <div className="relative z-10 flex flex-col gap-7">
         {/* Brand Block */}
         <div className="flex items-start justify-between px-2">
-          <div className="flex flex-col items-center text-center w-full">
-            <div className="mb-3 flex h-16 w-16 items-center justify-center rounded-2xl border border-white/15 bg-gradient-to-br from-indigo-500/30 to-blue-600/30 p-1.5 shadow-lg shadow-indigo-950/50">
-              <Image
-                src="/assets/aistudio/file_00000000d284820ab132c09897d7ac4e_25c0f76a.png"
-                alt="Logo Gerador de Artigos"
-                width={52}
-                height={52}
-                referrerPolicy="no-referrer"
-                className="h-full w-full object-contain mix-blend-screen"
-                priority
+          <div className="group flex flex-col items-center text-center w-full">
+            <div className="mb-3 flex h-15 w-15 items-center justify-center rounded-2xl border border-white/15 bg-gradient-to-br from-[#5B4AF4] via-[#4F46E5] to-[#2563EB] p-2.5 shadow-lg shadow-indigo-950/50 transition-transform duration-200 group-hover:scale-105">
+              <BrandLogo
+                variant={ocupado ? "write" : "static"}
+                className="size-10 text-white"
+                ariaLabel="Logotipo Gerador de Artigos"
               />
             </div>
             <span className="text-[19px] font-bold leading-tight tracking-tight text-white">

@@ -5,6 +5,7 @@ import {
   JetBrains_Mono,
 } from "next/font/google";
 import { ThemeProvider } from "@/components/ThemeProvider";
+import { BrandLogoDefs } from "@/components/BrandLogo";
 import "./globals.css";
 
 const plusJakarta = Plus_Jakarta_Sans({
@@ -33,7 +34,7 @@ export const metadata: Metadata = {
   description:
     "Crie artigos longos, bem estruturados e ilustrados secção a secção com auxílio de inteligência artificial.",
   icons: {
-    icon: "/assets/aistudio/file_00000000d284820ab132c09897d7ac4e_25c0f76a.png",
+    icon: "/logo.svg",
   },
 };
 
@@ -68,6 +69,7 @@ export default function RootLayout({
         <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
       </head>
       <body className="min-h-screen bg-[#F4F6FB] text-slate-900 dark:bg-slate-950 dark:text-slate-100 font-sans antialiased transition-colors duration-150">
+        <BrandLogoDefs />
         <ThemeProvider>{children}</ThemeProvider>
       </body>
     </html>

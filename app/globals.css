@@ -22,3 +22,54 @@ body {
 .tabular-nums {
   font-variant-numeric: tabular-nums;
 }
+
+.logo-pt {
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
+@keyframes logo-write {
+  0%, 100% { transform: translate(0, 0); }
+  15%      { transform: translate(-0.45px, 0.05px); }
+  30%      { transform: translate(0.1px, 0.3px); }
+  45%      { transform: translate(-0.45px, 0.35px); }
+  60%      { transform: translate(0.1px, 0.6px); }
+  80%      { transform: translate(-0.3px, 0.3px); }
+}
+.logo-write {
+  animation: logo-write 2.4s ease-in-out infinite;
+}
+
+@keyframes logo-tap {
+  0%, 70%, 100% { transform: translateY(0); }
+  80%           { transform: translateY(0.35px); }
+  90%           { transform: translateY(-0.1px); }
+}
+.logo-tap {
+  animation: logo-tap 1.2s ease-in-out infinite;
+}
+
+@keyframes logo-part {
+  0%, 10%  { opacity: 0.12; transform: translateY(0.6px); }
+  30%, 80% { opacity: 1;    transform: none; }
+  100%     { opacity: 0.12; transform: translateY(0.6px); }
+}
+.logo-p1, .logo-p2, .logo-p3, .logo-p4, .logo-p5 {
+  animation: logo-part 2.8s ease-in-out infinite;
+}
+.logo-p2 { animation-delay: 0.2s; }
+.logo-p3 { animation-delay: 0.4s; }
+.logo-p4 { animation-delay: 0.6s; }
+.logo-p5 { animation-delay: 0.8s; }
+
+@media (prefers-reduced-motion: reduce) {
+  .logo-write,
+  .logo-tap,
+  .logo-p1,
+  .logo-p2,
+  .logo-p3,
+  .logo-p4,
+  .logo-p5 {
+    animation: none;
+  }
+}

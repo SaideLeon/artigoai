@@ -602,6 +602,7 @@ export default function Home() {
         onOpenModal={setModalTipo}
         mobileOpen={mobileMenuOpen}
         onCloseMobile={() => setMobileMenuOpen(false)}
+        ocupado={ocupado}
       />
 
       <div className="flex min-w-0 flex-1 flex-col px-4 py-4 sm:px-6 lg:px-8">
