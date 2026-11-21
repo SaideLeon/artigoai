@@ -63,3 +63,6 @@ Abra [http://localhost:3000](http://localhost:3000).
 | `SUPABASE_SERVICE_ROLE_KEY` | Supabase | Chave de serviço (apenas servidor — grava créditos/pagamentos após Stripe) |
 | `STRIPE_SECRET_KEY` | Stripe (Pagamentos) | Chave secreta da Stripe (`sk_test_...` / `sk_live_...`, apenas servidor) |
 | `STRIPE_WEBHOOK_SECRET` | Stripe (Webhook) | Segredo de assinatura do webhook (`/api/stripe/webhook`, `whsec_...`) |
+| `STRIPE_PRODUCT_STARTER_ID` | Stripe (Starter) | ID do produto Stripe para o plano Starter (padrão: `prod_VfVM45LGSnWLoH`) |
+| `STRIPE_PRODUCT_PRO_ID` | Stripe (Pro) | ID do produto Stripe para o plano Pro (padrão: `prod_VfW1i8hFclTPOh`) |
+| `STRIPE_PRODUCT_AGENCIA_ID` | Stripe (Agência) | ID do produto Stripe para o plano Agência (padrão: `prod_VfWGdFmGE4oQnu`) |

@@ -4,8 +4,8 @@ import { createClient as createSupabaseServerClient } from "@/utils/supabase/ser
 import {
   findSubscriptionPlan,
   getStripeClient,
-  getSubscriptionAmountCents,
   isStripeConfigured,
+  resolveStripeLineItem,
 } from "@/lib/stripe";
 import { getUserStripeCustomerId } from "@/lib/stripe-fulfillment";
 import type { BillingCycle } from "@/lib/pricing";
@@ -72,12 +72,13 @@ export async function POST(req: NextRequest) {
 
     const billingCycle: BillingCycle =
       body.billingCycle === "yearly" ? "yearly" : "monthly";
-    const unitAmount = getSubscriptionAmountCents(plan, billingCycle);
-    const interval = billingCycle === "yearly" ? "year" : "month";
     const baseUrl = resolveSafeBaseUrl(req);
     const stripe = getStripeClient();
 
-    const existingCustomerId = await getUserStripeCustomerId(user.id);
+    const [existingCustomerId, lineItem] = await Promise.all([
+      getUserStripeCustomerId(user.id),
+      resolveStripeLineItem(stripe, plan, billingCycle),
+    ]);
 
     const session = await stripe.checkout.sessions.create({
       mode: "subscription",
@@ -85,24 +86,7 @@ export async function POST(req: NextRequest) {
         ? { customer: existingCustomerId }
         : { customer_email: user.email ?? undefined }),
       client_reference_id: user.id,
-      line_items: [
-        {
-          quantity: 1,
-          price_data: {
-            currency: "brl",
-            unit_amount: unitAmount,
-            recurring: {
-              interval,
-            },
-            product_data: {
-              name: `Artigen — Plano ${plan.nome} (${
-                billingCycle === "yearly" ? "Anual" : "Mensal"
-              })`,
-              description: `${plan.artigosMes} artigos por mês (~2.500 palavras cada), até 7 imagens 1K com Google Gemini, pesquisa web e HTML. Cancele quando quiser.`,
-            },
-          },
-        },
-      ],
+      line_items: [lineItem],
       subscription_data: {
         metadata: {
           user_id: user.id,

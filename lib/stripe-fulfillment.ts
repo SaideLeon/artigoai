@@ -3,6 +3,7 @@ import type Stripe from "stripe";
 import {
   findSubscriptionPlan,
   getSubscriptionAmountCents,
+  resolvePlanFromStripeSubscription,
 } from "@/lib/stripe";
 import { FREE_PLAN, type BillingCycle } from "@/lib/pricing";
 
@@ -250,9 +251,7 @@ export async function handleStripeInvoicePaid(
 
   const sub = await stripe.subscriptions.retrieve(subscriptionId);
   const userId = sub.metadata?.user_id ?? "";
-  const planId = sub.metadata?.plan_id ?? "";
-  const billingCycle = normalizeBillingCycle(sub.metadata?.billing_cycle);
-  const plan = findSubscriptionPlan(planId);
+  const { plan, billingCycle } = resolvePlanFromStripeSubscription(sub);
   if (!userId || !plan) return;
 
   const periodEndIso = extractPeriodEndIso(sub);
@@ -315,9 +314,7 @@ export async function handleStripeSubscriptionUpdated(
   const userId = sub.metadata?.user_id ?? "";
   if (!userId) return;
 
-  const planId = sub.metadata?.plan_id ?? "";
-  const plan = findSubscriptionPlan(planId);
-  const billingCycle = normalizeBillingCycle(sub.metadata?.billing_cycle);
+  const { plan, billingCycle } = resolvePlanFromStripeSubscription(sub);
   const periodEndIso = extractPeriodEndIso(sub);
 
   const mappedStatus =
