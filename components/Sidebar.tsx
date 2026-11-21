@@ -163,7 +163,7 @@ export default function Sidebar({
             <p className="mt-1 text-xs leading-relaxed text-slate-300">
               {planoGeracao === "paid"
                 ? "Google Gemini · Cancele quando quiser"
-                : "OpenRouter · NVIDIA · Groq"}
+                : "Qualidade padrão"}
             </p>
             <p className="mt-1.5 text-[11px] font-semibold text-amber-300 tabular-nums">
               {monthlyLimit} artigos por mês · não acumula

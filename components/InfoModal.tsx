@@ -362,7 +362,7 @@ export default function InfoModal({
 
                         {billingCycle === "yearly" ? (
                           <p className="mt-0.5 text-[11px] font-medium text-emerald-700 dark:text-emerald-400 tabular-nums">
-                            {formatBrl(plan.precoAnualBrl)} por ano
+                            cobrado {formatBrl(plan.precoAnualBrl)} por ano
                           </p>
                         ) : (
                           <p className="mt-0.5 text-[11px] text-slate-500 dark:text-slate-400 tabular-nums">

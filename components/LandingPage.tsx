@@ -1012,7 +1012,7 @@ export default function LandingPage() {
                   </div>
 
                   <p className="mt-1.5 text-xs text-slate-500 dark:text-slate-400">
-                    OpenRouter, Groq e NVIDIA
+                    Qualidade padrão
                   </p>
 
                   <ul className="mt-6 space-y-2.5 text-sm text-slate-600 dark:text-slate-300">
@@ -1087,8 +1087,7 @@ export default function LandingPage() {
 
                       {billingCycle === "yearly" ? (
                         <p className="mt-1.5 text-xs font-medium text-emerald-700 dark:text-emerald-400 tabular-nums">
-                          {formatBrl(plan.precoAnualBrl)} por ano (equivale a{" "}
-                          {formatBrl(plan.equivalenteMensalAnualBrl)}/mês)
+                          cobrado {formatBrl(plan.precoAnualBrl)} por ano
                         </p>
                       ) : (
                         <p className="mt-1.5 text-xs text-slate-500 dark:text-slate-400 tabular-nums">
