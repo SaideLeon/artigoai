@@ -413,16 +413,16 @@ export default function LandingPage() {
               className="lg:col-span-6 space-y-6"
             >
               <h1 className="text-[clamp(2.25rem,4vw,3.5rem)] font-bold leading-[1.08] tracking-tight text-slate-950 dark:text-white text-balance">
-                Artigen: Gerador de Artigos com{" "}
+                Artigen: Gerador de Artigos para Blogs com{" "}
                 <span className="bg-gradient-to-r from-[#5B4AF4] to-[#2563EB] bg-clip-text text-transparent">
                   Inteligência Artificial
                 </span>
               </h1>
 
               <p className="max-w-xl text-base sm:text-lg leading-relaxed text-slate-600 dark:text-slate-300">
-                Crie artigos completos, estruturados secção a secção, com
-                pesquisa web atualizada e ilustrações automáticas. Economize
-                tempo e publique conteúdo original em minutos.
+                Crie artigos completos para o seu blog, estruturados secção a
+                secção, com pesquisa web atualizada e ilustrações automáticas.
+                Economize tempo e publique conteúdo original em minutos.
               </p>
 
               <ul className="space-y-2.5 text-sm sm:text-[15px] text-slate-700 dark:text-slate-200">

@@ -7,6 +7,16 @@ import {
 import { ThemeProvider } from "@/components/ThemeProvider";
 import { AuthProvider } from "@/components/AuthProvider";
 import { BrandLogoDefs } from "@/components/BrandLogo";
+import {
+  DEFAULT_KEYWORDS,
+  DEFAULT_OPEN_GRAPH,
+  DEFAULT_TWITTER,
+  SITE_DESCRIPTION,
+  SITE_NAME,
+  SITE_TITLE,
+  SITE_URL,
+  buildStructuredDataJsonLd,
+} from "@/lib/seo";
 import "./globals.css";
 
 const plusJakarta = Plus_Jakarta_Sans({
@@ -31,26 +41,37 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Gerador de Artigos — Estúdio de Conteúdo com IA",
-  description:
-    "Crie artigos longos, bem estruturados e ilustrados secção a secção com auxílio de inteligência artificial.",
+  metadataBase: new URL(SITE_URL),
+  title: {
+    default: SITE_TITLE,
+    template: `%s — ${SITE_NAME}`,
+  },
+  description: SITE_DESCRIPTION,
+  applicationName: SITE_NAME,
+  keywords: DEFAULT_KEYWORDS,
+  authors: [{ name: SITE_NAME, url: SITE_URL }],
+  creator: SITE_NAME,
+  publisher: SITE_NAME,
+  alternates: {
+    canonical: "/",
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      "max-image-preview": "large",
+      "max-snippet": -1,
+      "max-video-preview": -1,
+    },
+  },
+  openGraph: DEFAULT_OPEN_GRAPH,
+  twitter: DEFAULT_TWITTER,
+  manifest: "/manifest.webmanifest",
 };
 
-const themeInitScript = `
-(function() {
-  try {
-    var saved = localStorage.getItem("artigoai:theme:v1");
-    var isDark = saved === "dark" || (!saved && window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches);
-    if (isDark) {
-      document.documentElement.classList.add("dark");
-      document.documentElement.style.colorScheme = "dark";
-    } else {
-      document.documentElement.classList.remove("dark");
-      document.documentElement.style.colorScheme = "light";
-    }
-  } catch (e) {}
-})();
-`;
+const structuredDataJson = buildStructuredDataJsonLd();
 
 export default function RootLayout({
   children,
@@ -63,10 +84,11 @@ export default function RootLayout({
       suppressHydrationWarning
       className={`${plusJakarta.variable} ${sourceSerif.variable} ${jetbrainsMono.variable}`}
     >
-      <head>
-        <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
-      </head>
       <body className="min-h-screen bg-[#F4F6FB] text-slate-900 dark:bg-slate-950 dark:text-slate-100 font-sans antialiased transition-colors duration-150">
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: structuredDataJson }}
+        />
         <BrandLogoDefs />
         <ThemeProvider>
           <AuthProvider>{children}</AuthProvider>

@@ -1,0 +1,20 @@
+# Artigen
+
+> Gerador de artigos para blogs com Inteligência Artificial, pesquisa web em tempo real, ilustrações geradas por seção e exportação em HTML limpo.
+
+## Rotas Principais
+- `/` — Página inicial com visão geral dos recursos, exemplos interativos do estúdio, fluxo de criação em 3 etapas, planos mensais/anuais em Real (R$) e perguntas frequentes.
+- `/studio` — Estúdio interativo de geração de artigos para blogs, pesquisa web, edição ao vivo, biblioteca pessoal, estatísticas de produção e exportação em HTML.
+- `/mascote` — Demonstração interativa do mascote 3D oficial do Artigen modelado em Three.js.
+
+## Recursos do Estúdio
+- Pesquisa web em tempo real (modos Automático, Sempre pesquisar e Desativada) com referências exibidas ao final do artigo.
+- Sugestão automática de descrição, palavras-chave, tom e extensão a partir do título.
+- Escrita seção a seção mantendo coerência editorial em primeira ou terceira pessoa.
+- Ilustrações automáticas por seção e exportação em arquivo HTML pronto para publicação.
+
+## Planos (BRL via Stripe)
+- **Grátis**: 2 artigos por mês, pesquisa na web, imagens por seção e exportação em HTML.
+- **Starter**: 5 artigos por mês — R$ 34,90/mês ou R$ 349,00/ano.
+- **Pro**: 16 artigos por mês — R$ 94,90/mês ou R$ 949,00/ano.
+- **Agência**: 30 artigos por mês — R$ 149,90/mês ou R$ 1.499,00/ano.
