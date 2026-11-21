@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import {
   FileText,
   Heart,
@@ -14,7 +14,19 @@ import {
   Check,
   Sun,
   Moon,
+  TrendingUp,
 } from "lucide-react";
+import {
+  ResponsiveContainer,
+  AreaChart,
+  Area,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+} from "recharts";
 import { useTheme } from "@/components/ThemeProvider";
 import {
   FAIXAS_PALAVRAS,
@@ -204,20 +216,169 @@ export function ArticlesListView({
   );
 }
 
+type ChartRange = "6m" | "12m" | "all";
+type ChartKind = "area" | "bar";
+
+type MonthlyWordPoint = {
+  monthKey: string;
+  label: string;
+  fullLabel: string;
+  palavras: number;
+  artigos: number;
+};
+
+function getArticleWordCount(a: ArtigoSalvo): number {
+  if (typeof a.totalPalavras === "number" && a.totalPalavras > 0) {
+    return a.totalPalavras;
+  }
+  return a.secoes.reduce(
+    (sum, s) => sum + (s.texto?.trim().split(/\s+/).filter(Boolean).length ?? 0),
+    0
+  );
+}
+
+function buildMonthlyWordSeries(
+  artigos: ArtigoSalvo[],
+  range: ChartRange
+): MonthlyWordPoint[] {
+  const buckets = new Map<string, { palavras: number; artigos: number }>();
+  let earliestYm: number | null = null;
+  let latestYm: number | null = null;
+
+  for (const artigo of artigos) {
+    const dt = new Date(artigo.criadoEm);
+    if (Number.isNaN(dt.getTime())) continue;
+    const year = dt.getFullYear();
+    const month = dt.getMonth();
+    const ym = year * 12 + month;
+    const key = `${year}-${String(month + 1).padStart(2, "0")}`;
+    const prev = buckets.get(key) ?? { palavras: 0, artigos: 0 };
+    buckets.set(key, {
+      palavras: prev.palavras + getArticleWordCount(artigo),
+      artigos: prev.artigos + 1,
+    });
+    if (earliestYm === null || ym < earliestYm) earliestYm = ym;
+    if (latestYm === null || ym > latestYm) latestYm = ym;
+  }
+
+  if (earliestYm === null || latestYm === null) return [];
+
+  const now = new Date();
+  const currentYm = now.getFullYear() * 12 + now.getMonth();
+  const endYm = Math.max(currentYm, latestYm);
+  const startYm =
+    range === "6m"
+      ? endYm - 5
+      : range === "12m"
+      ? endYm - 11
+      : Math.min(earliestYm, endYm - 5);
+
+  const points: MonthlyWordPoint[] = [];
+  for (let ym = startYm; ym <= endYm; ym++) {
+    const year = Math.floor(ym / 12);
+    const month = ym % 12;
+    const key = `${year}-${String(month + 1).padStart(2, "0")}`;
+    const refDate = new Date(year, month, 1);
+    const shortMonth = refDate
+      .toLocaleDateString("pt-BR", { month: "short" })
+      .replace(".", "");
+    const label = `${shortMonth}/${String(year).slice(-2)}`;
+    const fullLabel = refDate.toLocaleDateString("pt-BR", {
+      month: "long",
+      year: "numeric",
+    });
+    const data = buckets.get(key) ?? { palavras: 0, artigos: 0 };
+    points.push({
+      monthKey: key,
+      label,
+      fullLabel,
+      palavras: data.palavras,
+      artigos: data.artigos,
+    });
+  }
+
+  return points;
+}
+
+function MonthlyWordsTooltip({
+  active,
+  payload,
+}: {
+  active?: boolean;
+  payload?: ReadonlyArray<{ payload?: MonthlyWordPoint }>;
+}) {
+  if (!active || !payload?.length || !payload[0]?.payload) return null;
+  const item = payload[0].payload;
+  return (
+    <div className="rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-xs shadow-md dark:border-slate-700 dark:bg-slate-900">
+      <p className="font-bold capitalize text-slate-900 dark:text-white">
+        {item.fullLabel}
+      </p>
+      <div className="mt-1 space-y-0.5 tabular-nums text-slate-600 dark:text-slate-300">
+        <p>
+          <span className="font-mono font-semibold text-indigo-600 dark:text-indigo-400">
+            {item.palavras.toLocaleString("pt-BR")}
+          </span>{" "}
+          palavras produzidas
+        </p>
+        <p>
+          <span className="font-mono font-semibold text-slate-900 dark:text-slate-100">
+            {item.artigos}
+          </span>{" "}
+          {item.artigos === 1 ? "artigo criado" : "artigos criados"}
+        </p>
+      </div>
+    </div>
+  );
+}
+
 export function StatisticsView({
   artigos,
   onAbrirArtigo,
+  onIrParaInicio,
 }: {
   artigos: ArtigoSalvo[];
   onAbrirArtigo: (artigo: ArtigoSalvo) => void;
+  onIrParaInicio?: () => void;
 }) {
+  const { theme } = useTheme();
+  const [range, setRange] = useState<ChartRange>("6m");
+  const [chartKind, setChartKind] = useState<ChartKind>("area");
+
   const totalArtigos = artigos.length;
-  const totalPalavras = artigos.reduce((n, a) => n + a.totalPalavras, 0);
+  const totalPalavras = artigos.reduce(
+    (n, a) => n + getArticleWordCount(a),
+    0
+  );
   const totalImagens = artigos.reduce(
     (n, a) => n + a.secoes.filter((s) => s.img).length,
     0
   );
   const totalFavoritos = artigos.filter((a) => a.favorito).length;
+
+  const monthlySeries = useMemo(
+    () => buildMonthlyWordSeries(artigos, range),
+    [artigos, range]
+  );
+
+  const activeMonths = monthlySeries.filter((m) => m.palavras > 0);
+  const peakWords = monthlySeries.reduce(
+    (max, m) => (m.palavras > max ? m.palavras : max),
+    0
+  );
+  const avgWordsPerActiveMonth =
+    activeMonths.length > 0
+      ? Math.round(
+          activeMonths.reduce((s, m) => s + m.palavras, 0) /
+            activeMonths.length
+        )
+      : 0;
+
+  const isDark = theme === "dark";
+  const gridColor = isDark ? "#1E293B" : "#E2E8F0";
+  const axisTextColor = isDark ? "#94A3B8" : "#64748B";
+  const strokeColor = isDark ? "#818CF8" : "#4F46E5";
+  const barColor = isDark ? "#6366F1" : "#4F46E5";
 
   return (
     <section className="flex max-h-[78vh] flex-col overflow-hidden rounded-2xl border border-slate-200/90 bg-white shadow-xs dark:border-slate-800 dark:bg-slate-900 xl:h-full xl:max-h-none">
@@ -237,39 +398,256 @@ export function StatisticsView({
 
       <div className="studio-scroll min-h-0 flex-1 space-y-6 overflow-y-auto p-6">
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-        <div className="rounded-xl border border-slate-200 p-4 dark:border-slate-800 dark:bg-slate-950/40">
-          <p className="text-xs font-medium text-slate-500 dark:text-slate-400">
-            Artigos criados
-          </p>
-          <p className="mt-1.5 text-2xl font-bold text-slate-900 dark:text-white tabular-nums">
-            {totalArtigos}
-          </p>
+          <div className="rounded-xl border border-slate-200 p-4 dark:border-slate-800 dark:bg-slate-950/40">
+            <p className="text-xs font-medium text-slate-500 dark:text-slate-400">
+              Artigos criados
+            </p>
+            <p className="mt-1.5 text-2xl font-bold text-slate-900 dark:text-white tabular-nums">
+              {totalArtigos}
+            </p>
+          </div>
+          <div className="rounded-xl border border-slate-200 p-4 dark:border-slate-800 dark:bg-slate-950/40">
+            <p className="text-xs font-medium text-slate-500 dark:text-slate-400">
+              Palavras geradas
+            </p>
+            <p className="mt-1.5 text-2xl font-bold text-slate-900 dark:text-white tabular-nums">
+              {totalPalavras.toLocaleString("pt-BR")}
+            </p>
+          </div>
+          <div className="rounded-xl border border-slate-200 p-4 dark:border-slate-800 dark:bg-slate-950/40">
+            <p className="text-xs font-medium text-slate-500 dark:text-slate-400">
+              Imagens geradas
+            </p>
+            <p className="mt-1.5 text-2xl font-bold text-slate-900 dark:text-white tabular-nums">
+              {totalImagens}
+            </p>
+          </div>
+          <div className="rounded-xl border border-slate-200 p-4 dark:border-slate-800 dark:bg-slate-950/40">
+            <p className="text-xs font-medium text-slate-500 dark:text-slate-400">
+              Favoritos
+            </p>
+            <p className="mt-1.5 text-2xl font-bold text-slate-900 dark:text-white tabular-nums">
+              {totalFavoritos}
+            </p>
+          </div>
         </div>
-        <div className="rounded-xl border border-slate-200 p-4 dark:border-slate-800 dark:bg-slate-950/40">
-          <p className="text-xs font-medium text-slate-500 dark:text-slate-400">
-            Palavras geradas
-          </p>
-          <p className="mt-1.5 text-2xl font-bold text-slate-900 dark:text-white tabular-nums">
-            {totalPalavras.toLocaleString("pt-PT")}
-          </p>
+
+        {/* Gráfico mensal de contagem de palavras */}
+        <div className="rounded-xl border border-slate-200 p-5 dark:border-slate-800 dark:bg-slate-950/40">
+          <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <div className="flex items-center gap-2">
+                <TrendingUp className="h-4 w-4 text-indigo-600 dark:text-indigo-400" />
+                <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">
+                  Volume de Palavras por Mês
+                </h3>
+              </div>
+              <p className="mt-1 text-xs text-slate-500 dark:text-slate-400 tabular-nums">
+                {artigos.length > 0 ? (
+                  <>
+                    Média ativa: {avgWordsPerActiveMonth.toLocaleString("pt-BR")}{" "}
+                    palavras/mês · Pico mensal:{" "}
+                    {peakWords.toLocaleString("pt-BR")} palavras
+                  </>
+                ) : (
+                  "Contagem total de palavras produzidas ao longo do tempo"
+                )}
+              </p>
+            </div>
+
+            {artigos.length > 0 && (
+              <div className="flex flex-wrap items-center gap-2">
+                <div
+                  role="group"
+                  aria-label="Período do gráfico"
+                  className="inline-flex items-center gap-0.5 rounded-lg border border-slate-200 bg-slate-50 p-0.5 dark:border-slate-700 dark:bg-slate-800/80"
+                >
+                  {(
+                    [
+                      { id: "6m", label: "6 meses" },
+                      { id: "12m", label: "12 meses" },
+                      { id: "all", label: "Tudo" },
+                    ] as const
+                  ).map((opt) => (
+                    <button
+                      key={opt.id}
+                      type="button"
+                      onClick={() => setRange(opt.id)}
+                      className={`rounded-md px-2.5 py-1 text-[11px] font-semibold transition-colors whitespace-nowrap shrink-0 ${
+                        range === opt.id
+                          ? "bg-white text-slate-900 shadow-xs dark:bg-slate-900 dark:text-white"
+                          : "text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-100"
+                      }`}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+
+                <div
+                  role="group"
+                  aria-label="Tipo de visualização"
+                  className="inline-flex items-center gap-0.5 rounded-lg border border-slate-200 bg-slate-50 p-0.5 dark:border-slate-700 dark:bg-slate-800/80"
+                >
+                  {(
+                    [
+                      { id: "area", label: "Área" },
+                      { id: "bar", label: "Barras" },
+                    ] as const
+                  ).map((opt) => (
+                    <button
+                      key={opt.id}
+                      type="button"
+                      onClick={() => setChartKind(opt.id)}
+                      className={`rounded-md px-2.5 py-1 text-[11px] font-semibold transition-colors whitespace-nowrap shrink-0 ${
+                        chartKind === opt.id
+                          ? "bg-white text-slate-900 shadow-xs dark:bg-slate-900 dark:text-white"
+                          : "text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-100"
+                      }`}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {monthlySeries.length === 0 ? (
+            <div className="flex h-[220px] flex-col items-center justify-center rounded-xl border border-dashed border-slate-200 p-6 text-center dark:border-slate-800">
+              <p className="text-xs font-medium text-slate-600 dark:text-slate-300">
+                Gere seu primeiro artigo para visualizar o volume de palavras
+                produzido por mês.
+              </p>
+              {onIrParaInicio && (
+                <button
+                  type="button"
+                  onClick={onIrParaInicio}
+                  className="mt-3 inline-flex items-center gap-1.5 rounded-xl bg-indigo-600 px-3.5 py-2 text-xs font-semibold text-white hover:bg-indigo-700 whitespace-nowrap"
+                >
+                  <Plus className="h-3.5 w-3.5" />
+                  <span>Criar primeiro artigo</span>
+                </button>
+              )}
+            </div>
+          ) : (
+            <div className="h-[260px] w-full min-w-0">
+              <ResponsiveContainer width="100%" height={260} minWidth={0}>
+                {chartKind === "area" ? (
+                  <AreaChart
+                    data={monthlySeries}
+                    margin={{ top: 10, right: 12, left: 0, bottom: 0 }}
+                  >
+                    <defs>
+                      <linearGradient
+                        id="wordsAreaGradient"
+                        x1="0"
+                        y1="0"
+                        x2="0"
+                        y2="1"
+                      >
+                        <stop
+                          offset="5%"
+                          stopColor={strokeColor}
+                          stopOpacity={isDark ? 0.36 : 0.24}
+                        />
+                        <stop
+                          offset="95%"
+                          stopColor={strokeColor}
+                          stopOpacity={0.02}
+                        />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid
+                      strokeDasharray="3 3"
+                      vertical={false}
+                      stroke={gridColor}
+                    />
+                    <XAxis
+                      dataKey="label"
+                      tick={{ fill: axisTextColor, fontSize: 11 }}
+                      axisLine={false}
+                      tickLine={false}
+                      dy={6}
+                    />
+                    <YAxis
+                      tick={{ fill: axisTextColor, fontSize: 11 }}
+                      axisLine={false}
+                      tickLine={false}
+                      width={54}
+                      tickFormatter={(v: number) =>
+                        v >= 1000
+                          ? `${(v / 1000).toLocaleString("pt-BR", {
+                              maximumFractionDigits: 1,
+                            })}k`
+                          : String(v)
+                      }
+                    />
+                    <Tooltip content={<MonthlyWordsTooltip />} />
+                    <Area
+                      type="monotone"
+                      dataKey="palavras"
+                      stroke={strokeColor}
+                      strokeWidth={2.5}
+                      fill="url(#wordsAreaGradient)"
+                      activeDot={{
+                        r: 5,
+                        fill: strokeColor,
+                        stroke: isDark ? "#0F172A" : "#FFFFFF",
+                        strokeWidth: 2,
+                      }}
+                    />
+                  </AreaChart>
+                ) : (
+                  <BarChart
+                    data={monthlySeries}
+                    margin={{ top: 10, right: 12, left: 0, bottom: 0 }}
+                  >
+                    <CartesianGrid
+                      strokeDasharray="3 3"
+                      vertical={false}
+                      stroke={gridColor}
+                    />
+                    <XAxis
+                      dataKey="label"
+                      tick={{ fill: axisTextColor, fontSize: 11 }}
+                      axisLine={false}
+                      tickLine={false}
+                      dy={6}
+                    />
+                    <YAxis
+                      tick={{ fill: axisTextColor, fontSize: 11 }}
+                      axisLine={false}
+                      tickLine={false}
+                      width={54}
+                      tickFormatter={(v: number) =>
+                        v >= 1000
+                          ? `${(v / 1000).toLocaleString("pt-BR", {
+                              maximumFractionDigits: 1,
+                            })}k`
+                          : String(v)
+                      }
+                    />
+                    <Tooltip
+                      cursor={{
+                        fill: isDark
+                          ? "rgba(148, 163, 184, 0.08)"
+                          : "rgba(99, 102, 241, 0.06)",
+                      }}
+                      content={<MonthlyWordsTooltip />}
+                    />
+                    <Bar
+                      dataKey="palavras"
+                      fill={barColor}
+                      radius={[6, 6, 0, 0]}
+                      maxBarSize={44}
+                    />
+                  </BarChart>
+                )}
+              </ResponsiveContainer>
+            </div>
+          )}
         </div>
-        <div className="rounded-xl border border-slate-200 p-4 dark:border-slate-800 dark:bg-slate-950/40">
-          <p className="text-xs font-medium text-slate-500 dark:text-slate-400">
-            Imagens geradas
-          </p>
-          <p className="mt-1.5 text-2xl font-bold text-slate-900 dark:text-white tabular-nums">
-            {totalImagens}
-          </p>
-        </div>
-        <div className="rounded-xl border border-slate-200 p-4 dark:border-slate-800 dark:bg-slate-950/40">
-          <p className="text-xs font-medium text-slate-500 dark:text-slate-400">
-            Favoritos
-          </p>
-          <p className="mt-1.5 text-2xl font-bold text-slate-900 dark:text-white tabular-nums">
-            {totalFavoritos}
-          </p>
-        </div>
-      </div>
 
       <div>
         <h3 className="mb-3 text-sm font-bold text-slate-900 dark:text-slate-100">

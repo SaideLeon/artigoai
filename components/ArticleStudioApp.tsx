@@ -1130,6 +1130,7 @@ export default function ArticleStudioApp() {
               <StatisticsView
                 artigos={artigosSalvos}
                 onAbrirArtigo={abrirArtigoSalvo}
+                onIrParaInicio={() => setActiveTab("inicio")}
               />
             </div>
           )}
