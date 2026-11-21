@@ -647,7 +647,11 @@ export async function clearAllArticlesCloud(userId: string): Promise<void> {
 
 export function subscribeUserPlan(
   userId: string,
-  onPlan: (info: { plan: string; planoGeracao: PlanoGeracao }) => void
+  onPlan: (info: {
+    plan: string;
+    planoGeracao: PlanoGeracao;
+    articleCredits: number;
+  }) => void
 ): () => void {
   const supabase = getSupabaseClient();
   if (!supabase) return () => {};
@@ -655,18 +659,30 @@ export function subscribeUserPlan(
   let active = true;
 
   const loadPlan = async () => {
-    const { data, error } = await supabase
-      .from("subscriptions")
-      .select("plan, status")
-      .eq("user_id", userId)
-      .maybeSingle();
+    const [{ data: subData, error: subErr }, { data: usageData }] =
+      await Promise.all([
+        supabase
+          .from("subscriptions")
+          .select("plan, status")
+          .eq("user_id", userId)
+          .maybeSingle(),
+        supabase
+          .from("usage_limits")
+          .select("article_credits")
+          .eq("user_id", userId)
+          .maybeSingle(),
+      ]);
 
-    if (!active || error || !data) return;
-    const planName = typeof data.plan === "string" ? data.plan : "free";
-    const isActivePaid = planName !== "free" && data.status === "active";
+    if (!active || subErr) return;
+    const planName =
+      subData && typeof subData.plan === "string" ? subData.plan : "free";
+    const isActivePaid = planName !== "free" && subData?.status === "active";
+    const articleCredits = Number(usageData?.article_credits ?? 0);
+
     onPlan({
       plan: planName,
-      planoGeracao: isActivePaid ? "paid" : "free",
+      planoGeracao: isActivePaid || articleCredits > 0 && planName !== "free" ? "paid" : "free",
+      articleCredits: Math.max(0, articleCredits),
     });
   };
 
@@ -686,6 +702,18 @@ export function subscribeUserPlan(
         void loadPlan();
       }
     )
+    .on(
+      "postgres_changes",
+      {
+        event: "*",
+        schema: "public",
+        table: "usage_limits",
+        filter: `user_id=eq.${userId}`,
+      },
+      () => {
+        void loadPlan();
+      }
+    )
     .subscribe();
 
   return () => {
@@ -693,3 +721,4 @@ export function subscribeUserPlan(
     void supabase.removeChannel(channel);
   };
 }
+

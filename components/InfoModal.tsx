@@ -1,9 +1,21 @@
 "use client";
 
 import { useState } from "react";
-import { X, Package, Check, HelpCircle } from "lucide-react";
+import {
+  X,
+  Package,
+  Check,
+  HelpCircle,
+  CreditCard,
+  Loader2,
+  AlertCircle,
+  LogIn,
+  ExternalLink,
+  ShieldCheck,
+} from "lucide-react";
 import { motion } from "motion/react";
 import BrandLogo from "@/components/BrandLogo";
+import { useAuth } from "@/components/AuthProvider";
 import {
   PRICING_TIERS,
   USD_TO_BRL,
@@ -18,6 +30,8 @@ type InfoModalProps = {
   onClose: () => void;
   planoGeracao?: PlanoGeracao;
   onSelectPlanoGeracao?: (plano: PlanoGeracao) => void;
+  articleCredits?: number;
+  highlightPackageId?: string | null;
 };
 
 export default function InfoModal({
@@ -25,10 +39,64 @@ export default function InfoModal({
   onClose,
   planoGeracao = "free",
   onSelectPlanoGeracao,
+  articleCredits = 0,
+  highlightPackageId = null,
 }: InfoModalProps) {
+  const { user, signInWithGoogle } = useAuth();
   const [currency, setCurrency] = useState<CurrencyCode>("BRL");
+  const [loadingTierId, setLoadingTierId] = useState<string | null>(null);
+  const [checkoutError, setCheckoutError] = useState<string | null>(null);
+  const [needsAuthPrompt, setNeedsAuthPrompt] = useState(false);
+  const [checkoutRedirectUrl, setCheckoutRedirectUrl] = useState<string | null>(
+    null
+  );
 
   if (!tipo) return null;
+
+  async function handleCheckoutStripe(packageId: string) {
+    setCheckoutError(null);
+    setNeedsAuthPrompt(false);
+    setCheckoutRedirectUrl(null);
+
+    if (!user) {
+      setNeedsAuthPrompt(true);
+      return;
+    }
+
+    setLoadingTierId(packageId);
+    try {
+      const res = await fetch("/api/stripe/checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ packageId, currency }),
+      });
+      const data = (await res.json()) as {
+        url?: string;
+        erro?: string;
+        requiresAuth?: boolean;
+      };
+
+      if (!res.ok || !data.url) {
+        if (data.requiresAuth) {
+          setNeedsAuthPrompt(true);
+        } else {
+          setCheckoutError(
+            data.erro ?? "Não foi possível iniciar o pagamento na Stripe."
+          );
+        }
+        return;
+      }
+
+      setCheckoutRedirectUrl(data.url);
+      window.location.assign(data.url);
+    } catch {
+      setCheckoutError(
+        "Falha de ligação ao iniciar o checkout seguro da Stripe."
+      );
+    } finally {
+      setLoadingTierId(null);
+    }
+  }
 
   return (
     <div
@@ -42,11 +110,11 @@ export default function InfoModal({
         animate={{ opacity: 1, scale: 1, y: 0 }}
         transition={{ duration: 0.16 }}
         onClick={(e) => e.stopPropagation()}
-        className={`w-full rounded-2xl border border-slate-200 bg-white p-6 shadow-xl dark:border-slate-800 dark:bg-slate-900 ${
+        className={`flex max-h-[90vh] w-full flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xl dark:border-slate-800 dark:bg-slate-900 ${
           tipo === "upgrade" ? "max-w-2xl" : "max-w-lg"
         }`}
       >
-        <div className="flex items-start justify-between gap-4 border-b border-slate-100 pb-4 dark:border-slate-800">
+        <div className="flex shrink-0 items-start justify-between gap-4 border-b border-slate-100 px-6 py-4 dark:border-slate-800">
           <div className="flex items-center gap-2.5">
             {tipo === "upgrade" && (
               <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-amber-100 text-amber-600 dark:bg-amber-950/70 dark:text-amber-400">
@@ -63,13 +131,22 @@ export default function InfoModal({
                 <BrandLogo className="size-5" />
               </span>
             )}
-            <h2 className="text-lg font-bold text-slate-900 dark:text-white">
-              {tipo === "upgrade"
-                ? "Créditos por Artigo & Pacotes"
-                : tipo === "ajuda"
-                ? "Como usar o Gerador de Artigos"
-                : "Sobre o Gerador de Artigos"}
-            </h2>
+            <div>
+              <h2 className="text-lg font-bold text-slate-900 dark:text-white">
+                {tipo === "upgrade"
+                  ? "Créditos por Artigo & Pagamento Stripe"
+                  : tipo === "ajuda"
+                  ? "Como usar o Gerador de Artigos"
+                  : "Sobre o Gerador de Artigos"}
+              </h2>
+              {tipo === "upgrade" && user && (
+                <p className="text-[11px] font-medium text-slate-500 dark:text-slate-400 tabular-nums">
+                  Saldo atual: {articleCredits}{" "}
+                  {articleCredits === 1 ? "crédito" : "créditos"} ·{" "}
+                  {planoGeracao === "paid" ? "Plano Pago ativo" : "Plano Gratuito"}
+                </p>
+              )}
+            </div>
           </div>
           <button
             type="button"
@@ -81,12 +158,13 @@ export default function InfoModal({
           </button>
         </div>
 
-        <div className="mt-4 text-sm leading-relaxed text-slate-600 dark:text-slate-300">
+        <div className="studio-scroll min-h-0 flex-1 overflow-y-auto px-6 py-4 text-sm leading-relaxed text-slate-600 dark:text-slate-300">
           {tipo === "upgrade" && (
             <div className="space-y-4">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <p className="text-xs text-slate-600 dark:text-slate-300">
-                  Compre 1 artigo avulso ou pacotes com até 32% de desconto.
+                  Compre 1 artigo avulso ou pacotes com até 32% de desconto via
+                  Stripe.
                 </p>
                 <div className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-slate-50 p-0.5 dark:border-slate-800 dark:bg-slate-950">
                   <button
@@ -114,59 +192,133 @@ export default function InfoModal({
                 </div>
               </div>
 
-              <div className="grid gap-2.5 sm:grid-cols-2">
+              {needsAuthPrompt && !user && (
+                <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-amber-200 bg-amber-50/80 px-4 py-3 text-xs text-amber-900 dark:border-amber-900/60 dark:bg-amber-950/40 dark:text-amber-200">
+                  <span>
+                    Entre com sua conta Google para vincular os créditos
+                    comprados na Stripe ao seu perfil.
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => void signInWithGoogle()}
+                    className="inline-flex items-center gap-1.5 rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-indigo-700 whitespace-nowrap"
+                  >
+                    <LogIn className="h-3.5 w-3.5" />
+                    <span>Entrar com Google</span>
+                  </button>
+                </div>
+              )}
+
+              {checkoutError && (
+                <div className="flex items-start gap-2.5 rounded-xl border border-rose-200 bg-rose-50/80 px-4 py-3 text-xs text-rose-800 dark:border-rose-900/60 dark:bg-rose-950/40 dark:text-rose-200">
+                  <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-rose-600 dark:text-rose-400" />
+                  <span>{checkoutError}</span>
+                </div>
+              )}
+
+              {checkoutRedirectUrl && (
+                <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-indigo-200 bg-indigo-50/80 px-4 py-3 text-xs text-indigo-900 dark:border-indigo-900/60 dark:bg-indigo-950/40 dark:text-indigo-200">
+                  <span>
+                    Sessão de pagamento criada. Se o redirecionamento não abrir
+                    automaticamente:
+                  </span>
+                  <a
+                    href={checkoutRedirectUrl}
+                    target="_top"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1.5 rounded-lg bg-indigo-600 px-3 py-1.5 font-semibold text-white hover:bg-indigo-700 whitespace-nowrap"
+                  >
+                    <span>Abrir Checkout Stripe</span>
+                    <ExternalLink className="h-3.5 w-3.5" />
+                  </a>
+                </div>
+              )}
+
+              <div className="grid gap-3 sm:grid-cols-2">
                 {PRICING_TIERS.map((tier) => {
                   const total =
                     currency === "BRL" ? tier.totalBrl : tier.totalUsd;
                   const perArticle = getPerArticlePrice(tier, currency);
                   const isPopular = tier.destaque === "popular";
                   const isBestValue = tier.destaque === "melhor-valor";
+                  const isHighlighted = highlightPackageId === tier.id;
+                  const isLoading = loadingTierId === tier.id;
 
                   return (
                     <div
                       key={tier.id}
-                      className={`rounded-xl border p-3.5 transition-colors ${
-                        isPopular
+                      className={`flex flex-col justify-between rounded-xl border p-3.5 transition-colors ${
+                        isHighlighted
+                          ? "border-2 border-amber-500 bg-amber-50/40 dark:border-amber-400 dark:bg-amber-950/20"
+                          : isPopular
                           ? "border-indigo-400 bg-indigo-50/50 dark:border-indigo-500/60 dark:bg-indigo-950/30"
                           : isBestValue
                           ? "border-blue-300 bg-blue-50/30 dark:border-blue-500/40 dark:bg-blue-950/20"
                           : "border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-950/40"
                       }`}
                     >
-                      <div className="flex items-start justify-between gap-2">
-                        <div>
-                          <p className="text-xs font-bold text-slate-900 dark:text-white">
-                            {tier.nome}
-                          </p>
-                          <p className="text-[11px] text-slate-500 dark:text-slate-400">
-                            {tier.artigos === 1
-                              ? "Venda avulsa"
-                              : `${tier.artigos} créditos de artigo`}
-                          </p>
+                      <div>
+                        <div className="flex items-start justify-between gap-2">
+                          <div>
+                            <p className="text-xs font-bold text-slate-900 dark:text-white">
+                              {tier.nome}
+                            </p>
+                            <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                              {tier.artigos === 1
+                                ? "Venda avulsa"
+                                : `${tier.artigos} créditos de artigo`}
+                            </p>
+                          </div>
+                          {isHighlighted ? (
+                            <span className="text-[11px] font-semibold text-amber-600 dark:text-amber-400">
+                              Selecionado
+                            </span>
+                          ) : isPopular ? (
+                            <span className="text-[11px] font-semibold text-indigo-600 dark:text-indigo-400">
+                              Popular
+                            </span>
+                          ) : isBestValue ? (
+                            <span className="text-[11px] font-semibold text-blue-600 dark:text-blue-400">
+                              -32% off
+                            </span>
+                          ) : null}
                         </div>
-                        {isPopular && (
-                          <span className="text-[11px] font-semibold text-indigo-600 dark:text-indigo-400">
-                            Popular
+
+                        <div className="mt-2.5 flex items-baseline justify-between gap-2">
+                          <span className="font-mono text-lg font-bold text-slate-950 dark:text-white tabular-nums">
+                            {formatCurrency(total, currency)}
                           </span>
-                        )}
-                        {isBestValue && (
-                          <span className="text-[11px] font-semibold text-blue-600 dark:text-blue-400">
-                            -32% off
+                          <span className="text-[11px] font-medium text-slate-600 dark:text-slate-300 tabular-nums">
+                            {formatCurrency(perArticle, currency)}/artigo
+                            {tier.descontoPct > 0
+                              ? ` · ${tier.descontoPct}% off`
+                              : ""}
                           </span>
-                        )}
+                        </div>
                       </div>
 
-                      <div className="mt-2.5 flex items-baseline justify-between gap-2">
-                        <span className="font-mono text-lg font-bold text-slate-950 dark:text-white tabular-nums">
-                          {formatCurrency(total, currency)}
-                        </span>
-                        <span className="text-[11px] font-medium text-slate-600 dark:text-slate-300 tabular-nums">
-                          {formatCurrency(perArticle, currency)}/artigo
-                          {tier.descontoPct > 0
-                            ? ` · ${tier.descontoPct}% off`
-                            : ""}
-                        </span>
-                      </div>
+                      <button
+                        type="button"
+                        disabled={Boolean(loadingTierId)}
+                        onClick={() => void handleCheckoutStripe(tier.id)}
+                        className={`mt-3 flex w-full items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-xs font-semibold transition-all disabled:cursor-not-allowed disabled:opacity-60 ${
+                          isPopular || isHighlighted
+                            ? "bg-gradient-to-r from-[#5B4AF4] to-[#2563EB] text-white hover:brightness-110"
+                            : "border border-indigo-200 bg-indigo-50/70 text-indigo-700 hover:bg-indigo-100 dark:border-indigo-800/60 dark:bg-indigo-950/50 dark:text-indigo-300 dark:hover:bg-indigo-900/60"
+                        }`}
+                      >
+                        {isLoading ? (
+                          <>
+                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                            <span>A abrir Stripe…</span>
+                          </>
+                        ) : (
+                          <>
+                            <CreditCard className="h-3.5 w-3.5" />
+                            <span>Pagar com Stripe</span>
+                          </>
+                        )}
+                      </button>
                     </div>
                   );
                 })}
@@ -174,10 +326,10 @@ export default function InfoModal({
 
               <div className="rounded-xl border border-slate-200/80 bg-slate-50 px-3.5 py-2.5 text-xs text-slate-600 dark:border-slate-800 dark:bg-slate-950/50 dark:text-slate-300 space-y-1.5">
                 <div className="flex items-center gap-2">
-                  <Check className="h-3.5 w-3.5 shrink-0 text-emerald-600 dark:text-emerald-400" />
+                  <ShieldCheck className="h-3.5 w-3.5 shrink-0 text-emerald-600 dark:text-emerald-400" />
                   <span>
-                    <strong>Plano Gratuito:</strong> usa OpenRouter para texto,
-                    Groq para pesquisa web e NVIDIA para imagens.
+                    <strong>Checkout Seguro Stripe:</strong> pagamento por cartão
+                    em BRL ou USD com liberação automática de créditos no Supabase.
                   </span>
                 </div>
                 <div className="flex items-center gap-2">
@@ -222,10 +374,10 @@ export default function InfoModal({
                     className={`rounded-xl px-3.5 py-2 text-xs font-semibold transition-colors ${
                       planoGeracao === "paid"
                         ? "bg-indigo-600 text-white"
-                        : "bg-gradient-to-r from-[#5B4AF4] to-[#2563EB] text-white hover:brightness-110"
+                        : "border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200"
                     }`}
                   >
-                    Ativar Motor Pago (Google Gemini)
+                    Alternar para Motor Gemini
                   </button>
                 </div>
               )}
@@ -267,20 +419,21 @@ export default function InfoModal({
                 cada capítulo.
               </p>
               <p className="text-xs text-slate-500 dark:text-slate-400">
-                Os artigos guardados ficam disponíveis localmente no seu
-                navegador nas secções Meus Artigos, Favoritos e Estatísticas.
+                Os artigos guardados ficam sincronizados na sua conta Supabase e
+                disponíveis localmente nas secções Meus Artigos, Favoritos e
+                Estatísticas.
               </p>
             </div>
           )}
         </div>
 
-        <div className="mt-6 flex justify-end">
+        <div className="flex shrink-0 justify-end border-t border-slate-100 px-6 py-3.5 dark:border-slate-800">
           <button
             type="button"
             onClick={onClose}
             className="rounded-xl bg-indigo-600 px-4 py-2 text-xs font-semibold text-white hover:bg-indigo-700"
           >
-            Entendido
+            Fechar
           </button>
         </div>
       </motion.div>

@@ -108,8 +108,18 @@ create table if not exists public.payments (
   amount_cents integer not null check (amount_cents >= 0),
   currency text not null default 'BRL' check (currency in ('BRL', 'USD')),
   status text not null default 'paid',
+  stripe_session_id text unique,
+  stripe_payment_intent_id text,
   created_at timestamptz not null default now()
 );
+
+alter table public.payments
+  add column if not exists stripe_session_id text;
+alter table public.payments
+  add column if not exists stripe_payment_intent_id text;
+create unique index if not exists idx_payments_stripe_session_id
+  on public.payments (stripe_session_id)
+  where stripe_session_id is not null;
 
 -- =============================================================================
 -- Row Level Security (RLS) — Isolamento estrito por auth.uid()

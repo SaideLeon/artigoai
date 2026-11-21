@@ -177,6 +177,10 @@ export default function ArticleStudioApp() {
     DEFAULT_CONFIG.pesquisaWebPadrao ?? "auto"
   );
   const [planoGeracao, setPlanoGeracao] = useState<PlanoGeracao>("free");
+  const [articleCredits, setArticleCredits] = useState<number>(0);
+  const [highlightPackageId, setHighlightPackageId] = useState<string | null>(
+    null
+  );
 
   // Active article workspace state
   const [artigoAtualId, setArtigoAtualId] = useState<string | null>(null);
@@ -216,12 +220,20 @@ export default function ArticleStudioApp() {
       if (!mounted) return;
       try {
         const params = new URLSearchParams(window.location.search);
-        const pacoteParam = params.get("pacote");
-        if (pacoteParam && pacoteParam !== "free") {
-          setPlanoGeracao("paid");
-          localStorage.setItem(STORAGE_PLAN, "paid");
-          return;
+        const comprarParam = params.get("comprar") || params.get("pacote");
+        const stripeState = params.get("stripe");
+
+        if (stripeState === "cancel") {
+          setEstado(
+            "Pagamento cancelado na Stripe. Você pode continuar no Plano Gratuito ou escolher outro pacote."
+          );
+          window.history.replaceState({}, "", "/studio");
+        } else if (comprarParam && comprarParam !== "free" && !stripeState) {
+          setHighlightPackageId(comprarParam);
+          setModalTipo("upgrade");
+          window.history.replaceState({}, "", "/studio");
         }
+
         const rawPlan = localStorage.getItem(STORAGE_PLAN);
         if (rawPlan === "paid" || rawPlan === "free") {
           setPlanoGeracao(rawPlan);
@@ -234,6 +246,69 @@ export default function ArticleStudioApp() {
       mounted = false;
     };
   }, []);
+
+  // Verifica sessão de retorno da Stripe após autenticar usuário
+  useEffect(() => {
+    if (!user) return;
+    let mounted = true;
+    const params = new URLSearchParams(window.location.search);
+    const stripeState = params.get("stripe");
+    const sessionId = params.get("session_id");
+    if (stripeState !== "success" || !sessionId) return;
+
+    void (async () => {
+      try {
+        setEstado("A confirmar pagamento na Stripe…");
+        const res = await fetch(
+          `/api/stripe/verify-session?session_id=${encodeURIComponent(sessionId)}`
+        );
+        const data = (await res.json()) as {
+          paid?: boolean;
+          articlesGranted?: number;
+          erro?: string;
+        };
+        if (!mounted) return;
+
+        if (res.ok && data.paid) {
+          setPlanoGeracao("paid");
+          try {
+            localStorage.setItem(STORAGE_PLAN, "paid");
+          } catch {
+            // Ignora
+          }
+          const qtd = data.articlesGranted ?? 1;
+          setArticleCredits((prev) => prev + qtd);
+          setEstado(
+            `Pagamento confirmado via Stripe! ${qtd} ${
+              qtd === 1 ? "crédito adicionado" : "créditos adicionados"
+            } à sua conta.`
+          );
+          registrarNotificacao(
+            "Pagamento Stripe confirmado",
+            `${qtd} ${qtd === 1 ? "artigo" : "artigos"} liberados no Plano Pago Gemini`
+          );
+        } else {
+          setErroGeral(
+            data.erro ?? "Não foi possível confirmar o pagamento na Stripe."
+          );
+          setEstado("");
+        }
+      } catch {
+        if (mounted) {
+          setErroGeral("Erro ao validar a sessão de pagamento da Stripe.");
+          setEstado("");
+        }
+      } finally {
+        if (mounted) {
+          window.history.replaceState({}, "", "/studio");
+        }
+      }
+    })();
+
+    return () => {
+      mounted = false;
+    };
+  }, [user]);
 
   // Load persisted data after mount (localStorage fallback + Supabase real-time sync)
   useEffect(() => {
@@ -343,6 +418,7 @@ export default function ArticleStudioApp() {
 
     const unsubPlan = subscribeUserPlan(uid, (info) => {
       if (!mounted) return;
+      setArticleCredits(info.articleCredits);
       if (info.planoGeracao === "paid") {
         setPlanoGeracao("paid");
       }
@@ -905,6 +981,7 @@ export default function ArticleStudioApp() {
         onCloseMobile={() => setMobileMenuOpen(false)}
         ocupado={ocupado}
         planoGeracao={planoGeracao}
+        articleCredits={articleCredits}
       />
 
       <div className="flex min-w-0 min-h-0 flex-1 flex-col px-4 py-4 sm:px-6 lg:px-8 xl:overflow-hidden">
@@ -1053,9 +1130,14 @@ export default function ArticleStudioApp() {
 
       <InfoModal
         tipo={modalTipo}
-        onClose={() => setModalTipo(null)}
+        onClose={() => {
+          setModalTipo(null);
+          setHighlightPackageId(null);
+        }}
         planoGeracao={planoGeracao}
         onSelectPlanoGeracao={handleChangePlanoGeracao}
+        articleCredits={articleCredits}
+        highlightPackageId={highlightPackageId}
       />
       <FloatingRobotAssistant
         context="studio"

@@ -27,6 +27,7 @@ type SidebarProps = {
   onCloseMobile: () => void;
   ocupado?: boolean;
   planoGeracao?: PlanoGeracao;
+  articleCredits?: number;
 };
 
 const NAV_ITEMS: { id: NavTab; label: string; icon: typeof Home }[] = [
@@ -47,6 +48,7 @@ export default function Sidebar({
   onCloseMobile,
   ocupado = false,
   planoGeracao = "free",
+  articleCredits = 0,
 }: SidebarProps) {
   const content = (
     <aside className="relative flex h-full min-h-0 w-[252px] shrink-0 flex-col overflow-hidden bg-gradient-to-b from-[#0E162E] via-[#121C3A] to-[#111936] px-4 py-5 text-slate-200 select-none dark:border-r dark:border-slate-800/80">
@@ -158,12 +160,18 @@ export default function Sidebar({
                 ? "Artigos e imagens exclusivos Google Gemini"
                 : "OpenRouter · NVIDIA · Groq"}
             </p>
+            {articleCredits > 0 && (
+              <p className="mt-1.5 text-[11px] font-semibold text-amber-300 tabular-nums">
+                {articleCredits}{" "}
+                {articleCredits === 1 ? "crédito disponível" : "créditos disponíveis"}
+              </p>
+            )}
             <button
               type="button"
               onClick={() => onOpenModal("upgrade")}
               className="mt-3 w-full rounded-xl bg-gradient-to-r from-amber-400 to-amber-500 px-3 py-2 text-xs font-semibold text-slate-950 transition-transform duration-150 hover:brightness-105 active:scale-[0.98] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-300 whitespace-nowrap"
             >
-              Ver Pacotes
+              Comprar Pacotes
             </button>
           </div>
 

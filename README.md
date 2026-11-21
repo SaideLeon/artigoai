@@ -12,7 +12,7 @@ Plataforma SaaS construída em **Next.js (App Router)**, **TypeScript**, **Tailw
   - **Plano Pago (`paid`)**: utiliza exclusivamente modelos **Google Gemini** via `@google/genai` (`gemini-4-hydrogen` para texto e pesquisa com `googleSearch`, e `gemini-nano-banana-2.1` para imagens em `1K`).
 - **Landing Page & Mascote 3D (`/`, `/mascote`)**: computador 3D interativo no hero (abre ao passar o cursor no cabeçalho) e mascote humanoide 3D em Three.js com expressões e animações em tempo real (*idle*, *wave*, *thinking*, *writing*, *excited*, *pointing*, *sleeping*).
 - **Persistência no Supabase**: autenticação Google OAuth (`/auth/callback`), sincronização em tempo real de artigos, favoritos, configurações pessoais e pacotes de créditos (`supabase/schema.sql`), com fallback local em `localStorage` quando o Supabase não estiver configurado.
-- **Preços por Artigo e Pacotes (`lib/pricing.ts`)**: venda avulsa (1 artigo) e pacotes de 5, 10, 16, 20 e 30 artigos com exibição em **BRL (R$)** e **USD (US$)**.
+- **Preços por Artigo e Pacotes (`lib/pricing.ts`) + Stripe**: venda avulsa (1 artigo) e pacotes de 5, 10, 16, 20 e 30 artigos com exibição em **BRL (R$)** e **USD (US$)**, checkout seguro via **Stripe** (`/api/stripe/checkout`, `/api/stripe/verify-session`, `/api/stripe/webhook`) e crédito automático em `payments`, `subscriptions` e `usage_limits`.
 
 ---
 
@@ -60,4 +60,6 @@ Abra [http://localhost:3000](http://localhost:3000).
 | `NEXT_PUBLIC_SUPABASE_URL` | Supabase | URL pública do projeto Supabase |
 | `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Supabase | Chave publicável (`sb_publishable_...`) do Supabase para SSR/Client |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase | Chave anónima legada opcional (`anon`) |
-| `SUPABASE_SERVICE_ROLE_KEY` | Supabase | Chave de serviço (apenas servidor) |
+| `SUPABASE_SERVICE_ROLE_KEY` | Supabase | Chave de serviço (apenas servidor — grava créditos/pagamentos após Stripe) |
+| `STRIPE_SECRET_KEY` | Stripe (Pagamentos) | Chave secreta da Stripe (`sk_test_...` / `sk_live_...`, apenas servidor) |
+| `STRIPE_WEBHOOK_SECRET` | Stripe (Webhook) | Segredo de assinatura do webhook (`/api/stripe/webhook`, `whsec_...`) |

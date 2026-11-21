@@ -1092,14 +1092,16 @@ export default function LandingPage() {
                     </div>
 
                     <Link
-                      href={`/studio?pacote=${tier.id}`}
+                      href={`/studio?comprar=${tier.id}`}
                       className={`mt-8 inline-flex w-full items-center justify-center rounded-xl px-4 py-3 text-sm font-semibold transition-all whitespace-nowrap ${
                         isPopular
                           ? "bg-gradient-to-r from-[#5B4AF4] to-[#2563EB] text-white shadow-md shadow-indigo-600/20 hover:brightness-110"
                           : "border border-indigo-600/30 bg-indigo-50/60 text-indigo-700 hover:bg-indigo-100/70 dark:border-indigo-500/40 dark:bg-indigo-950/40 dark:text-indigo-300 dark:hover:bg-indigo-950/70"
                       }`}
                     >
-                      {tier.artigos === 1 ? "Comprar Artigo" : "Escolher Pacote"}
+                      {tier.artigos === 1
+                        ? "Comprar com Stripe"
+                        : "Comprar Pacote · Stripe"}
                     </Link>
                   </div>
                 );
