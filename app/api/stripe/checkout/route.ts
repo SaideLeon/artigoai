@@ -2,12 +2,13 @@ import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { createClient as createSupabaseServerClient } from "@/utils/supabase/server";
 import {
-  findPricingTier,
-  getStripeAmountCents,
+  findSubscriptionPlan,
   getStripeClient,
+  getSubscriptionAmountCents,
   isStripeConfigured,
 } from "@/lib/stripe";
-import type { CurrencyCode } from "@/lib/pricing";
+import { getUserStripeCustomerId } from "@/lib/stripe-fulfillment";
+import type { BillingCycle } from "@/lib/pricing";
 
 function resolveSafeBaseUrl(req: NextRequest): string {
   const forwardedHost = req.headers.get("x-forwarded-host")?.split(",")[0]?.trim();
@@ -16,9 +17,10 @@ function resolveSafeBaseUrl(req: NextRequest): string {
   const proto = protoHeader === "http" ? "http" : "https";
 
   if (host && /^[a-zA-Z0-9.-]+(:\d{1,5})?$/.test(host)) {
-    const scheme = host.startsWith("localhost") || host.startsWith("127.0.0.1")
-      ? protoHeader || "http"
-      : proto;
+    const scheme =
+      host.startsWith("localhost") || host.startsWith("127.0.0.1")
+        ? protoHeader || "http"
+        : proto;
     return `${scheme}://${host}`;
   }
 
@@ -47,7 +49,7 @@ export async function POST(req: NextRequest) {
     if (authError || !user) {
       return NextResponse.json(
         {
-          erro: "Inicie sessão com sua conta Google antes de concluir o pagamento na Stripe.",
+          erro: "Inicie sessão com sua conta Google antes de assinar um plano na Stripe.",
           requiresAuth: true,
         },
         { status: 401 }
@@ -55,54 +57,71 @@ export async function POST(req: NextRequest) {
     }
 
     const body = (await req.json()) as {
-      packageId?: unknown;
-      currency?: unknown;
+      planId?: unknown;
+      billingCycle?: unknown;
     };
 
-    const packageId = typeof body.packageId === "string" ? body.packageId.trim() : "";
-    const tier = findPricingTier(packageId);
-    if (!tier) {
+    const planId = typeof body.planId === "string" ? body.planId.trim() : "";
+    const plan = findSubscriptionPlan(planId);
+    if (!plan) {
       return NextResponse.json(
-        { erro: "Pacote selecionado inválido." },
+        { erro: "Plano selecionado inválido." },
         { status: 400 }
       );
     }
 
-    const currency: CurrencyCode = body.currency === "USD" ? "USD" : "BRL";
-    const unitAmount = getStripeAmountCents(tier, currency);
+    const billingCycle: BillingCycle =
+      body.billingCycle === "yearly" ? "yearly" : "monthly";
+    const unitAmount = getSubscriptionAmountCents(plan, billingCycle);
+    const interval = billingCycle === "yearly" ? "year" : "month";
     const baseUrl = resolveSafeBaseUrl(req);
     const stripe = getStripeClient();
 
+    const existingCustomerId = await getUserStripeCustomerId(user.id);
+
     const session = await stripe.checkout.sessions.create({
-      mode: "payment",
-      customer_email: user.email ?? undefined,
+      mode: "subscription",
+      ...(existingCustomerId
+        ? { customer: existingCustomerId }
+        : { customer_email: user.email ?? undefined }),
       client_reference_id: user.id,
       line_items: [
         {
           quantity: 1,
           price_data: {
-            currency: currency.toLowerCase(),
+            currency: "brl",
             unit_amount: unitAmount,
+            recurring: {
+              interval,
+            },
             product_data: {
-              name: `Artigen — ${tier.nome}`,
-              description: `${tier.artigos} ${
-                tier.artigos === 1 ? "crédito de artigo" : "créditos de artigo"
-              } com geração Google Gemini (~2.500 palavras e até 7 imagens 1K)`,
+              name: `Artigen — Plano ${plan.nome} (${
+                billingCycle === "yearly" ? "Anual" : "Mensal"
+              })`,
+              description: `${plan.artigosMes} artigos por mês (~2.500 palavras cada), até 7 imagens 1K com Google Gemini, pesquisa web e HTML. Cancele quando quiser.`,
             },
           },
         },
       ],
+      subscription_data: {
+        metadata: {
+          user_id: user.id,
+          plan_id: plan.id,
+          billing_cycle: billingCycle,
+          monthly_limit: String(plan.artigosMes),
+        },
+      },
       metadata: {
         user_id: user.id,
-        package_id: tier.id,
-        articles_granted: String(tier.artigos),
-        currency,
+        plan_id: plan.id,
+        billing_cycle: billingCycle,
+        monthly_limit: String(plan.artigosMes),
       },
-      success_url: `${baseUrl}/studio?stripe=success&session_id={CHECKOUT_SESSION_ID}&pacote=${encodeURIComponent(
-        tier.id
+      success_url: `${baseUrl}/studio?stripe=success&session_id={CHECKOUT_SESSION_ID}&plano=${encodeURIComponent(
+        plan.id
       )}`,
-      cancel_url: `${baseUrl}/studio?stripe=cancel&pacote=${encodeURIComponent(
-        tier.id
+      cancel_url: `${baseUrl}/studio?stripe=cancel&plano=${encodeURIComponent(
+        plan.id
       )}`,
     });
 
@@ -118,13 +137,13 @@ export async function POST(req: NextRequest) {
       sessionId: session.id,
     });
   } catch (err) {
-    console.error("Erro ao criar sessão Stripe Checkout:", err);
+    console.error("Erro ao criar assinatura Stripe Checkout:", err);
     return NextResponse.json(
       {
         erro:
           err instanceof Error
             ? err.message
-            : "Não foi possível iniciar o checkout da Stripe.",
+            : "Não foi possível iniciar o checkout de assinatura na Stripe.",
       },
       { status: 500 }
     );

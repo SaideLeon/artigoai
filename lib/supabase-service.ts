@@ -10,6 +10,7 @@ import {
   type PlanoGeracao,
   type Secao,
 } from "@/lib/types";
+import { FREE_PLAN, SUBSCRIPTION_PLANS, type BillingCycle } from "@/lib/pricing";
 
 const ALLOWED_FAIXAS = new Set<string>(FAIXAS_PALAVRAS.map((f) => f.id));
 const ALLOWED_PESQUISA = new Set<string>(["auto", "sempre", "desativada"]);
@@ -649,8 +650,12 @@ export function subscribeUserPlan(
   userId: string,
   onPlan: (info: {
     plan: string;
+    billingCycle: BillingCycle;
+    status: string;
     planoGeracao: PlanoGeracao;
-    articleCredits: number;
+    monthlyLimit: number;
+    monthlyUsed: number;
+    hasStripePortal: boolean;
   }) => void
 ): () => void {
   const supabase = getSupabaseClient();
@@ -663,12 +668,12 @@ export function subscribeUserPlan(
       await Promise.all([
         supabase
           .from("subscriptions")
-          .select("plan, status")
+          .select("plan, status, billing_cycle, stripe_customer_id")
           .eq("user_id", userId)
           .maybeSingle(),
         supabase
           .from("usage_limits")
-          .select("article_credits")
+          .select("monthly_articles_limit, monthly_articles_used")
           .eq("user_id", userId)
           .maybeSingle(),
       ]);
@@ -676,13 +681,29 @@ export function subscribeUserPlan(
     if (!active || subErr) return;
     const planName =
       subData && typeof subData.plan === "string" ? subData.plan : "free";
-    const isActivePaid = planName !== "free" && subData?.status === "active";
-    const articleCredits = Number(usageData?.article_credits ?? 0);
+    const status =
+      subData && typeof subData.status === "string" ? subData.status : "active";
+    const billingCycle: BillingCycle =
+      subData?.billing_cycle === "yearly" ? "yearly" : "monthly";
+    const isActivePaid = planName !== "free" && status === "active";
+
+    const matchedPlan = SUBSCRIPTION_PLANS.find((p) => p.id === planName);
+    const defaultLimit = matchedPlan
+      ? matchedPlan.artigosMes
+      : FREE_PLAN.artigosMes;
+    const monthlyLimit = Number(
+      usageData?.monthly_articles_limit ?? defaultLimit
+    );
+    const monthlyUsed = Number(usageData?.monthly_articles_used ?? 0);
 
     onPlan({
       plan: planName,
-      planoGeracao: isActivePaid || articleCredits > 0 && planName !== "free" ? "paid" : "free",
-      articleCredits: Math.max(0, articleCredits),
+      billingCycle,
+      status,
+      planoGeracao: isActivePaid ? "paid" : "free",
+      monthlyLimit: Math.max(1, monthlyLimit),
+      monthlyUsed: Math.max(0, monthlyUsed),
+      hasStripePortal: Boolean(subData?.stripe_customer_id),
     });
   };
 

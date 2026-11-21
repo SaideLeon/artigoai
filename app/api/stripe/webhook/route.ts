@@ -1,7 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import type Stripe from "stripe";
 import { getStripeClient, isStripeConfigured } from "@/lib/stripe";
-import { fulfillStripeCheckoutSession } from "@/lib/stripe-fulfillment";
+import {
+  fulfillSubscriptionCheckoutSession,
+  handleStripeInvoicePaid,
+  handleStripeInvoicePaymentFailed,
+  handleStripeSubscriptionDeleted,
+  handleStripeSubscriptionUpdated,
+} from "@/lib/stripe-fulfillment";
 
 export async function POST(req: NextRequest) {
   if (!isStripeConfigured()) {
@@ -27,10 +33,10 @@ export async function POST(req: NextRequest) {
     );
   }
 
+  const stripe = getStripeClient();
   let event: Stripe.Event;
   try {
     const rawBody = await req.text();
-    const stripe = getStripeClient();
     event = stripe.webhooks.constructEvent(rawBody, signature, webhookSecret);
   } catch (err) {
     console.error("Assinatura de webhook Stripe inválida:", err);
@@ -40,12 +46,35 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  if (
-    event.type === "checkout.session.completed" ||
-    event.type === "checkout.session.async_payment_succeeded"
-  ) {
-    const session = event.data.object as Stripe.Checkout.Session;
-    await fulfillStripeCheckoutSession(session);
+  switch (event.type) {
+    case "checkout.session.completed":
+    case "checkout.session.async_payment_succeeded": {
+      const session = event.data.object as Stripe.Checkout.Session;
+      await fulfillSubscriptionCheckoutSession(session, stripe);
+      break;
+    }
+    case "invoice.paid": {
+      const invoice = event.data.object as Stripe.Invoice;
+      await handleStripeInvoicePaid(invoice, stripe);
+      break;
+    }
+    case "invoice.payment_failed": {
+      const invoice = event.data.object as Stripe.Invoice;
+      await handleStripeInvoicePaymentFailed(invoice, stripe);
+      break;
+    }
+    case "customer.subscription.updated": {
+      const sub = event.data.object as Stripe.Subscription;
+      await handleStripeSubscriptionUpdated(sub);
+      break;
+    }
+    case "customer.subscription.deleted": {
+      const sub = event.data.object as Stripe.Subscription;
+      await handleStripeSubscriptionDeleted(sub);
+      break;
+    }
+    default:
+      break;
   }
 
   return NextResponse.json({ received: true });

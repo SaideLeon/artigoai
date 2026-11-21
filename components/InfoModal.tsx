@@ -12,16 +12,17 @@ import {
   LogIn,
   ExternalLink,
   ShieldCheck,
+  Settings2,
 } from "lucide-react";
 import { motion } from "motion/react";
 import BrandLogo from "@/components/BrandLogo";
 import { useAuth } from "@/components/AuthProvider";
 import {
-  PRICING_TIERS,
-  USD_TO_BRL,
-  formatCurrency,
-  getPerArticlePrice,
-  type CurrencyCode,
+  FREE_PLAN,
+  SUBSCRIPTION_PLANS,
+  formatBrl,
+  getPlanDisplayName,
+  type BillingCycle,
 } from "@/lib/pricing";
 import type { PlanoGeracao } from "@/lib/types";
 
@@ -30,8 +31,11 @@ type InfoModalProps = {
   onClose: () => void;
   planoGeracao?: PlanoGeracao;
   onSelectPlanoGeracao?: (plano: PlanoGeracao) => void;
-  articleCredits?: number;
-  highlightPackageId?: string | null;
+  activePlanId?: string;
+  monthlyLimit?: number;
+  hasStripePortal?: boolean;
+  highlightPlanId?: string | null;
+  initialBillingCycle?: BillingCycle;
 };
 
 export default function InfoModal({
@@ -39,12 +43,17 @@ export default function InfoModal({
   onClose,
   planoGeracao = "free",
   onSelectPlanoGeracao,
-  articleCredits = 0,
-  highlightPackageId = null,
+  activePlanId = "free",
+  monthlyLimit = FREE_PLAN.artigosMes,
+  hasStripePortal = false,
+  highlightPlanId = null,
+  initialBillingCycle = "monthly",
 }: InfoModalProps) {
   const { user, signInWithGoogle } = useAuth();
-  const [currency, setCurrency] = useState<CurrencyCode>("BRL");
-  const [loadingTierId, setLoadingTierId] = useState<string | null>(null);
+  const [billingCycle, setBillingCycle] =
+    useState<BillingCycle>(initialBillingCycle);
+  const [loadingPlanId, setLoadingPlanId] = useState<string | null>(null);
+  const [openingPortal, setOpeningPortal] = useState(false);
   const [checkoutError, setCheckoutError] = useState<string | null>(null);
   const [needsAuthPrompt, setNeedsAuthPrompt] = useState(false);
   const [checkoutRedirectUrl, setCheckoutRedirectUrl] = useState<string | null>(
@@ -53,7 +62,7 @@ export default function InfoModal({
 
   if (!tipo) return null;
 
-  async function handleCheckoutStripe(packageId: string) {
+  async function handleSubscribeStripe(planId: string) {
     setCheckoutError(null);
     setNeedsAuthPrompt(false);
     setCheckoutRedirectUrl(null);
@@ -63,12 +72,12 @@ export default function InfoModal({
       return;
     }
 
-    setLoadingTierId(packageId);
+    setLoadingPlanId(planId);
     try {
       const res = await fetch("/api/stripe/checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ packageId, currency }),
+        body: JSON.stringify({ planId, billingCycle }),
       });
       const data = (await res.json()) as {
         url?: string;
@@ -81,7 +90,7 @@ export default function InfoModal({
           setNeedsAuthPrompt(true);
         } else {
           setCheckoutError(
-            data.erro ?? "Não foi possível iniciar o pagamento na Stripe."
+            data.erro ?? "Não foi possível iniciar a assinatura na Stripe."
           );
         }
         return;
@@ -94,7 +103,34 @@ export default function InfoModal({
         "Falha de ligação ao iniciar o checkout seguro da Stripe."
       );
     } finally {
-      setLoadingTierId(null);
+      setLoadingPlanId(null);
+    }
+  }
+
+  async function handleOpenCustomerPortal() {
+    setCheckoutError(null);
+    setCheckoutRedirectUrl(null);
+    if (!user) {
+      setNeedsAuthPrompt(true);
+      return;
+    }
+
+    setOpeningPortal(true);
+    try {
+      const res = await fetch("/api/stripe/portal", { method: "POST" });
+      const data = (await res.json()) as { url?: string; erro?: string };
+      if (!res.ok || !data.url) {
+        setCheckoutError(
+          data.erro ?? "Não foi possível abrir o portal do cliente Stripe."
+        );
+        return;
+      }
+      setCheckoutRedirectUrl(data.url);
+      window.location.assign(data.url);
+    } catch {
+      setCheckoutError("Falha ao comunicar com o portal do cliente Stripe.");
+    } finally {
+      setOpeningPortal(false);
     }
   }
 
@@ -111,7 +147,7 @@ export default function InfoModal({
         transition={{ duration: 0.16 }}
         onClick={(e) => e.stopPropagation()}
         className={`flex max-h-[90vh] w-full flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xl dark:border-slate-800 dark:bg-slate-900 ${
-          tipo === "upgrade" ? "max-w-2xl" : "max-w-lg"
+          tipo === "upgrade" ? "max-w-3xl" : "max-w-lg"
         }`}
       >
         <div className="flex shrink-0 items-start justify-between gap-4 border-b border-slate-100 px-6 py-4 dark:border-slate-800">
@@ -134,16 +170,15 @@ export default function InfoModal({
             <div>
               <h2 className="text-lg font-bold text-slate-900 dark:text-white">
                 {tipo === "upgrade"
-                  ? "Créditos por Artigo & Pagamento Stripe"
+                  ? "Planos e preços"
                   : tipo === "ajuda"
                   ? "Como usar o Gerador de Artigos"
                   : "Sobre o Gerador de Artigos"}
               </h2>
-              {tipo === "upgrade" && user && (
+              {tipo === "upgrade" && (
                 <p className="text-[11px] font-medium text-slate-500 dark:text-slate-400 tabular-nums">
-                  Saldo atual: {articleCredits}{" "}
-                  {articleCredits === 1 ? "crédito" : "créditos"} ·{" "}
-                  {planoGeracao === "paid" ? "Plano Pago ativo" : "Plano Gratuito"}
+                  Plano atual: {getPlanDisplayName(activePlanId)} ·{" "}
+                  {monthlyLimit} artigos por mês · Cancele quando quiser
                 </p>
               )}
             </div>
@@ -163,31 +198,40 @@ export default function InfoModal({
             <div className="space-y-4">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <p className="text-xs text-slate-600 dark:text-slate-300">
-                  Compre 1 artigo avulso ou pacotes com até 32% de desconto via
-                  Stripe.
+                  Escolha o plano ideal para o seu ritmo de publicação. Cancele
+                  quando quiser.
                 </p>
-                <div className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-slate-50 p-0.5 dark:border-slate-800 dark:bg-slate-950">
+                <div className="inline-flex items-center gap-1 rounded-xl border border-slate-200 bg-slate-50 p-1 dark:border-slate-800 dark:bg-slate-950">
                   <button
                     type="button"
-                    onClick={() => setCurrency("BRL")}
-                    className={`rounded-md px-2.5 py-1 text-[11px] font-semibold transition-colors ${
-                      currency === "BRL"
+                    onClick={() => setBillingCycle("monthly")}
+                    className={`rounded-lg px-3 py-1 text-xs font-semibold transition-colors ${
+                      billingCycle === "monthly"
                         ? "bg-indigo-600 text-white"
                         : "text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white"
                     }`}
                   >
-                    R$ (BRL)
+                    Mensal
                   </button>
                   <button
                     type="button"
-                    onClick={() => setCurrency("USD")}
-                    className={`rounded-md px-2.5 py-1 text-[11px] font-semibold transition-colors ${
-                      currency === "USD"
+                    onClick={() => setBillingCycle("yearly")}
+                    className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1 text-xs font-semibold transition-colors ${
+                      billingCycle === "yearly"
                         ? "bg-indigo-600 text-white"
                         : "text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white"
                     }`}
                   >
-                    US$ (USD)
+                    <span>Anual</span>
+                    <span
+                      className={`text-[10px] font-bold ${
+                        billingCycle === "yearly"
+                          ? "text-amber-200"
+                          : "text-emerald-600 dark:text-emerald-400"
+                      }`}
+                    >
+                      2 meses grátis
+                    </span>
                   </button>
                 </div>
               </div>
@@ -195,8 +239,8 @@ export default function InfoModal({
               {needsAuthPrompt && !user && (
                 <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-amber-200 bg-amber-50/80 px-4 py-3 text-xs text-amber-900 dark:border-amber-900/60 dark:bg-amber-950/40 dark:text-amber-200">
                   <span>
-                    Entre com sua conta Google para vincular os créditos
-                    comprados na Stripe ao seu perfil.
+                    Entre com sua conta Google para vincular sua assinatura
+                    Stripe ao seu perfil.
                   </span>
                   <button
                     type="button"
@@ -219,8 +263,7 @@ export default function InfoModal({
               {checkoutRedirectUrl && (
                 <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-indigo-200 bg-indigo-50/80 px-4 py-3 text-xs text-indigo-900 dark:border-indigo-900/60 dark:bg-indigo-950/40 dark:text-indigo-200">
                   <span>
-                    Sessão de pagamento criada. Se o redirecionamento não abrir
-                    automaticamente:
+                    Sessão criada na Stripe. Se não abrir automaticamente:
                   </span>
                   <a
                     href={checkoutRedirectUrl}
@@ -234,74 +277,127 @@ export default function InfoModal({
                 </div>
               )}
 
-              <div className="grid gap-3 sm:grid-cols-2">
-                {PRICING_TIERS.map((tier) => {
-                  const total =
-                    currency === "BRL" ? tier.totalBrl : tier.totalUsd;
-                  const perArticle = getPerArticlePrice(tier, currency);
-                  const isPopular = tier.destaque === "popular";
-                  const isBestValue = tier.destaque === "melhor-valor";
-                  const isHighlighted = highlightPackageId === tier.id;
-                  const isLoading = loadingTierId === tier.id;
+              {/* Plano Grátis (linha compacta) */}
+              <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 bg-slate-50/70 px-4 py-3 dark:border-slate-800 dark:bg-slate-950/50">
+                <div>
+                  <p className="text-xs font-bold text-slate-900 dark:text-white">
+                    {FREE_PLAN.nome} · R$ 0 / mês
+                  </p>
+                  <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                    {FREE_PLAN.artigosMes} artigos por mês · Pesquisa web, imagens
+                    e HTML · Sem cartão de crédito
+                  </p>
+                </div>
+                {onSelectPlanoGeracao && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onSelectPlanoGeracao("free");
+                      onClose();
+                    }}
+                    className={`rounded-lg border px-3 py-1.5 text-xs font-semibold transition-colors whitespace-nowrap ${
+                      planoGeracao === "free"
+                        ? "border-indigo-600 bg-indigo-50 text-indigo-700 dark:border-indigo-500 dark:bg-indigo-950/50 dark:text-indigo-300"
+                        : "border-slate-200 bg-white text-slate-700 hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"
+                    }`}
+                  >
+                    {planoGeracao === "free" ? "Plano atual" : "Usar Grátis"}
+                  </button>
+                )}
+              </div>
+
+              {/* 3 Planos pagos */}
+              <div className="grid gap-3 sm:grid-cols-3">
+                {SUBSCRIPTION_PLANS.map((plan) => {
+                  const isPopular = plan.destaque === "popular";
+                  const isBestValue = plan.destaque === "melhor-valor";
+                  const isHighlighted = highlightPlanId === plan.id;
+                  const isLoading = loadingPlanId === plan.id;
+                  const priceMain =
+                    billingCycle === "yearly"
+                      ? plan.equivalenteMensalAnualBrl
+                      : plan.precoMensalBrl;
 
                   return (
                     <div
-                      key={tier.id}
-                      className={`flex flex-col justify-between rounded-xl border p-3.5 transition-colors ${
+                      key={plan.id}
+                      className={`flex flex-col justify-between rounded-xl border p-4 transition-colors ${
                         isHighlighted
                           ? "border-2 border-amber-500 bg-amber-50/40 dark:border-amber-400 dark:bg-amber-950/20"
                           : isPopular
-                          ? "border-indigo-400 bg-indigo-50/50 dark:border-indigo-500/60 dark:bg-indigo-950/30"
+                          ? "border-2 border-indigo-500 bg-indigo-50/40 dark:border-indigo-500/70 dark:bg-indigo-950/30"
                           : isBestValue
-                          ? "border-blue-300 bg-blue-50/30 dark:border-blue-500/40 dark:bg-blue-950/20"
+                          ? "border-blue-300 bg-blue-50/20 dark:border-blue-500/40 dark:bg-blue-950/20"
                           : "border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-950/40"
                       }`}
                     >
                       <div>
-                        <div className="flex items-start justify-between gap-2">
-                          <div>
-                            <p className="text-xs font-bold text-slate-900 dark:text-white">
-                              {tier.nome}
-                            </p>
-                            <p className="text-[11px] text-slate-500 dark:text-slate-400">
-                              {tier.artigos === 1
-                                ? "Venda avulsa"
-                                : `${tier.artigos} créditos de artigo`}
-                            </p>
-                          </div>
+                        <div className="mb-1 flex items-center justify-between gap-2">
+                          <h3 className="text-sm font-bold text-slate-900 dark:text-white">
+                            {plan.nome}
+                          </h3>
                           {isHighlighted ? (
-                            <span className="text-[11px] font-semibold text-amber-600 dark:text-amber-400">
+                            <span className="text-[10px] font-semibold text-amber-600 dark:text-amber-400">
                               Selecionado
                             </span>
                           ) : isPopular ? (
-                            <span className="text-[11px] font-semibold text-indigo-600 dark:text-indigo-400">
-                              Popular
+                            <span className="text-[10px] font-semibold text-indigo-600 dark:text-indigo-400">
+                              Mais popular
                             </span>
                           ) : isBestValue ? (
-                            <span className="text-[11px] font-semibold text-blue-600 dark:text-blue-400">
-                              -32% off
+                            <span className="text-[10px] font-semibold text-blue-600 dark:text-blue-400">
+                              Melhor custo-benefício
                             </span>
                           ) : null}
                         </div>
 
-                        <div className="mt-2.5 flex items-baseline justify-between gap-2">
-                          <span className="font-mono text-lg font-bold text-slate-950 dark:text-white tabular-nums">
-                            {formatCurrency(total, currency)}
+                        <div className="mt-2 flex items-baseline gap-1">
+                          <span className="font-mono text-xl font-bold text-slate-950 dark:text-white tabular-nums">
+                            {formatBrl(priceMain)}
                           </span>
-                          <span className="text-[11px] font-medium text-slate-600 dark:text-slate-300 tabular-nums">
-                            {formatCurrency(perArticle, currency)}/artigo
-                            {tier.descontoPct > 0
-                              ? ` · ${tier.descontoPct}% off`
-                              : ""}
+                          <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400">
+                            / mês
                           </span>
                         </div>
+
+                        {billingCycle === "yearly" ? (
+                          <p className="mt-0.5 text-[11px] font-medium text-emerald-700 dark:text-emerald-400 tabular-nums">
+                            {formatBrl(plan.precoAnualBrl)} por ano
+                          </p>
+                        ) : (
+                          <p className="mt-0.5 text-[11px] text-slate-500 dark:text-slate-400 tabular-nums">
+                            ou {formatBrl(plan.precoAnualBrl)} / ano
+                          </p>
+                        )}
+
+                        <p className="mt-2 text-[11px] leading-snug text-slate-500 dark:text-slate-400">
+                          {plan.descricao}
+                        </p>
+
+                        <ul className="mt-3 space-y-1.5 text-[11px] text-slate-700 dark:text-slate-300">
+                          <li className="flex items-start gap-1.5">
+                            <Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-emerald-600 dark:text-emerald-400" />
+                            <span>
+                              <strong>{plan.artigosMes} artigos por mês</strong>{" "}
+                              (~2.500 palavras)
+                            </span>
+                          </li>
+                          <li className="flex items-start gap-1.5">
+                            <Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-emerald-600 dark:text-emerald-400" />
+                            <span>Até 7 imagens 1K por artigo</span>
+                          </li>
+                          <li className="flex items-start gap-1.5">
+                            <Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-emerald-600 dark:text-emerald-400" />
+                            <span>Modelos Google Gemini</span>
+                          </li>
+                        </ul>
                       </div>
 
                       <button
                         type="button"
-                        disabled={Boolean(loadingTierId)}
-                        onClick={() => void handleCheckoutStripe(tier.id)}
-                        className={`mt-3 flex w-full items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-xs font-semibold transition-all disabled:cursor-not-allowed disabled:opacity-60 ${
+                        disabled={Boolean(loadingPlanId)}
+                        onClick={() => void handleSubscribeStripe(plan.id)}
+                        className={`mt-4 flex w-full items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-xs font-semibold transition-all disabled:cursor-not-allowed disabled:opacity-60 ${
                           isPopular || isHighlighted
                             ? "bg-gradient-to-r from-[#5B4AF4] to-[#2563EB] text-white hover:brightness-110"
                             : "border border-indigo-200 bg-indigo-50/70 text-indigo-700 hover:bg-indigo-100 dark:border-indigo-800/60 dark:bg-indigo-950/50 dark:text-indigo-300 dark:hover:bg-indigo-900/60"
@@ -315,7 +411,7 @@ export default function InfoModal({
                         ) : (
                           <>
                             <CreditCard className="h-3.5 w-3.5" />
-                            <span>Pagar com Stripe</span>
+                            <span>Assinar</span>
                           </>
                         )}
                       </button>
@@ -324,60 +420,35 @@ export default function InfoModal({
                 })}
               </div>
 
-              <div className="rounded-xl border border-slate-200/80 bg-slate-50 px-3.5 py-2.5 text-xs text-slate-600 dark:border-slate-800 dark:bg-slate-950/50 dark:text-slate-300 space-y-1.5">
+              <div className="rounded-xl border border-slate-200/80 bg-slate-50 px-3.5 py-2.5 text-xs text-slate-600 dark:border-slate-800 dark:bg-slate-950/50 dark:text-slate-300 space-y-1">
                 <div className="flex items-center gap-2">
                   <ShieldCheck className="h-3.5 w-3.5 shrink-0 text-emerald-600 dark:text-emerald-400" />
                   <span>
-                    <strong>Checkout Seguro Stripe:</strong> pagamento por cartão
-                    em BRL ou USD com liberação automática de créditos no Supabase.
+                    <strong>Cancele quando quiser</strong> no portal do cliente.
+                    A cota mensal é renovada todo mês e os artigos não usados
+                    não acumulam para o mês seguinte.
                   </span>
                 </div>
-                <div className="flex items-center gap-2">
-                  <Check className="h-3.5 w-3.5 shrink-0 text-indigo-600 dark:text-indigo-400" />
-                  <span>
-                    <strong>Pacotes Pagos:</strong> usam exclusivamente Google
-                    Gemini para gerar artigos (~2.500 palavras) e até 7 imagens
-                    1K por artigo.
-                  </span>
-                </div>
-                <p className="pl-5.5 text-[11px] text-slate-500 dark:text-slate-400">
-                  Cotação de referência: 1 USD = R${" "}
-                  {USD_TO_BRL.toLocaleString("pt-BR", {
-                    minimumFractionDigits: 4,
-                    maximumFractionDigits: 4,
-                  })}
-                </p>
               </div>
 
-              {onSelectPlanoGeracao && (
-                <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
+              {(hasStripePortal || (user && activePlanId !== "free")) && (
+                <div className="flex items-center justify-between gap-3 rounded-xl border border-slate-200 px-4 py-2.5 text-xs dark:border-slate-800">
+                  <span>
+                    Já possui assinatura? Altere seu plano ou cancele a qualquer
+                    momento.
+                  </span>
                   <button
                     type="button"
-                    onClick={() => {
-                      onSelectPlanoGeracao("free");
-                      onClose();
-                    }}
-                    className={`rounded-xl border px-3.5 py-2 text-xs font-semibold transition-colors ${
-                      planoGeracao === "free"
-                        ? "border-indigo-600 bg-indigo-50 text-indigo-700 dark:border-indigo-500 dark:bg-indigo-950/50 dark:text-indigo-300"
-                        : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300"
-                    }`}
+                    disabled={openingPortal}
+                    onClick={() => void handleOpenCustomerPortal()}
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 py-1.5 font-semibold text-slate-800 hover:bg-slate-50 disabled:opacity-60 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 whitespace-nowrap"
                   >
-                    Usar Plano Gratuito (OpenRouter + NVIDIA + Groq)
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      onSelectPlanoGeracao("paid");
-                      onClose();
-                    }}
-                    className={`rounded-xl px-3.5 py-2 text-xs font-semibold transition-colors ${
-                      planoGeracao === "paid"
-                        ? "bg-indigo-600 text-white"
-                        : "border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200"
-                    }`}
-                  >
-                    Alternar para Motor Gemini
+                    {openingPortal ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    ) : (
+                      <Settings2 className="h-3.5 w-3.5" />
+                    )}
+                    <span>Portal do Cliente</span>
                   </button>
                 </div>
               )}

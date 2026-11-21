@@ -41,6 +41,11 @@ import {
   type PlanoGeracao,
   type Secao,
 } from "@/lib/types";
+import {
+  FREE_PLAN,
+  getPlanDisplayName,
+  type BillingCycle,
+} from "@/lib/pricing";
 
 const STORAGE_ARTICLES = "artigoai:artigos:v1";
 const STORAGE_CONFIG = "artigoai:config:v1";
@@ -177,10 +182,14 @@ export default function ArticleStudioApp() {
     DEFAULT_CONFIG.pesquisaWebPadrao ?? "auto"
   );
   const [planoGeracao, setPlanoGeracao] = useState<PlanoGeracao>("free");
-  const [articleCredits, setArticleCredits] = useState<number>(0);
-  const [highlightPackageId, setHighlightPackageId] = useState<string | null>(
-    null
+  const [activePlanId, setActivePlanId] = useState<string>("free");
+  const [monthlyLimit, setMonthlyLimit] = useState<number>(
+    FREE_PLAN.artigosMes
   );
+  const [hasStripePortal, setHasStripePortal] = useState<boolean>(false);
+  const [highlightPlanId, setHighlightPlanId] = useState<string | null>(null);
+  const [initialBillingCycle, setInitialBillingCycle] =
+    useState<BillingCycle>("monthly");
 
   // Active article workspace state
   const [artigoAtualId, setArtigoAtualId] = useState<string | null>(null);
@@ -220,16 +229,24 @@ export default function ArticleStudioApp() {
       if (!mounted) return;
       try {
         const params = new URLSearchParams(window.location.search);
-        const comprarParam = params.get("comprar") || params.get("pacote");
+        const planParam =
+          params.get("assinar") || params.get("comprar") || params.get("pacote");
+        const cicloParam = params.get("ciclo");
         const stripeState = params.get("stripe");
+
+        if (cicloParam === "yearly") {
+          setInitialBillingCycle("yearly");
+        }
 
         if (stripeState === "cancel") {
           setEstado(
-            "Pagamento cancelado na Stripe. Você pode continuar no Plano Gratuito ou escolher outro pacote."
+            "Assinatura cancelada na Stripe. Você pode continuar no Plano Grátis ou escolher outro plano."
           );
           window.history.replaceState({}, "", "/studio");
-        } else if (comprarParam && comprarParam !== "free" && !stripeState) {
-          setHighlightPackageId(comprarParam);
+        } else if (stripeState === "portal_return") {
+          window.history.replaceState({}, "", "/studio");
+        } else if (planParam && planParam !== "free" && !stripeState) {
+          setHighlightPlanId(planParam);
           setModalTipo("upgrade");
           window.history.replaceState({}, "", "/studio");
         }
@@ -258,44 +275,47 @@ export default function ArticleStudioApp() {
 
     void (async () => {
       try {
-        setEstado("A confirmar pagamento na Stripe…");
+        setEstado("A confirmar assinatura na Stripe…");
         const res = await fetch(
           `/api/stripe/verify-session?session_id=${encodeURIComponent(sessionId)}`
         );
         const data = (await res.json()) as {
           paid?: boolean;
-          articlesGranted?: number;
+          planId?: string;
+          billingCycle?: BillingCycle;
+          articlesPerMonth?: number;
           erro?: string;
         };
         if (!mounted) return;
 
-        if (res.ok && data.paid) {
+        if (res.ok && data.paid && data.planId) {
           setPlanoGeracao("paid");
+          setActivePlanId(data.planId);
+          setHasStripePortal(true);
+          const limit = data.articlesPerMonth ?? FREE_PLAN.artigosMes;
+          setMonthlyLimit(limit);
           try {
             localStorage.setItem(STORAGE_PLAN, "paid");
           } catch {
             // Ignora
           }
-          const qtd = data.articlesGranted ?? 1;
-          setArticleCredits((prev) => prev + qtd);
+          const planLabel = getPlanDisplayName(data.planId);
           setEstado(
-            `Pagamento confirmado via Stripe! ${qtd} ${
-              qtd === 1 ? "crédito adicionado" : "créditos adicionados"
-            } à sua conta.`
+            `Assinatura ${planLabel} confirmada via Stripe! ${limit} artigos por mês liberados.`
           );
           registrarNotificacao(
-            "Pagamento Stripe confirmado",
-            `${qtd} ${qtd === 1 ? "artigo" : "artigos"} liberados no Plano Pago Gemini`
+            "Assinatura Stripe confirmada",
+            `Plano ${planLabel} (${limit} artigos/mês) ativo no Google Gemini`
           );
         } else {
           setErroGeral(
-            data.erro ?? "Não foi possível confirmar o pagamento na Stripe."
+            data.erro ?? "Não foi possível confirmar a assinatura na Stripe."
           );
           setEstado("");
         }
       } catch {
         if (mounted) {
-          setErroGeral("Erro ao validar a sessão de pagamento da Stripe.");
+          setErroGeral("Erro ao validar a sessão de assinatura da Stripe.");
           setEstado("");
         }
       } finally {
@@ -418,9 +438,14 @@ export default function ArticleStudioApp() {
 
     const unsubPlan = subscribeUserPlan(uid, (info) => {
       if (!mounted) return;
-      setArticleCredits(info.articleCredits);
-      if (info.planoGeracao === "paid") {
-        setPlanoGeracao("paid");
+      setActivePlanId(info.plan);
+      setMonthlyLimit(info.monthlyLimit);
+      setHasStripePortal(info.hasStripePortal);
+      setPlanoGeracao(info.planoGeracao);
+      try {
+        localStorage.setItem(STORAGE_PLAN, info.planoGeracao);
+      } catch {
+        // Ignora
       }
     });
 
@@ -981,7 +1006,8 @@ export default function ArticleStudioApp() {
         onCloseMobile={() => setMobileMenuOpen(false)}
         ocupado={ocupado}
         planoGeracao={planoGeracao}
-        articleCredits={articleCredits}
+        activePlanId={activePlanId}
+        monthlyLimit={monthlyLimit}
       />
 
       <div className="flex min-w-0 min-h-0 flex-1 flex-col px-4 py-4 sm:px-6 lg:px-8 xl:overflow-hidden">
@@ -1129,15 +1155,19 @@ export default function ArticleStudioApp() {
       </div>
 
       <InfoModal
+        key={`${modalTipo ?? "closed"}-${initialBillingCycle}-${highlightPlanId ?? "none"}`}
         tipo={modalTipo}
         onClose={() => {
           setModalTipo(null);
-          setHighlightPackageId(null);
+          setHighlightPlanId(null);
         }}
         planoGeracao={planoGeracao}
         onSelectPlanoGeracao={handleChangePlanoGeracao}
-        articleCredits={articleCredits}
-        highlightPackageId={highlightPackageId}
+        activePlanId={activePlanId}
+        monthlyLimit={monthlyLimit}
+        hasStripePortal={hasStripePortal}
+        highlightPlanId={highlightPlanId}
+        initialBillingCycle={initialBillingCycle}
       />
       <FloatingRobotAssistant
         context="studio"

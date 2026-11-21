@@ -1,97 +1,99 @@
-export const USD_TO_BRL = 5.9337;
+export type BillingCycle = "monthly" | "yearly";
 
-export type CurrencyCode = "BRL" | "USD";
+export type PaidPlanId = "starter" | "pro" | "agencia";
+export type PlanId = "free" | PaidPlanId;
 
-export type PricingTier = {
-  id: string;
+export type SubscriptionPlan = {
+  id: PaidPlanId;
   nome: string;
-  artigos: number;
-  precoPorArtigoUsd: number;
-  totalUsd: number;
-  totalBrl: number;
-  descontoPct: number;
+  artigosMes: number;
+  precoMensalBrl: number;
+  precoAnualBrl: number;
+  equivalenteMensalAnualBrl: number;
   destaque?: "popular" | "melhor-valor";
   descricao: string;
 };
 
-export const PRICING_TIERS: PricingTier[] = [
+export const FREE_PLAN = {
+  id: "free" as const,
+  nome: "Grátis",
+  artigosMes: 2,
+  precoMensalBrl: 0,
+  descricao: "Para conhecer o Artigen sem compromisso.",
+  recursos: [
+    "2 artigos por mês",
+    "Pesquisa na web e exportação em HTML",
+    "Imagens por seção",
+    "Sem cartão de crédito",
+  ],
+};
+
+export const SUBSCRIPTION_PLANS: SubscriptionPlan[] = [
   {
-    id: "avulso-1",
-    nome: "Artigo Avulso",
-    artigos: 1,
-    precoPorArtigoUsd: 1.25,
-    totalUsd: 1.25,
-    totalBrl: 7.42,
-    descontoPct: 0,
-    descricao: "Ideal para testar ou publicar um artigo pontual completo",
+    id: "starter",
+    nome: "Starter",
+    artigosMes: 5,
+    precoMensalBrl: 34.9,
+    precoAnualBrl: 349.0,
+    equivalenteMensalAnualBrl: 29.08,
+    descricao: "Para blogs iniciantes com ritmo semanal de publicação.",
   },
   {
-    id: "pacote-5",
-    nome: "Pacote 5 Artigos",
-    artigos: 5,
-    precoPorArtigoUsd: 1.2,
-    totalUsd: 6.0,
-    totalBrl: 35.6,
-    descontoPct: 4,
-    descricao: "Para blogs iniciantes com ritmo semanal de publicação",
-  },
-  {
-    id: "pacote-10",
-    nome: "Pacote 10 Artigos",
-    artigos: 10,
-    precoPorArtigoUsd: 1.1,
-    totalUsd: 11.0,
-    totalBrl: 65.27,
-    descontoPct: 12,
-    descricao: "Ótimo equilíbrio para manter consistência editorial mensal",
-  },
-  {
-    id: "pacote-16",
-    nome: "Pacote 16 Artigos",
-    artigos: 16,
-    precoPorArtigoUsd: 1.0,
-    totalUsd: 16.0,
-    totalBrl: 94.94,
-    descontoPct: 20,
+    id: "pro",
+    nome: "Pro",
+    artigosMes: 16,
+    precoMensalBrl: 94.9,
+    precoAnualBrl: 949.0,
+    equivalenteMensalAnualBrl: 79.08,
     destaque: "popular",
-    descricao: "O mais escolhido por criadores e estrategistas de conteúdo",
+    descricao:
+      "Para criadores e estrategistas de conteúdo que publicam com frequência.",
   },
   {
-    id: "pacote-20",
-    nome: "Pacote 20 Artigos",
-    artigos: 20,
-    precoPorArtigoUsd: 0.95,
-    totalUsd: 19.0,
-    totalBrl: 112.74,
-    descontoPct: 24,
-    descricao: "Escala editorial para projetos multi-temáticos e SEO",
-  },
-  {
-    id: "pacote-30",
-    nome: "Pacote 30 Artigos",
-    artigos: 30,
-    precoPorArtigoUsd: 0.85,
-    totalUsd: 25.5,
-    totalBrl: 151.31,
-    descontoPct: 32,
+    id: "agencia",
+    nome: "Agência",
+    artigosMes: 30,
+    precoMensalBrl: 149.9,
+    precoAnualBrl: 1499.0,
+    equivalenteMensalAnualBrl: 124.92,
     destaque: "melhor-valor",
-    descricao: "Menor custo por artigo para publicação diária e agências",
+    descricao: "Para publicação diária, agências e equipes de SEO.",
   },
 ];
 
-export function formatCurrency(value: number, currency: CurrencyCode): string {
+export const SUBSCRIPTION_FAQS = [
+  {
+    q: "Posso cancelar quando quiser?",
+    a: "Sim. Você cancela a qualquer momento no portal do cliente, e o acesso continua até o fim do período já pago.",
+  },
+  {
+    q: "Os artigos que não usei acumulam para o mês seguinte?",
+    a: "Não. A cota de artigos é renovada a cada mês e não acumula.",
+  },
+  {
+    q: "Quais formas de pagamento são aceitas?",
+    a: "Cartão de crédito via Stripe em Real (R$).",
+  },
+  {
+    q: "O que acontece se o pagamento falhar?",
+    a: "Avisamos você por e-mail e tentamos cobrar novamente. Se não for resolvido, a conta volta ao plano Grátis.",
+  },
+  {
+    q: "Posso mudar de plano?",
+    a: "Sim, você faz upgrade ou downgrade pelo portal do cliente, e o valor é ajustado proporcionalmente.",
+  },
+] as const;
+
+export function formatBrl(value: number): string {
   const formatted = value.toLocaleString("pt-BR", {
-    minimumFractionDigits: 2,
+    minimumFractionDigits: value === 0 ? 0 : 2,
     maximumFractionDigits: 2,
   });
-  return currency === "BRL" ? `R$ ${formatted}` : `US$ ${formatted}`;
+  return `R$ ${formatted}`;
 }
 
-export function getPerArticlePrice(
-  tier: PricingTier,
-  currency: CurrencyCode
-): number {
-  return currency === "BRL"
-    ? tier.totalBrl / tier.artigos
-    : tier.precoPorArtigoUsd;
+export function getPlanDisplayName(planId: string): string {
+  if (planId === "free") return FREE_PLAN.nome;
+  const found = SUBSCRIPTION_PLANS.find((p) => p.id === planId);
+  return found?.nome ?? "Plano Pago";
 }

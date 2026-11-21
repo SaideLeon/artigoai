@@ -15,7 +15,6 @@ import {
   Mail,
   Menu,
   Moon,
-  Package,
   Play,
   Search,
   Sliders,
@@ -38,11 +37,11 @@ import type {
   RobotExpression,
 } from "@/components/mascot/RobotAnimations";
 import {
-  PRICING_TIERS,
-  USD_TO_BRL,
-  formatCurrency,
-  getPerArticlePrice,
-  type CurrencyCode,
+  FREE_PLAN,
+  SUBSCRIPTION_PLANS,
+  SUBSCRIPTION_FAQS,
+  formatBrl,
+  type BillingCycle,
 } from "@/lib/pricing";
 
 type PreviewPresetId = "produtividade" | "noticia" | "seo";
@@ -195,7 +194,7 @@ export default function LandingPage() {
   const [presetId, setPresetId] = useState<PreviewPresetId>("produtividade");
   const [activeStep, setActiveStep] = useState<number>(0);
   const [mascotInteractClicks, setMascotInteractClicks] = useState(0);
-  const [currency, setCurrency] = useState<CurrencyCode>("BRL");
+  const [billingCycle, setBillingCycle] = useState<BillingCycle>("monthly");
   const [openFaq, setOpenFaq] = useState<number | null>(0);
 
   // Contact form state
@@ -219,7 +218,7 @@ export default function LandingPage() {
   }
 
   function handleSelectEnterprise() {
-    setAssunto("Pacote Personalizado");
+    setAssunto("Plano Personalizado");
     setFormEnviado(false);
     const el = document.getElementById("contato");
     el?.scrollIntoView({ behavior: "smooth" });
@@ -944,72 +943,109 @@ export default function LandingPage() {
           <div className="mx-auto max-w-[1280px] px-4 sm:px-6 lg:px-8">
             <div className="mx-auto max-w-2xl text-center">
               <h2 className="text-[clamp(1.75rem,2.8vw,2.35rem)] font-bold tracking-tight text-slate-950 dark:text-white text-balance">
-                Preços por Artigo e Pacotes
+                Planos e preços
               </h2>
               <p className="mt-2.5 text-base text-slate-600 dark:text-slate-400">
-                Pague apenas pelo que produzir — compre 1 artigo avulso ou
-                economize até 32% com pacotes de créditos.
+                Escolha o plano ideal para o seu ritmo de publicação. Cancele
+                quando quiser.
               </p>
 
-              {/* Segmented Currency Switcher */}
+              {/* Alternador Mensal | Anual */}
               <div className="mt-6 inline-flex items-center gap-1 rounded-xl border border-slate-200 bg-white p-1 dark:border-slate-800 dark:bg-slate-900">
                 <button
                   type="button"
-                  onClick={() => setCurrency("BRL")}
+                  onClick={() => setBillingCycle("monthly")}
                   className={`rounded-lg px-4 py-2 text-xs font-semibold transition-colors whitespace-nowrap shrink-0 ${
-                    currency === "BRL"
+                    billingCycle === "monthly"
                       ? "bg-indigo-600 text-white"
                       : "text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white"
                   }`}
                 >
-                  Real (R$)
+                  Mensal
                 </button>
                 <button
                   type="button"
-                  onClick={() => setCurrency("USD")}
-                  className={`rounded-lg px-4 py-2 text-xs font-semibold transition-colors whitespace-nowrap shrink-0 ${
-                    currency === "USD"
+                  onClick={() => setBillingCycle("yearly")}
+                  className={`inline-flex items-center gap-2 rounded-lg px-4 py-2 text-xs font-semibold transition-colors whitespace-nowrap shrink-0 ${
+                    billingCycle === "yearly"
                       ? "bg-indigo-600 text-white"
                       : "text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white"
                   }`}
                 >
-                  Dólar (US$)
+                  <span>Anual</span>
+                  <span
+                    className={`text-[11px] font-bold ${
+                      billingCycle === "yearly"
+                        ? "text-amber-200"
+                        : "text-emerald-600 dark:text-emerald-400"
+                    }`}
+                  >
+                    2 meses grátis
+                  </span>
                 </button>
               </div>
-              <p className="mt-3 text-xs text-slate-500 dark:text-slate-400">
-                Pacotes pagos geram artigos e imagens exclusivamente com modelos{" "}
-                <strong className="font-semibold text-slate-700 dark:text-slate-200">
-                  Google Gemini
-                </strong>{" "}
-                (~2.500 palavras e até 7 imagens 1K) · Plano gratuito utiliza{" "}
-                <strong className="font-semibold text-slate-700 dark:text-slate-200">
-                  OpenRouter (texto), Groq (pesquisa) e NVIDIA (imagens)
-                </strong>{" "}
-                · Cotação: 1 USD = R${" "}
-                {USD_TO_BRL.toLocaleString("pt-BR", {
-                  minimumFractionDigits: 4,
-                  maximumFractionDigits: 4,
-                })}
-              </p>
             </div>
 
-            <div className="mt-10 grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
-              {PRICING_TIERS.map((tier) => {
-                const isPopular = tier.destaque === "popular";
-                const isBestValue = tier.destaque === "melhor-valor";
-                const totalPrice =
-                  currency === "BRL" ? tier.totalBrl : tier.totalUsd;
-                const altTotal =
-                  currency === "BRL" ? tier.totalUsd : tier.totalBrl;
-                const altCurrency: CurrencyCode =
-                  currency === "BRL" ? "USD" : "BRL";
-                const perArticle = getPerArticlePrice(tier, currency);
-                const Icon = tier.artigos === 1 ? FileText : Package;
+            <div className="mt-10 grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
+              {/* Plano Grátis */}
+              <div className="flex flex-col justify-between rounded-2xl border border-slate-200/90 bg-white p-6 dark:border-slate-800 dark:bg-slate-900">
+                <div>
+                  <div className="flex items-start justify-between gap-2">
+                    <div>
+                      <h3 className="text-lg font-bold text-slate-900 dark:text-white">
+                        {FREE_PLAN.nome}
+                      </h3>
+                      <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                        {FREE_PLAN.descricao}
+                      </p>
+                    </div>
+                    <FileText className="h-5 w-5 shrink-0 text-slate-400" />
+                  </div>
+
+                  <div className="mt-6 flex items-baseline gap-1.5">
+                    <span className="font-mono text-3xl font-bold text-slate-950 dark:text-white tabular-nums">
+                      {formatBrl(FREE_PLAN.precoMensalBrl)}
+                    </span>
+                    <span className="text-xs font-medium text-slate-500 dark:text-slate-400">
+                      / mês
+                    </span>
+                  </div>
+
+                  <p className="mt-1.5 text-xs text-slate-500 dark:text-slate-400">
+                    OpenRouter, Groq e NVIDIA
+                  </p>
+
+                  <ul className="mt-6 space-y-2.5 text-sm text-slate-600 dark:text-slate-300">
+                    {FREE_PLAN.recursos.map((recurso) => (
+                      <li key={recurso} className="flex items-start gap-2.5">
+                        <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
+                        <span>{recurso}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+
+                <Link
+                  href="/studio"
+                  className="mt-8 inline-flex w-full items-center justify-center rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm font-semibold text-slate-800 transition-colors hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:hover:bg-slate-700 whitespace-nowrap"
+                >
+                  Começar grátis
+                </Link>
+              </div>
+
+              {/* 3 Planos pagos: Starter, Pro, Agência */}
+              {SUBSCRIPTION_PLANS.map((plan) => {
+                const isPopular = plan.destaque === "popular";
+                const isBestValue = plan.destaque === "melhor-valor";
+                const displayPrice =
+                  billingCycle === "yearly"
+                    ? plan.equivalenteMensalAnualBrl
+                    : plan.precoMensalBrl;
 
                 return (
                   <div
-                    key={tier.id}
-                    className={`flex flex-col justify-between rounded-2xl bg-white p-7 dark:bg-slate-900 ${
+                    key={plan.id}
+                    className={`flex flex-col justify-between rounded-2xl bg-white p-6 dark:bg-slate-900 ${
                       isPopular
                         ? "border-2 border-indigo-600 shadow-lg shadow-indigo-950/10 dark:border-indigo-500"
                         : isBestValue
@@ -1018,7 +1054,7 @@ export default function LandingPage() {
                     }`}
                   >
                     <div>
-                      <div className="flex items-start justify-between gap-3">
+                      <div className="flex items-start justify-between gap-2">
                         <div>
                           {isPopular && (
                             <span className="mb-0.5 block text-xs font-semibold text-indigo-600 dark:text-indigo-400">
@@ -1031,91 +1067,89 @@ export default function LandingPage() {
                             </span>
                           )}
                           <h3 className="text-lg font-bold text-slate-900 dark:text-white">
-                            {tier.nome}
+                            {plan.nome}
                           </h3>
                           <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-                            {tier.descricao}
+                            {plan.descricao}
                           </p>
                         </div>
-                        <Icon className="h-5 w-5 shrink-0 text-indigo-600 dark:text-indigo-400" />
+                        <Sparkles className="h-5 w-5 shrink-0 text-indigo-600 dark:text-indigo-400" />
                       </div>
 
-                      <div className="mt-6 flex items-baseline gap-2">
+                      <div className="mt-6 flex items-baseline gap-1.5">
                         <span className="font-mono text-3xl font-bold text-slate-950 dark:text-white tabular-nums">
-                          {formatCurrency(totalPrice, currency)}
+                          {formatBrl(displayPrice)}
                         </span>
                         <span className="text-xs font-medium text-slate-500 dark:text-slate-400">
-                          /{" "}
-                          {tier.artigos === 1
-                            ? "1 artigo"
-                            : `${tier.artigos} artigos`}
+                          / mês
                         </span>
                       </div>
 
-                      <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">
-                        <span className="font-semibold text-slate-700 dark:text-slate-200 tabular-nums">
-                          {formatCurrency(perArticle, currency)} por artigo
-                        </span>
-                        {tier.descontoPct > 0 ? (
-                          <span className="font-semibold text-emerald-600 dark:text-emerald-400">
-                            · {tier.descontoPct}% off vs. avulso
-                          </span>
-                        ) : (
-                          <span className="text-slate-500 dark:text-slate-400">
-                            · Compra avulsa sem assinatura
-                          </span>
-                        )}
-                      </div>
-
-                      <p className="mt-1 text-[11px] text-slate-400 dark:text-slate-500 tabular-nums">
-                        Equivalente a {formatCurrency(altTotal, altCurrency)}
-                      </p>
+                      {billingCycle === "yearly" ? (
+                        <p className="mt-1.5 text-xs font-medium text-emerald-700 dark:text-emerald-400 tabular-nums">
+                          {formatBrl(plan.precoAnualBrl)} por ano (equivale a{" "}
+                          {formatBrl(plan.equivalenteMensalAnualBrl)}/mês)
+                        </p>
+                      ) : (
+                        <p className="mt-1.5 text-xs text-slate-500 dark:text-slate-400 tabular-nums">
+                          ou {formatBrl(plan.precoAnualBrl)} por ano (equivale a{" "}
+                          {formatBrl(plan.equivalenteMensalAnualBrl)}/mês)
+                        </p>
+                      )}
 
                       <ul className="mt-6 space-y-2.5 text-sm text-slate-600 dark:text-slate-300">
-                        <li className="flex items-center gap-2.5">
-                          <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
+                        <li className="flex items-start gap-2.5">
+                          <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
                           <span>
-                            {tier.artigos === 1
-                              ? "1 artigo completo (~2.500 palavras)"
-                              : `${tier.artigos} créditos de artigo (~2.500 palavras cada)`}
+                            <strong className="font-semibold text-slate-900 dark:text-white">
+                              {plan.artigosMes} artigos por mês
+                            </strong>{" "}
+                            (~2.500 palavras cada)
                           </span>
                         </li>
-                        <li className="flex items-center gap-2.5">
-                          <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
+                        <li className="flex items-start gap-2.5">
+                          <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
                           <span>Até 7 imagens em qualidade 1K por artigo</span>
                         </li>
-                        <li className="flex items-center gap-2.5">
-                          <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
-                          <span>Pesquisa web, SEO e exportação HTML</span>
+                        <li className="flex items-start gap-2.5">
+                          <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
+                          <span>Pesquisa na web, SEO e exportação em HTML</span>
+                        </li>
+                        <li className="flex items-start gap-2.5">
+                          <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
+                          <span>Geração com modelos Google Gemini</span>
                         </li>
                       </ul>
                     </div>
 
                     <Link
-                      href={`/studio?comprar=${tier.id}`}
+                      href={`/studio?assinar=${plan.id}&ciclo=${billingCycle}`}
                       className={`mt-8 inline-flex w-full items-center justify-center rounded-xl px-4 py-3 text-sm font-semibold transition-all whitespace-nowrap ${
                         isPopular
                           ? "bg-gradient-to-r from-[#5B4AF4] to-[#2563EB] text-white shadow-md shadow-indigo-600/20 hover:brightness-110"
                           : "border border-indigo-600/30 bg-indigo-50/60 text-indigo-700 hover:bg-indigo-100/70 dark:border-indigo-500/40 dark:bg-indigo-950/40 dark:text-indigo-300 dark:hover:bg-indigo-950/70"
                       }`}
                     >
-                      {tier.artigos === 1
-                        ? "Comprar com Stripe"
-                        : "Comprar Pacote · Stripe"}
+                      Assinar
                     </Link>
                   </div>
                 );
               })}
             </div>
 
-            <div className="mt-8 flex flex-col items-start justify-between gap-4 rounded-2xl border border-slate-200/90 bg-white px-6 py-5 sm:flex-row sm:items-center dark:border-slate-800 dark:bg-slate-900">
+            <p className="mt-6 text-center text-xs text-slate-500 dark:text-slate-400">
+              Cancele quando quiser · Os artigos não usados não acumulam para o
+              mês seguinte · Pagamentos em Real (R$) via Stripe.
+            </p>
+
+            <div className="mt-6 flex flex-col items-start justify-between gap-4 rounded-2xl border border-slate-200/90 bg-white px-6 py-5 sm:flex-row sm:items-center dark:border-slate-800 dark:bg-slate-900">
               <div>
                 <h3 className="text-sm font-bold text-slate-900 dark:text-white">
-                  Precisa de alto volume ou pacotes personalizados para sua agência?
+                  Precisa de mais volume ou de um plano personalizado?
                 </h3>
                 <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
-                  Também disponibilizamos volumes sob medida e suporte dedicado
-                  para redações e equipas de SEO.
+                  Montamos um plano sob medida para a sua agência ou redação, com
+                  suporte dedicado.
                 </p>
               </div>
               <button
@@ -1123,8 +1157,27 @@ export default function LandingPage() {
                 onClick={handleSelectEnterprise}
                 className="inline-flex shrink-0 items-center justify-center rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-xs font-semibold text-slate-800 transition-colors hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:hover:bg-slate-700 whitespace-nowrap"
               >
-                Falar com Vendas
+                Falar com vendas
               </button>
+            </div>
+
+            {/* Perguntas sobre as assinaturas */}
+            <div className="mt-12 rounded-2xl border border-slate-200/80 bg-white p-6 sm:p-8 dark:border-slate-800 dark:bg-slate-900">
+              <h3 className="text-lg font-bold text-slate-950 dark:text-white">
+                Perguntas sobre as assinaturas
+              </h3>
+              <div className="mt-6 grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
+                {SUBSCRIPTION_FAQS.map((item) => (
+                  <div key={item.q} className="space-y-1.5">
+                    <h4 className="text-sm font-bold text-slate-900 dark:text-white">
+                      {item.q}
+                    </h4>
+                    <p className="text-xs leading-relaxed text-slate-600 dark:text-slate-300">
+                      {item.a}
+                    </p>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
         </section>
@@ -1280,8 +1333,8 @@ export default function LandingPage() {
                       className="w-full rounded-xl border border-slate-200 bg-slate-50/70 px-3.5 py-2.5 text-sm text-slate-900 focus:border-indigo-500 focus:bg-white focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
                     >
                       <option value="Dúvida geral">Dúvida geral</option>
-                      <option value="Pacote de Artigos">Pacote de Artigos</option>
-                      <option value="Pacote Personalizado">Pacote Personalizado</option>
+                      <option value="Assinaturas">Assinaturas</option>
+                      <option value="Plano Personalizado">Plano Personalizado</option>
                       <option value="Suporte técnico">Suporte técnico</option>
                     </select>
                   </div>

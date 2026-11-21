@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { createClient as createSupabaseServerClient } from "@/utils/supabase/server";
 import { getStripeClient, isStripeConfigured } from "@/lib/stripe";
-import { fulfillStripeCheckoutSession } from "@/lib/stripe-fulfillment";
+import { fulfillSubscriptionCheckoutSession } from "@/lib/stripe-fulfillment";
 
 export async function GET(req: NextRequest) {
   try {
@@ -30,7 +30,7 @@ export async function GET(req: NextRequest) {
 
     if (authError || !user) {
       return NextResponse.json(
-        { erro: "Sessão de utilizador necessária para confirmar o pagamento." },
+        { erro: "Sessão de utilizador necessária para confirmar a assinatura." },
         { status: 401 }
       );
     }
@@ -40,38 +40,38 @@ export async function GET(req: NextRequest) {
 
     if (session.metadata?.user_id && session.metadata.user_id !== user.id) {
       return NextResponse.json(
-        { erro: "Esta sessão de pagamento pertence a outra conta." },
+        { erro: "Esta sessão de assinatura pertence a outra conta." },
         { status: 403 }
       );
     }
 
-    if (session.payment_status !== "paid") {
+    if (session.payment_status !== "paid" && session.status !== "complete") {
       return NextResponse.json({
         paid: false,
         status: session.payment_status,
-        erro: "Pagamento ainda pendente de confirmação.",
+        erro: "Assinatura ainda pendente de confirmação.",
       });
     }
 
-    const result = await fulfillStripeCheckoutSession(session);
+    const result = await fulfillSubscriptionCheckoutSession(session, stripe);
 
     return NextResponse.json({
       paid: true,
-      packageId: result.packageId,
-      articlesGranted: result.articlesGranted,
+      planId: result.planId,
+      billingCycle: result.billingCycle,
+      articlesPerMonth: result.articlesPerMonth,
       amountCents: result.amountCents,
-      currency: result.currency,
       dbUpdated: result.dbUpdated,
       alreadyProcessed: result.alreadyProcessed,
     });
   } catch (err) {
-    console.error("Erro ao verificar sessão Stripe:", err);
+    console.error("Erro ao verificar assinatura Stripe:", err);
     return NextResponse.json(
       {
         erro:
           err instanceof Error
             ? err.message
-            : "Falha ao verificar o pagamento na Stripe.",
+            : "Falha ao verificar a assinatura na Stripe.",
       },
       { status: 500 }
     );

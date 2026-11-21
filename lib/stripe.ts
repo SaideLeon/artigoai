@@ -1,5 +1,9 @@
 import Stripe from "stripe";
-import { PRICING_TIERS, type CurrencyCode, type PricingTier } from "@/lib/pricing";
+import {
+  SUBSCRIPTION_PLANS,
+  type BillingCycle,
+  type SubscriptionPlan,
+} from "@/lib/pricing";
 
 let stripeInstance: Stripe | null = null;
 
@@ -20,14 +24,17 @@ export function getStripeClient(): Stripe {
   return stripeInstance;
 }
 
-export function findPricingTier(packageId: string): PricingTier | undefined {
-  return PRICING_TIERS.find((t) => t.id === packageId);
+export function findSubscriptionPlan(
+  planId: string
+): SubscriptionPlan | undefined {
+  return SUBSCRIPTION_PLANS.find((p) => p.id === planId);
 }
 
-export function getStripeAmountCents(
-  tier: PricingTier,
-  currency: CurrencyCode
+export function getSubscriptionAmountCents(
+  plan: SubscriptionPlan,
+  billingCycle: BillingCycle
 ): number {
-  const value = currency === "BRL" ? tier.totalBrl : tier.totalUsd;
+  const value =
+    billingCycle === "yearly" ? plan.precoAnualBrl : plan.precoMensalBrl;
   return Math.round(value * 100);
 }
