@@ -108,10 +108,10 @@ const WORKFLOW_STEPS = [
   {
     num: "01",
     short: "Configure",
-    titulo: "Configure seu artigo",
+    titulo: "Configure o artigo do blog",
     desc: "Insira apenas o título principal ou personalize palavras-chave, tom, idioma, escrita em primeira pessoa e pesquisa web.",
     detalhe:
-      "Se preferir começar rápido, basta digitar o título: a IA sugere descrição, palavras-chave e estilo para você revisar ou editar.",
+      "Se preferir começar rápido, basta digitar o título: a IA sugere descrição, palavras-chave e estilo para você revisar ou editar antes de gerar.",
   },
   {
     num: "02",
@@ -119,15 +119,15 @@ const WORKFLOW_STEPS = [
     titulo: "Geração com IA e pesquisa",
     desc: "O estúdio consulta fontes atualizadas quando necessário, cria o esboço e redige cada secção mantendo continuidade.",
     detalhe:
-      "Cada capítulo é escrito com contexto progressivo do que já foi produzido e recebe uma ilustração exclusiva sob medida.",
+      "Cada capítulo do post é escrito com contexto progressivo do que já foi produzido e recebe uma ilustração exclusiva sob medida.",
   },
   {
     num: "03",
     short: "Publique",
-    titulo: "Edite e publique",
-    desc: "Ajuste qualquer parágrafo diretamente na prévia, salve nos favoritos ou exporte um arquivo HTML limpo e pronto.",
+    titulo: "Edite e publique no blog",
+    desc: "Ajuste qualquer parágrafo diretamente na prévia, salve nos favoritos ou exporte um arquivo HTML limpo e pronto para blogs.",
     detalhe:
-      "Acompanhe a contagem exata de palavras, revise as fontes consultadas e leve o artigo pronto para o seu blog ou CMS.",
+      "Acompanhe a contagem exata de palavras, revise as fontes consultadas e leve o artigo pronto para o seu blog, WordPress ou outro CMS.",
   },
 ] as const;
 
@@ -440,7 +440,7 @@ export default function LandingPage() {
                 </li>
                 <li className="flex items-center gap-2.5">
                   <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
-                  <span>Edição ao vivo e exportação em HTML limpo</span>
+                  <span>Edição ao vivo e exportação em HTML limpo para o seu blog</span>
                 </li>
               </ul>
 
@@ -574,8 +574,8 @@ export default function LandingPage() {
               Recursos Poderosos
             </h2>
             <p className="mt-2.5 text-base text-slate-600 dark:text-slate-400">
-              Tudo o que você precisa para pesquisar, escrever e publicar
-              conteúdos de alto impacto.
+              Tudo o que você precisa para pesquisar, criar artigos para blogs e
+              publicar conteúdos de alto impacto.
             </p>
           </div>
 
@@ -593,10 +593,11 @@ export default function LandingPage() {
                   Geração Secção a Secção com Pesquisa Web
                 </h3>
                 <p className="max-w-2xl text-sm leading-relaxed text-slate-600 dark:text-slate-400">
-                  Produza artigos de 800 a 3.200 palavras sem perder coerência
-                  entre capítulos. Quando o tema envolve atualidades, notícias ou
-                  dados técnicos, o estúdio consulta fontes reais na web antes
-                  de redigir e cita as referências ao final.
+                  Crie artigos completos para blogs de 800 a 3.200 palavras sem
+                  perder coerência entre capítulos. Quando o tema envolve
+                  atualidades, notícias ou dados técnicos, o estúdio consulta
+                  fontes reais na web antes de redigir e cita as referências ao
+                  final.
                 </p>
               </div>
               <div className="mt-5 flex flex-wrap items-center gap-2 border-t border-slate-100 pt-4 text-xs text-slate-500 dark:border-slate-800 dark:text-slate-400">
@@ -704,7 +705,8 @@ export default function LandingPage() {
                 </h3>
                 <p className="max-w-3xl text-sm text-slate-600 dark:text-slate-400">
                   Adicione ou remova secções, acompanhe a densidade de palavras
-                  em tempo real e exporte o artigo formatado com um clique.
+                  em tempo real e exporte o artigo formatado para publicar no
+                  seu blog com um clique.
                 </p>
               </div>
               <Link
@@ -731,8 +733,8 @@ export default function LandingPage() {
                     Como Funciona?
                   </h2>
                   <p className="mt-2 text-base text-slate-600 dark:text-slate-400">
-                    Em apenas 3 passos, leve sua ideia do título ao artigo
-                    publicável.
+                    Em apenas 3 passos, leve sua ideia do título ao artigo pronto
+                    para publicar no seu blog.
                   </p>
                 </div>
 
@@ -945,8 +947,8 @@ export default function LandingPage() {
                 Planos e preços
               </h2>
               <p className="mt-2.5 text-base text-slate-600 dark:text-slate-400">
-                Escolha o plano ideal para o seu ritmo de publicação. Cancele
-                quando quiser.
+                Escolha o plano ideal para o ritmo de publicação do seu blog.
+                Cancele quando quiser.
               </p>
 
               {/* Alternador Mensal | Anual */}
@@ -1386,11 +1388,11 @@ export default function LandingPage() {
                 </span>
                 <div>
                   <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-balance">
-                    Pronto para transformar sua forma de criar conteúdo?
+                    Pronto para criar artigos para o seu blog?
                   </h2>
                   <p className="mt-1 text-sm text-slate-300">
                     Comece agora mesmo no estúdio e publique o seu próximo
-                    artigo completo em minutos.
+                    artigo de blog completo em minutos.
                   </p>
                 </div>
               </div>
@@ -1418,7 +1420,7 @@ export default function LandingPage() {
                 Artigen
               </span>
               <span className="block text-xs text-slate-400">
-                Gerador de Artigos com IA
+                Gerador de Artigos para Blogs com IA
               </span>
             </div>
           </div>
