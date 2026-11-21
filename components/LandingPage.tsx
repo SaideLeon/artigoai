@@ -31,7 +31,6 @@ import { useTheme } from "@/components/ThemeProvider";
 import { useAuth } from "@/components/AuthProvider";
 import RobotScene from "@/components/mascot/RobotScene";
 import HeroLaptop3D from "@/components/mascot/HeroLaptop3D";
-import FloatingRobotAssistant from "@/components/mascot/FloatingRobotAssistant";
 import type {
   RobotAnimationState,
   RobotExpression,
@@ -1481,8 +1480,6 @@ export default function LandingPage() {
           </div>
         </div>
       </footer>
-
-      <FloatingRobotAssistant context="landing" />
     </div>
   );
 }

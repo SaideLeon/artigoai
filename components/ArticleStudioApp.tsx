@@ -12,7 +12,6 @@ import {
   SettingsView,
 } from "@/components/LibraryViews";
 import InfoModal from "@/components/InfoModal";
-import FloatingRobotAssistant from "@/components/mascot/FloatingRobotAssistant";
 import type { RobotAnimationState } from "@/components/mascot/RobotAnimations";
 import { useAuth } from "@/components/AuthProvider";
 import { useTheme } from "@/components/ThemeProvider";
@@ -1169,12 +1168,6 @@ export default function ArticleStudioApp() {
         hasStripePortal={hasStripePortal}
         highlightPlanId={highlightPlanId}
         initialBillingCycle={initialBillingCycle}
-      />
-      <FloatingRobotAssistant
-        context="studio"
-        externalState={mascotState}
-        statusMessage={estado || erroGeral || undefined}
-        onQuickSuggest={sugerirComIa}
       />
     </div>
   );
