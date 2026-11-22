@@ -21,6 +21,7 @@ import {
   ExternalLink,
   SearchCheck,
   Info,
+  Link2,
 } from "lucide-react";
 import { motion } from "motion/react";
 import BrandLogo from "@/components/BrandLogo";
@@ -115,6 +116,8 @@ export default function ArticleWorkspace({
   const primeiraImagem = secoes.find((s) => s.img)?.img;
   const temConteudo = Boolean(titulo || secoes.length > 0);
   const activeWritingIndex = ocupado ? secoes.findIndex((s) => !s.texto) : -1;
+  const primarySourcesCount = fontes.filter((f) => f.tipo === "primaria").length;
+  const secondarySourcesCount = fontes.length - primarySourcesCount;
 
   async function copiarTexto() {
     if (!temConteudo) return;
@@ -437,13 +440,40 @@ export default function ArticleWorkspace({
               <span>
                 {primeiraPessoa ? "Primeira pessoa" : "Terceira pessoa"}
               </span>
-              {pesquisaUsada && (
+              {(pesquisaUsada || fontes.length > 0) && (
                 <>
                   <span aria-hidden="true">·</span>
-                  <span className="inline-flex items-center gap-1 font-medium text-indigo-700 dark:text-indigo-400">
-                    <SearchCheck className="h-3.5 w-3.5" />
-                    Pesquisa web
-                    {fontes.length > 0 ? ` (${fontes.length} fontes)` : ""}
+                  <span className="inline-flex flex-wrap items-center gap-1.5 font-medium">
+                    <SearchCheck className="h-3.5 w-3.5 text-indigo-700 dark:text-indigo-400" />
+                    {fontes.length > 0 ? (
+                      <span className="tabular-nums">
+                        {primarySourcesCount > 0 && (
+                          <span className="text-emerald-700 dark:text-emerald-400">
+                            {primarySourcesCount}{" "}
+                            {primarySourcesCount === 1
+                              ? "primária"
+                              : "primárias"}
+                          </span>
+                        )}
+                        {primarySourcesCount > 0 && secondarySourcesCount > 0 && (
+                          <span className="mx-1 text-slate-400" aria-hidden="true">
+                            ·
+                          </span>
+                        )}
+                        {secondarySourcesCount > 0 && (
+                          <span className="text-slate-600 dark:text-slate-300">
+                            {secondarySourcesCount}{" "}
+                            {secondarySourcesCount === 1
+                              ? "secundária"
+                              : "secundárias"}
+                          </span>
+                        )}
+                      </span>
+                    ) : (
+                      <span className="text-indigo-700 dark:text-indigo-400">
+                        Pesquisa web
+                      </span>
+                    )}
                   </span>
                 </>
               )}
@@ -582,9 +612,27 @@ export default function ArticleWorkspace({
 
             {fontes.length > 0 && (
               <aside className="mt-10 border-t border-slate-200 pt-6 dark:border-slate-800">
-                <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">
-                  Fontes consultadas na web
-                </h3>
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">
+                    Fontes consultadas
+                  </h3>
+                  <div className="flex flex-wrap items-center gap-2 text-[11px] font-semibold tabular-nums">
+                    <span className="inline-flex items-center gap-1 rounded-md border border-emerald-200/80 bg-emerald-50 px-2 py-0.5 text-emerald-800 dark:border-emerald-800/60 dark:bg-emerald-950/60 dark:text-emerald-300">
+                      <Link2 className="h-3 w-3" />
+                      <span>
+                        {primarySourcesCount}{" "}
+                        {primarySourcesCount === 1 ? "primária" : "primárias"}
+                      </span>
+                    </span>
+                    <span className="inline-flex items-center gap-1 rounded-md border border-slate-200 bg-slate-50 px-2 py-0.5 text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300">
+                      <SearchCheck className="h-3 w-3 text-indigo-600 dark:text-indigo-400" />
+                      <span>
+                        {secondarySourcesCount}{" "}
+                        {secondarySourcesCount === 1 ? "secundária" : "secundárias"}
+                      </span>
+                    </span>
+                  </div>
+                </div>
                 <ol className="mt-3 space-y-2.5 text-xs text-slate-600 dark:text-slate-400">
                   {fontes.map((fonte, idx) => {
                     const safeHref = /^https?:\/\//i.test(fonte.url)
