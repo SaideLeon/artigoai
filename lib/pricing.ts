@@ -64,7 +64,7 @@ export const SUBSCRIPTION_PLANS: SubscriptionPlan[] = [
 export const SUBSCRIPTION_FAQS = [
   {
     q: "Posso cancelar quando quiser?",
-    a: "Sim. Você cancela a qualquer momento no portal do cliente, e o acesso continua até o fim do período já pago.",
+    a: "Sim. Você cancela a qualquer momento no Portal do Assinante Cakto (assinatura.cakto.com.br), e o acesso continua até o fim do período já pago.",
   },
   {
     q: "Os artigos que não usei acumulam para o mês seguinte?",
@@ -72,15 +72,15 @@ export const SUBSCRIPTION_FAQS = [
   },
   {
     q: "Quais formas de pagamento são aceitas?",
-    a: "Cartão de crédito via Stripe em Real (R$).",
+    a: "Pix (aprovação imediata), Cartão de Crédito e Boleto via Cakto em Real (R$).",
   },
   {
     q: "O que acontece se o pagamento falhar?",
-    a: "Avisamos você por e-mail e tentamos cobrar novamente. Se não for resolvido, a conta volta ao plano Grátis.",
+    a: "Avisamos você por e-mail e você pode regularizar o pagamento pela Cakto. Se não for regularizado, a conta volta ao plano Grátis.",
   },
   {
     q: "Posso mudar de plano?",
-    a: "Sim, você faz upgrade ou downgrade pelo portal do cliente, e o valor é ajustado proporcionalmente.",
+    a: "Sim, você pode escolher outro plano ou gerir sua assinatura a qualquer momento pelo Portal do Assinante Cakto.",
   },
 ] as const;
 

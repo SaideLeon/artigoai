@@ -13,6 +13,8 @@ import {
   ExternalLink,
   ShieldCheck,
   Settings2,
+  QrCode,
+  RefreshCw,
 } from "lucide-react";
 import { motion } from "motion/react";
 import BrandLogo from "@/components/BrandLogo";
@@ -33,9 +35,13 @@ type InfoModalProps = {
   onSelectPlanoGeracao?: (plano: PlanoGeracao) => void;
   activePlanId?: string;
   monthlyLimit?: number;
-  hasStripePortal?: boolean;
+  hasSubscriptionPortal?: boolean;
   highlightPlanId?: string | null;
   initialBillingCycle?: BillingCycle;
+  onPaymentConfirmed?: (payload: {
+    planId: string;
+    articlesPerMonth: number;
+  }) => void;
 };
 
 export default function InfoModal({
@@ -45,16 +51,19 @@ export default function InfoModal({
   onSelectPlanoGeracao,
   activePlanId = "free",
   monthlyLimit = FREE_PLAN.artigosMes,
-  hasStripePortal = false,
+  hasSubscriptionPortal = false,
   highlightPlanId = null,
   initialBillingCycle = "monthly",
+  onPaymentConfirmed,
 }: InfoModalProps) {
   const { user, signInWithGoogle } = useAuth();
   const [billingCycle, setBillingCycle] =
     useState<BillingCycle>(initialBillingCycle);
   const [loadingPlanId, setLoadingPlanId] = useState<string | null>(null);
   const [openingPortal, setOpeningPortal] = useState(false);
+  const [verifyingPayment, setVerifyingPayment] = useState(false);
   const [checkoutError, setCheckoutError] = useState<string | null>(null);
+  const [pixInfoMessage, setPixInfoMessage] = useState<string | null>(null);
   const [needsAuthPrompt, setNeedsAuthPrompt] = useState(false);
   const [checkoutRedirectUrl, setCheckoutRedirectUrl] = useState<string | null>(
     null
@@ -62,8 +71,9 @@ export default function InfoModal({
 
   if (!tipo) return null;
 
-  async function handleSubscribeStripe(planId: string) {
+  async function handleSubscribeCakto(planId: string) {
     setCheckoutError(null);
+    setPixInfoMessage(null);
     setNeedsAuthPrompt(false);
     setCheckoutRedirectUrl(null);
 
@@ -74,7 +84,7 @@ export default function InfoModal({
 
     setLoadingPlanId(planId);
     try {
-      const res = await fetch("/api/stripe/checkout", {
+      const res = await fetch("/api/cakto/checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ planId, billingCycle }),
@@ -90,7 +100,7 @@ export default function InfoModal({
           setNeedsAuthPrompt(true);
         } else {
           setCheckoutError(
-            data.erro ?? "Não foi possível iniciar a assinatura na Stripe."
+            data.erro ?? "Não foi possível iniciar o checkout na Cakto."
           );
         }
         return;
@@ -100,15 +110,54 @@ export default function InfoModal({
       window.location.assign(data.url);
     } catch {
       setCheckoutError(
-        "Falha de ligação ao iniciar o checkout seguro da Stripe."
+        "Falha de ligação ao iniciar o checkout Pix/Cartão da Cakto."
       );
     } finally {
       setLoadingPlanId(null);
     }
   }
 
+  async function handleVerifyPixOrPayment() {
+    setCheckoutError(null);
+    setPixInfoMessage(null);
+    if (!user) {
+      setNeedsAuthPrompt(true);
+      return;
+    }
+
+    setVerifyingPayment(true);
+    try {
+      const res = await fetch("/api/cakto/verify-order");
+      const data = (await res.json()) as {
+        paid?: boolean;
+        planId?: string;
+        articlesPerMonth?: number;
+        erro?: string;
+      };
+      if (res.ok && data.paid && data.planId) {
+        const limit = data.articlesPerMonth ?? FREE_PLAN.artigosMes;
+        onPaymentConfirmed?.({ planId: data.planId, articlesPerMonth: limit });
+        setPixInfoMessage(
+          `Pagamento confirmado! Plano ${getPlanDisplayName(
+            data.planId
+          )} (${limit} artigos/mês) ativado.`
+        );
+      } else {
+        setPixInfoMessage(
+          data.erro ??
+            "Pagamento ainda não compensado. Assim que o Pix for concluído, clique novamente ou recarregue a página."
+        );
+      }
+    } catch {
+      setCheckoutError("Não foi possível consultar o status do pagamento na Cakto.");
+    } finally {
+      setVerifyingPayment(false);
+    }
+  }
+
   async function handleOpenCustomerPortal() {
     setCheckoutError(null);
+    setPixInfoMessage(null);
     setCheckoutRedirectUrl(null);
     if (!user) {
       setNeedsAuthPrompt(true);
@@ -117,18 +166,18 @@ export default function InfoModal({
 
     setOpeningPortal(true);
     try {
-      const res = await fetch("/api/stripe/portal", { method: "POST" });
+      const res = await fetch("/api/cakto/portal", { method: "POST" });
       const data = (await res.json()) as { url?: string; erro?: string };
       if (!res.ok || !data.url) {
         setCheckoutError(
-          data.erro ?? "Não foi possível abrir o portal do cliente Stripe."
+          data.erro ?? "Não foi possível abrir o Portal do Assinante Cakto."
         );
         return;
       }
       setCheckoutRedirectUrl(data.url);
       window.location.assign(data.url);
     } catch {
-      setCheckoutError("Falha ao comunicar com o portal do cliente Stripe.");
+      setCheckoutError("Falha ao comunicar com o portal de assinaturas da Cakto.");
     } finally {
       setOpeningPortal(false);
     }
@@ -240,7 +289,7 @@ export default function InfoModal({
                 <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-amber-200 bg-amber-50/80 px-4 py-3 text-xs text-amber-900 dark:border-amber-900/60 dark:bg-amber-950/40 dark:text-amber-200">
                   <span>
                     Entre com sua conta Google para vincular sua assinatura
-                    Stripe ao seu perfil.
+                    Cakto (Pix ou Cartão) ao seu perfil.
                   </span>
                   <button
                     type="button"
@@ -260,20 +309,42 @@ export default function InfoModal({
                 </div>
               )}
 
+              {pixInfoMessage && (
+                <div className="flex items-start gap-2.5 rounded-xl border border-emerald-200 bg-emerald-50/80 px-4 py-3 text-xs text-emerald-900 dark:border-emerald-900/60 dark:bg-emerald-950/40 dark:text-emerald-200">
+                  <Check className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
+                  <span>{pixInfoMessage}</span>
+                </div>
+              )}
+
               {checkoutRedirectUrl && (
                 <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-indigo-200 bg-indigo-50/80 px-4 py-3 text-xs text-indigo-900 dark:border-indigo-900/60 dark:bg-indigo-950/40 dark:text-indigo-200">
                   <span>
-                    Sessão criada na Stripe. Se não abrir automaticamente:
+                    Checkout Cakto preparado (Pix, Cartão ou Boleto). Se não abrir automaticamente:
                   </span>
-                  <a
-                    href={checkoutRedirectUrl}
-                    target="_top"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1.5 rounded-lg bg-indigo-600 px-3 py-1.5 font-semibold text-white hover:bg-indigo-700 whitespace-nowrap"
-                  >
-                    <span>Abrir Checkout Stripe</span>
-                    <ExternalLink className="h-3.5 w-3.5" />
-                  </a>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <a
+                      href={checkoutRedirectUrl}
+                      target="_top"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1.5 rounded-lg bg-indigo-600 px-3 py-1.5 font-semibold text-white hover:bg-indigo-700 whitespace-nowrap"
+                    >
+                      <span>Abrir Checkout Cakto</span>
+                      <ExternalLink className="h-3.5 w-3.5" />
+                    </a>
+                    <button
+                      type="button"
+                      disabled={verifyingPayment}
+                      onClick={() => void handleVerifyPixOrPayment()}
+                      className="inline-flex items-center gap-1.5 rounded-lg border border-indigo-300 bg-white px-3 py-1.5 font-semibold text-indigo-700 hover:bg-indigo-50 disabled:opacity-60 dark:border-indigo-700 dark:bg-slate-900 dark:text-indigo-300 whitespace-nowrap"
+                    >
+                      <RefreshCw
+                        className={`h-3.5 w-3.5 ${
+                          verifyingPayment ? "animate-spin" : ""
+                        }`}
+                      />
+                      <span>Já paguei via Pix</span>
+                    </button>
+                  </div>
                 </div>
               )}
 
@@ -396,7 +467,7 @@ export default function InfoModal({
                       <button
                         type="button"
                         disabled={Boolean(loadingPlanId)}
-                        onClick={() => void handleSubscribeStripe(plan.id)}
+                        onClick={() => void handleSubscribeCakto(plan.id)}
                         className={`mt-4 flex w-full items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-xs font-semibold transition-all disabled:cursor-not-allowed disabled:opacity-60 ${
                           isPopular || isHighlighted
                             ? "bg-gradient-to-r from-[#5B4AF4] to-[#2563EB] text-white hover:brightness-110"
@@ -406,12 +477,12 @@ export default function InfoModal({
                         {isLoading ? (
                           <>
                             <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                            <span>A abrir Stripe…</span>
+                            <span>A abrir Cakto…</span>
                           </>
                         ) : (
                           <>
                             <CreditCard className="h-3.5 w-3.5" />
-                            <span>Assinar</span>
+                            <span>Assinar (Pix / Cartão)</span>
                           </>
                         )}
                       </button>
@@ -420,22 +491,46 @@ export default function InfoModal({
                 })}
               </div>
 
-              <div className="rounded-xl border border-slate-200/80 bg-slate-50 px-3.5 py-2.5 text-xs text-slate-600 dark:border-slate-800 dark:bg-slate-950/50 dark:text-slate-300 space-y-1">
-                <div className="flex items-center gap-2">
+              <div className="rounded-xl border border-emerald-200/80 bg-emerald-50/60 px-3.5 py-2.5 text-xs text-slate-700 dark:border-emerald-900/50 dark:bg-emerald-950/20 dark:text-slate-300 space-y-1.5">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    <QrCode className="h-3.5 w-3.5 shrink-0 text-emerald-600 dark:text-emerald-400" />
+                    <span>
+                      <strong>Pagamento via Pix, Cartão ou Boleto (Cakto):</strong>{" "}
+                      liberação imediata após aprovação do Pix.
+                    </span>
+                  </div>
+                  {user && (
+                    <button
+                      type="button"
+                      disabled={verifyingPayment}
+                      onClick={() => void handleVerifyPixOrPayment()}
+                      className="inline-flex items-center gap-1 rounded-lg border border-emerald-300 bg-white px-2.5 py-1 text-[11px] font-semibold text-emerald-700 hover:bg-emerald-50 disabled:opacity-60 dark:border-emerald-800 dark:bg-slate-900 dark:text-emerald-300 whitespace-nowrap"
+                    >
+                      <RefreshCw
+                        className={`h-3 w-3 ${
+                          verifyingPayment ? "animate-spin" : ""
+                        }`}
+                      />
+                      <span>Já paguei / Verificar Pix</span>
+                    </button>
+                  )}
+                </div>
+                <div className="flex items-center gap-2 text-[11px] text-slate-600 dark:text-slate-400">
                   <ShieldCheck className="h-3.5 w-3.5 shrink-0 text-emerald-600 dark:text-emerald-400" />
                   <span>
-                    <strong>Cancele quando quiser</strong> no portal do cliente.
-                    A cota mensal é renovada todo mês e os artigos não usados
-                    não acumulam para o mês seguinte.
+                    Cancele quando quiser no Portal do Assinante Cakto. A cota
+                    mensal é renovada todo mês e os artigos não usados não
+                    acumulam.
                   </span>
                 </div>
               </div>
 
-              {(hasStripePortal || (user && activePlanId !== "free")) && (
+              {(hasSubscriptionPortal || (user && activePlanId !== "free")) && (
                 <div className="flex items-center justify-between gap-3 rounded-xl border border-slate-200 px-4 py-2.5 text-xs dark:border-slate-800">
                   <span>
-                    Já possui assinatura? Altere seu plano ou cancele a qualquer
-                    momento.
+                    Já possui assinatura? Altere ou cancele a qualquer momento no
+                    Portal Cakto.
                   </span>
                   <button
                     type="button"
@@ -448,7 +543,7 @@ export default function InfoModal({
                     ) : (
                       <Settings2 className="h-3.5 w-3.5" />
                     )}
-                    <span>Portal do Cliente</span>
+                    <span>Portal do Assinante</span>
                   </button>
                 </div>
               )}

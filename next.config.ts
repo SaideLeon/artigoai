@@ -26,8 +26,8 @@ function buildContentSecurityPolicy(): string {
     "'self'",
     "https://*.supabase.co",
     "wss://*.supabase.co",
-    "https://api.stripe.com",
-    "https://checkout.stripe.com",
+    "https://api.cakto.com.br",
+    "https://pay.cakto.com.br",
     ...(supabaseOrigin ? [supabaseOrigin] : []),
     ...(supabaseWsOrigin ? [supabaseWsOrigin] : []),
   ].join(" ");
@@ -43,7 +43,7 @@ function buildContentSecurityPolicy(): string {
     "media-src 'self' data: blob:",
     "worker-src 'self' blob:",
     `connect-src ${connectSrc}`,
-    "form-action 'self' https://checkout.stripe.com https://billing.stripe.com",
+    "form-action 'self' https://pay.cakto.com.br https://assinatura.cakto.com.br",
     ...(isDev ? [] : ["upgrade-insecure-requests"]),
   ].join("; ");
 }

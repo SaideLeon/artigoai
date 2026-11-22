@@ -195,7 +195,8 @@ export default function ArticleStudioApp() {
   const [monthlyLimit, setMonthlyLimit] = useState<number>(
     FREE_PLAN.artigosMes
   );
-  const [hasStripePortal, setHasStripePortal] = useState<boolean>(false);
+  const [hasSubscriptionPortal, setHasSubscriptionPortal] =
+    useState<boolean>(false);
   const [highlightPlanId, setHighlightPlanId] = useState<string | null>(null);
   const [initialBillingCycle, setInitialBillingCycle] =
     useState<BillingCycle>("monthly");
@@ -250,20 +251,20 @@ export default function ArticleStudioApp() {
         const planParam =
           params.get("assinar") || params.get("comprar") || params.get("pacote");
         const cicloParam = params.get("ciclo");
-        const stripeState = params.get("stripe");
+        const caktoState = params.get("cakto");
 
         if (cicloParam === "yearly") {
           setInitialBillingCycle("yearly");
         }
 
-        if (stripeState === "cancel") {
+        if (caktoState === "cancel") {
           setEstado(
-            "Assinatura cancelada na Stripe. Você pode continuar no Plano Grátis ou escolher outro plano."
+            "Pagamento cancelado na Cakto. Você pode continuar no Plano Grátis ou escolher outro plano via Pix ou Cartão."
           );
           window.history.replaceState({}, "", "/studio");
-        } else if (stripeState === "portal_return") {
+        } else if (caktoState === "portal_return") {
           window.history.replaceState({}, "", "/studio");
-        } else if (planParam && planParam !== "free" && !stripeState) {
+        } else if (planParam && planParam !== "free" && !caktoState) {
           setHighlightPlanId(planParam);
           setModalTipo("upgrade");
           window.history.replaceState({}, "", "/studio");
@@ -282,21 +283,28 @@ export default function ArticleStudioApp() {
     };
   }, []);
 
-  // Verifica sessão de retorno da Stripe após autenticar usuário
+  // Verifica pedido de retorno da Cakto após autenticar utilizador
   useEffect(() => {
     if (!user) return;
     let mounted = true;
     const params = new URLSearchParams(window.location.search);
-    const stripeState = params.get("stripe");
-    const sessionId = params.get("session_id");
-    if (stripeState !== "success" || !sessionId) return;
+    const caktoState = params.get("cakto");
+    const statusParam = params.get("status");
+    const orderId = params.get("order_id") || params.get("ref_id") || "";
+    const shouldVerify =
+      caktoState === "success" ||
+      statusParam === "approved" ||
+      statusParam === "paid" ||
+      Boolean(orderId);
+    if (!shouldVerify) return;
 
     void (async () => {
       try {
-        setEstado("A confirmar assinatura na Stripe…");
-        const res = await fetch(
-          `/api/stripe/verify-session?session_id=${encodeURIComponent(sessionId)}`
-        );
+        setEstado("A confirmar pagamento na Cakto…");
+        const query = orderId
+          ? `?order_id=${encodeURIComponent(orderId)}`
+          : "";
+        const res = await fetch(`/api/cakto/verify-order${query}`);
         const data = (await res.json()) as {
           paid?: boolean;
           planId?: string;
@@ -309,7 +317,7 @@ export default function ArticleStudioApp() {
         if (res.ok && data.paid && data.planId) {
           setPlanoGeracao("paid");
           setActivePlanId(data.planId);
-          setHasStripePortal(true);
+          setHasSubscriptionPortal(true);
           const limit = data.articlesPerMonth ?? FREE_PLAN.artigosMes;
           setMonthlyLimit(limit);
           try {
@@ -319,21 +327,22 @@ export default function ArticleStudioApp() {
           }
           const planLabel = getPlanDisplayName(data.planId);
           setEstado(
-            `Assinatura ${planLabel} confirmada via Stripe! ${limit} artigos por mês liberados.`
+            `Assinatura ${planLabel} confirmada via Cakto! ${limit} artigos por mês liberados.`
           );
           registrarNotificacao(
-            "Assinatura Stripe confirmada",
+            "Assinatura Cakto confirmada",
             `Plano ${planLabel} (${limit} artigos/mês) ativo no Google Gemini`
           );
         } else {
           setErroGeral(
-            data.erro ?? "Não foi possível confirmar a assinatura na Stripe."
+            data.erro ??
+              "Pagamento ainda pendente de confirmação na Cakto. Se pagou via Pix, aguarde alguns instantes."
           );
           setEstado("");
         }
       } catch {
         if (mounted) {
-          setErroGeral("Erro ao validar a sessão de assinatura da Stripe.");
+          setErroGeral("Erro ao validar o pagamento da Cakto.");
           setEstado("");
         }
       } finally {
@@ -458,7 +467,7 @@ export default function ArticleStudioApp() {
       if (!mounted) return;
       setActivePlanId(info.plan);
       setMonthlyLimit(info.monthlyLimit);
-      setHasStripePortal(info.hasStripePortal);
+      setHasSubscriptionPortal(info.hasSubscriptionPortal);
       setPlanoGeracao(info.planoGeracao);
       try {
         localStorage.setItem(STORAGE_PLAN, info.planoGeracao);
@@ -1282,9 +1291,20 @@ export default function ArticleStudioApp() {
         onSelectPlanoGeracao={handleChangePlanoGeracao}
         activePlanId={activePlanId}
         monthlyLimit={monthlyLimit}
-        hasStripePortal={hasStripePortal}
+        hasSubscriptionPortal={hasSubscriptionPortal}
         highlightPlanId={highlightPlanId}
         initialBillingCycle={initialBillingCycle}
+        onPaymentConfirmed={({ planId, articlesPerMonth }) => {
+          setPlanoGeracao("paid");
+          setActivePlanId(planId);
+          setMonthlyLimit(articlesPerMonth);
+          setHasSubscriptionPortal(true);
+          setEstado(
+            `Assinatura ${getPlanDisplayName(
+              planId
+            )} confirmada via Cakto! ${articlesPerMonth} artigos por mês liberados.`
+          );
+        }}
       />
 
       <VoiceNarrationModal

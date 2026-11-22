@@ -780,7 +780,7 @@ export function subscribeUserPlan(
     planoGeracao: PlanoGeracao;
     monthlyLimit: number;
     monthlyUsed: number;
-    hasStripePortal: boolean;
+    hasSubscriptionPortal: boolean;
   }) => void
 ): () => void {
   const supabase = getSupabaseClient();
@@ -793,7 +793,9 @@ export function subscribeUserPlan(
       await Promise.all([
         supabase
           .from("subscriptions")
-          .select("plan, status, billing_cycle, stripe_customer_id")
+          .select(
+            "plan, status, billing_cycle, stripe_customer_id, stripe_subscription_id"
+          )
           .eq("user_id", userId)
           .maybeSingle(),
         supabase
@@ -828,7 +830,10 @@ export function subscribeUserPlan(
       planoGeracao: isActivePaid ? "paid" : "free",
       monthlyLimit: Math.max(1, monthlyLimit),
       monthlyUsed: Math.max(0, monthlyUsed),
-      hasStripePortal: Boolean(subData?.stripe_customer_id),
+      hasSubscriptionPortal:
+        isActivePaid ||
+        Boolean(subData?.stripe_subscription_id) ||
+        Boolean(subData?.stripe_customer_id),
     });
   };
 

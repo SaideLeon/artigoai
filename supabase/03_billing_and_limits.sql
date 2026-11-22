@@ -1,5 +1,5 @@
 -- =============================================================================
--- 03. Assinaturas Stripe, Limites Mensais e Histórico de Pagamentos (BRL)
+-- 03. Assinaturas Cakto (Pix/Cartão/Boleto), Limites Mensais e Pagamentos (BRL)
 -- Dependências: 01_extensions_and_users.sql
 -- =============================================================================
 
@@ -13,6 +13,8 @@ create table if not exists public.subscriptions (
   ),
   active_package text not null default 'free',
   status text not null default 'active' check (status in ('active', 'canceled', 'past_due')),
+  cakto_customer_email text,
+  cakto_subscription_id text,
   stripe_customer_id text,
   stripe_subscription_id text,
   current_period_end timestamptz,
@@ -26,6 +28,10 @@ alter table public.subscriptions
   check (plan in ('free', 'starter', 'pro', 'agencia', 'custom'));
 alter table public.subscriptions
   add column if not exists billing_cycle text not null default 'monthly';
+alter table public.subscriptions
+  add column if not exists cakto_customer_email text;
+alter table public.subscriptions
+  add column if not exists cakto_subscription_id text;
 alter table public.subscriptions
   add column if not exists stripe_customer_id text;
 alter table public.subscriptions
@@ -48,6 +54,8 @@ create table if not exists public.payments (
   amount_cents integer not null check (amount_cents >= 0),
   currency text not null default 'BRL' check (currency in ('BRL')),
   status text not null default 'paid',
+  cakto_order_id text unique,
+  payment_method text,
   stripe_session_id text unique,
   stripe_payment_intent_id text,
   stripe_invoice_id text unique,
@@ -55,11 +63,18 @@ create table if not exists public.payments (
 );
 
 alter table public.payments
+  add column if not exists cakto_order_id text;
+alter table public.payments
+  add column if not exists payment_method text;
+alter table public.payments
   add column if not exists stripe_session_id text;
 alter table public.payments
   add column if not exists stripe_payment_intent_id text;
 alter table public.payments
   add column if not exists stripe_invoice_id text;
+create unique index if not exists idx_payments_cakto_order_id
+  on public.payments (cakto_order_id)
+  where cakto_order_id is not null;
 create unique index if not exists idx_payments_stripe_session_id
   on public.payments (stripe_session_id)
   where stripe_session_id is not null;

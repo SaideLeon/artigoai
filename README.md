@@ -12,7 +12,7 @@ Plataforma SaaS construída em **Next.js (App Router)**, **TypeScript**, **Tailw
   - **Plano Pago (`paid`)**: utiliza exclusivamente modelos **Google Gemini** via `@google/genai` (`gemini-4-hydrogen` para texto e pesquisa com `googleSearch`, e `gemini-nano-banana-2.1` para imagens em `1K`).
 - **Landing Page & Mascote 3D (`/`, `/mascote`)**: computador 3D interativo no hero (abre ao passar o cursor no cabeçalho) e mascote humanoide 3D em Three.js com expressões e animações em tempo real (*idle*, *wave*, *thinking*, *writing*, *excited*, *pointing*, *sleeping*).
 - **Persistência no Supabase**: autenticação Google OAuth (`/auth/callback`), sincronização em tempo real de artigos, favoritos, configurações pessoais, assinaturas e cotas mensais (`supabase/01_*.sql` a `supabase/06_*.sql`), com fallback local em `localStorage` quando o Supabase não estiver configurado.
-- **Assinaturas Mensais e Anuais em BRL (`lib/pricing.ts`) + Stripe**: plano **Grátis** (2 artigos/mês) e 3 planos pagos recorrentes (**Starter** 5/mês · R$ 34,90, **Pro** 16/mês · R$ 94,90, **Agência** 30/mês · R$ 149,90, com opção anual de 10 meses pelo preço de 12), checkout recorrente via **Stripe** (`/api/stripe/checkout`, `/api/stripe/verify-session`, `/api/stripe/webhook`, `/api/stripe/portal`) e renovação mensal automática em `payments`, `subscriptions` e `usage_limits`.
+- **Assinaturas Mensais e Anuais em BRL (`lib/pricing.ts`) + Cakto (Pix, Cartão e Boleto)**: plano **Grátis** (2 artigos/mês) e 3 planos pagos recorrentes (**Starter** 5/mês · R$ 34,90, **Pro** 16/mês · R$ 94,90, **Agência** 30/mês · R$ 149,90, com opção anual de 10 meses pelo preço de 12), checkout via **Cakto** (`/api/cakto/checkout`, `/api/cakto/verify-order`, `/api/cakto/webhook`, `/api/cakto/portal`) com suporte a **Pix** e renovação mensal automática em `payments`, `subscriptions` e `usage_limits`.
 
 ---
 
@@ -60,9 +60,8 @@ Abra [http://localhost:3000](http://localhost:3000).
 | `NEXT_PUBLIC_SUPABASE_URL` | Supabase | URL pública do projeto Supabase |
 | `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Supabase | Chave publicável (`sb_publishable_...`) do Supabase para SSR/Client |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase | Chave anónima legada opcional (`anon`) |
-| `SUPABASE_SERVICE_ROLE_KEY` | Supabase | Chave de serviço (apenas servidor — grava créditos/pagamentos após Stripe) |
-| `STRIPE_SECRET_KEY` | Stripe (Pagamentos) | Chave secreta da Stripe (`sk_test_...` / `sk_live_...`, apenas servidor) |
-| `STRIPE_WEBHOOK_SECRET` | Stripe (Webhook) | Segredo de assinatura do webhook (`/api/stripe/webhook`, `whsec_...`) |
-| `STRIPE_PRODUCT_STARTER_ID` | Stripe (Starter) | ID do produto Stripe para o plano Starter (padrão: `prod_VfVM45LGSnWLoH`) |
-| `STRIPE_PRODUCT_PRO_ID` | Stripe (Pro) | ID do produto Stripe para o plano Pro (padrão: `prod_VfW1i8hFclTPOh`) |
-| `STRIPE_PRODUCT_AGENCIA_ID` | Stripe (Agência) | ID do produto Stripe para o plano Agência (padrão: `prod_VfWGdFmGE4oQnu`) |
+| `SUPABASE_SERVICE_ROLE_KEY` | Supabase | Chave de serviço (apenas servidor — grava créditos/pagamentos após Cakto) |
+| `CAKTO_CLIENT_ID` | Cakto (OAuth2 API) | Client ID da API Pública da Cakto (apenas servidor) |
+| `CAKTO_CLIENT_SECRET` | Cakto (OAuth2 API) | Client Secret da API Pública da Cakto (apenas servidor) |
+| `CAKTO_WEBHOOK_SECRET` | Cakto (Webhook) | Segredo de validação do webhook (`/api/cakto/webhook`) |
+| `CAKTO_OFFER_*` | Cakto (Ofertas) | IDs ou URLs das ofertas (`STARTER_MONTHLY`, `STARTER_YEARLY`, `PRO_MONTHLY`, `PRO_YEARLY`, `AGENCIA_MONTHLY`, `AGENCIA_YEARLY`) |

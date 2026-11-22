@@ -1139,7 +1139,8 @@ export default function LandingPage() {
 
             <p className="mt-6 text-center text-xs text-slate-500 dark:text-slate-400">
               Cancele quando quiser · Os artigos não usados não acumulam para o
-              mês seguinte · Pagamentos em Real (R$) via Stripe.
+              mês seguinte · Pagamentos via Pix, Cartão ou Boleto em Real (R$)
+              pela Cakto.
             </p>
 
             <div className="mt-6 flex flex-col items-start justify-between gap-4 rounded-2xl border border-slate-200/90 bg-white px-6 py-5 sm:flex-row sm:items-center dark:border-slate-800 dark:bg-slate-900">
