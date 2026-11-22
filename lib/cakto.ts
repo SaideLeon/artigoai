@@ -57,10 +57,21 @@ export function getSubscriptionAmountCents(
   return Math.round(value * 100);
 }
 
+const DEFAULT_CAKTO_OFFERS: Partial<Record<string, string>> = {
+  starter_monthly: "3e3ipym_1357216",
+  starter_yearly: "jzeph29_1357316",
+};
+
+const DEFAULT_CAKTO_PRODUCT_IDS: Partial<Record<string, string>> = {
+  starter_monthly: "091cc5d8-999b-4b97-8338-fc556eda39b7",
+  starter_yearly: "0cb9127b-40b8-4248-b4d9-ada98a577519",
+};
+
 export function getConfiguredCaktoOfferRaw(
   planId: PaidPlanId,
   billingCycle: BillingCycle
 ): string | null {
+  const key = `${planId}_${billingCycle}`;
   const envMap: Record<string, string | undefined> = {
     starter_monthly: process.env.CAKTO_OFFER_STARTER_MONTHLY,
     starter_yearly: process.env.CAKTO_OFFER_STARTER_YEARLY,
@@ -69,7 +80,7 @@ export function getConfiguredCaktoOfferRaw(
     agencia_monthly: process.env.CAKTO_OFFER_AGENCIA_MONTHLY,
     agencia_yearly: process.env.CAKTO_OFFER_AGENCIA_YEARLY,
   };
-  const val = envMap[`${planId}_${billingCycle}`]?.trim();
+  const val = envMap[key]?.trim() || DEFAULT_CAKTO_OFFERS[key];
   return val || null;
 }
 
@@ -392,11 +403,52 @@ export function resolvePlanFromOfferId(offerId: string | null | undefined): {
     return { billingCycle: "monthly" };
   }
 
+  const targetPrefix = normalizedTarget.split("_")[0];
   const cycles: BillingCycle[] = ["monthly", "yearly"];
   for (const plan of SUBSCRIPTION_PLANS) {
     for (const cycle of cycles) {
       const raw = getConfiguredCaktoOfferRaw(plan.id, cycle);
-      if (raw && normalizeCaktoOfferId(raw) === normalizedTarget) {
+      const configuredId = raw ? normalizeCaktoOfferId(raw) : null;
+      if (
+        configuredId &&
+        (configuredId === normalizedTarget ||
+          configuredId.split("_")[0] === targetPrefix)
+      ) {
+        return { plan, billingCycle: cycle };
+      }
+    }
+  }
+
+  return { billingCycle: "monthly" };
+}
+
+export function resolvePlanFromProductId(
+  productId: string | null | undefined
+): {
+  plan?: SubscriptionPlan;
+  billingCycle: BillingCycle;
+} {
+  const cleanId = productId?.trim();
+  if (!cleanId) {
+    return { billingCycle: "monthly" };
+  }
+
+  const envMap: Record<string, string | undefined> = {
+    starter_monthly: process.env.CAKTO_PRODUCT_STARTER_MONTHLY,
+    starter_yearly: process.env.CAKTO_PRODUCT_STARTER_YEARLY,
+    pro_monthly: process.env.CAKTO_PRODUCT_PRO_MONTHLY,
+    pro_yearly: process.env.CAKTO_PRODUCT_PRO_YEARLY,
+    agencia_monthly: process.env.CAKTO_PRODUCT_AGENCIA_MONTHLY,
+    agencia_yearly: process.env.CAKTO_PRODUCT_AGENCIA_YEARLY,
+  };
+
+  const cycles: BillingCycle[] = ["monthly", "yearly"];
+  for (const plan of SUBSCRIPTION_PLANS) {
+    for (const cycle of cycles) {
+      const key = `${plan.id}_${cycle}`;
+      const configuredProductId =
+        envMap[key]?.trim() || DEFAULT_CAKTO_PRODUCT_IDS[key];
+      if (configuredProductId && configuredProductId === cleanId) {
         return { plan, billingCycle: cycle };
       }
     }

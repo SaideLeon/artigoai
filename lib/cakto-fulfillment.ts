@@ -3,6 +3,7 @@ import {
   findSubscriptionPlan,
   getSubscriptionAmountCents,
   resolvePlanFromOfferId,
+  resolvePlanFromProductId,
   verifyCaktoAttributionToken,
   type CaktoOrderRecord,
 } from "@/lib/cakto";
@@ -100,12 +101,19 @@ function normalizeCaktoAmountCents(
 
 function resolvePlanHeuristic(params: {
   offerId: string | null;
+  productId: string | null;
+  checkoutUrl: string | null;
   offerName: string | null;
   productName: string | null;
   rawAmount: unknown;
 }): { plan?: SubscriptionPlan; billingCycle: BillingCycle } {
-  const byOfferEnv = resolvePlanFromOfferId(params.offerId);
+  const byOfferEnv = resolvePlanFromOfferId(
+    params.checkoutUrl || params.offerId
+  );
   if (byOfferEnv.plan) return byOfferEnv;
+
+  const byProductId = resolvePlanFromProductId(params.productId);
+  if (byProductId.plan) return byProductId;
 
   const combinedText = `${params.offerName ?? ""} ${params.productName ?? ""}`.toLowerCase();
   const billingCycle: BillingCycle =
@@ -196,7 +204,12 @@ function extractFieldsFromOrderOrData(raw: Record<string, unknown>) {
     readString(offer?.id) ??
     (typeof raw.offer === "string" ? readString(raw.offer) : null);
   const offerName = readString(offer?.name);
+  const productId =
+    readString(product?.id) ??
+    (typeof raw.product === "string" ? readString(raw.product) : null);
   const productName = readString(product?.name);
+  const checkoutUrl =
+    readString(raw.checkoutUrl) ?? readString(raw.checkout);
   const customerEmail =
     readString(customer?.email) ?? readString(raw.email) ?? null;
 
@@ -221,7 +234,9 @@ function extractFieldsFromOrderOrData(raw: Record<string, unknown>) {
     sckCandidate,
     offerId,
     offerName,
+    productId,
     productName,
+    checkoutUrl,
     customerEmail,
     subscriptionId,
     paymentMethod,
@@ -289,6 +304,8 @@ export async function fulfillCaktoOrderOrEvent(params: {
 
   const resolvedHeuristic = resolvePlanHeuristic({
     offerId: extracted.offerId,
+    productId: extracted.productId,
+    checkoutUrl: extracted.checkoutUrl,
     offerName: extracted.offerName,
     productName: extracted.productName,
     rawAmount: extracted.rawAmount,
