@@ -53,7 +53,7 @@ export default function RobotScene({
   onRotationChange,
   onRobotClick,
   className = "h-full w-full",
-  ariaLabel = "Mascote 3D interativo Artigen AI Assistant",
+  ariaLabel = "Mulébi — Mascote 3D interativo do Artigen",
 }: RobotSceneProps) {
   const mountRef = useRef<HTMLDivElement | null>(null);
   const [contextLost, setContextLost] = useState(false);
@@ -409,7 +409,7 @@ export default function RobotScene({
             <BrandLogo className="size-9 text-white" />
           </div>
           <p className="mt-3 text-sm font-bold text-slate-900 dark:text-white">
-            Artigen AI Assistant
+            Mulébi · Mascote 3D
           </p>
           <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
             Visualização 2D de reserva ativada neste dispositivo.

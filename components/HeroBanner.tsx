@@ -81,7 +81,7 @@ export default function HeroBanner({ mascotState = "idle" }: HeroBannerProps) {
 
           <div className="hidden sm:flex items-center gap-2">
             <div
-              title="Artigen AI Assistant 3D — Clique para interagir"
+              title="Mulébi — Mascote 3D do Artigen — Clique para interagir"
               className="relative h-20 w-20 overflow-hidden rounded-2xl border border-white/75 bg-gradient-to-b from-[#DCE3FF] to-[#F3F6FF] shadow-sm dark:border-white/15 dark:from-[#131C3D] dark:to-slate-900"
             >
               {effectiveAnimation === "writing" ? (
@@ -91,7 +91,7 @@ export default function HeroBanner({ mascotState = "idle" }: HeroBannerProps) {
                   scale={1.06}
                   onRobotClick={() => setClickedGreeting((v) => !v)}
                   className="h-full w-full"
-                  ariaLabel="Mascote 3D Artigen a escrever artigo"
+                  ariaLabel="Mulébi a escrever artigo"
                 />
               ) : effectiveAnimation === "microphone" ? (
                 <MicMascotScene
@@ -102,7 +102,7 @@ export default function HeroBanner({ mascotState = "idle" }: HeroBannerProps) {
                   scale={1.04}
                   onRobotClick={() => setClickedGreeting((v) => !v)}
                   className="h-full w-full"
-                  ariaLabel="Mascote 3D Artigen a gravar narração no microfone"
+                  ariaLabel="Mulébi a gravar narração no microfone"
                 />
               ) : (
                 <RobotScene
@@ -112,7 +112,7 @@ export default function HeroBanner({ mascotState = "idle" }: HeroBannerProps) {
                   scale={1.04}
                   onRobotClick={() => setClickedGreeting((v) => !v)}
                   className="h-full w-full"
-                  ariaLabel="Mascote 3D Artigen no painel principal"
+                  ariaLabel="Mulébi no painel principal"
                 />
               )}
             </div>

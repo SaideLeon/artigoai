@@ -327,7 +327,7 @@ export default function ArticleWorkspace({
                 expression="curious"
                 cameraZ={4.45}
                 className="h-full w-full"
-                ariaLabel="Mascote 3D Artigen a preparar o esboço do artigo"
+                ariaLabel="Mulébi a preparar o esboço do artigo"
               />
             </div>
             <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100">
@@ -523,7 +523,7 @@ export default function ArticleWorkspace({
                           cameraZ={4.35}
                           scale={1.04}
                           className="h-full w-full"
-                          ariaLabel={`Mascote 3D Artigen sentado nos livros a escrever a secção ${i + 1}`}
+                          ariaLabel={`Mulébi sentado nos livros a escrever a secção ${i + 1}`}
                         />
                       </div>
                       <div className="min-w-0 flex-1 space-y-2 text-center sm:text-left">
@@ -532,7 +532,7 @@ export default function ArticleWorkspace({
                             variant="write"
                             className="size-4 shrink-0"
                           />
-                          <span>Artigen AI Assistant está a escrever…</span>
+                          <span>Mulébi está a escrever…</span>
                         </div>
                         <p className="text-sm font-semibold leading-relaxed text-slate-800 dark:text-slate-100">
                           {sec.objetivo ||
@@ -554,7 +554,7 @@ export default function ArticleWorkspace({
                       />
                       <div className="min-w-0">
                         <span className="font-semibold text-slate-700 dark:text-slate-300">
-                          Na fila de escrita — o mascote vai redigir a seguir
+                          Na fila de escrita — o Mulébi vai redigir a seguir
                         </span>
                         {sec.objetivo && (
                           <p className="mt-0.5 truncate text-[11px] text-slate-500 dark:text-slate-400">

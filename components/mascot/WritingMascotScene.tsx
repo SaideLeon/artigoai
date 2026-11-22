@@ -47,7 +47,7 @@ export default function WritingMascotScene({
   onRotationChange,
   onRobotClick,
   className = "h-full w-full",
-  ariaLabel = "Mascote 3D Artigen sentado nos livros a redigir no portátil",
+  ariaLabel = "Mulébi sentado nos livros a redigir no portátil",
 }: WritingMascotSceneProps) {
   const mountRef = useRef<HTMLDivElement | null>(null);
   const [contextLost, setContextLost] = useState(false);
@@ -524,7 +524,7 @@ export default function WritingMascotScene({
             <BrandLogo className="size-7 text-white" />
           </div>
           <p className="mt-2 text-xs font-bold text-slate-900 dark:text-white">
-            Artigen AI Assistant
+            Mulébi · Mascote 3D
           </p>
         </div>
       )}

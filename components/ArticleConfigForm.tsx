@@ -193,7 +193,7 @@ export default function ArticleConfigForm({
                 Explicar o tema por voz
               </p>
               <p className="mt-0.5 text-[11px] leading-snug text-slate-600 dark:text-slate-300">
-                Ligue o microfone, conte com suas palavras e o mascote organiza e ilustra tudo.
+                Ligue o microfone, conte com suas palavras e o Mulébi organiza e ilustra tudo.
               </p>
             </div>
             <button

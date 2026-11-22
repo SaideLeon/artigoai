@@ -2,9 +2,9 @@ import type { Metadata } from "next";
 import RobotDemo from "@/components/mascot/RobotDemo";
 import { DEFAULT_OPEN_GRAPH, DEFAULT_TWITTER, SITE_URL } from "@/lib/seo";
 
-const MASCOTE_TITLE = "Mascote 3D Interativo";
+const MASCOTE_TITLE = "Mulébi — Mascote 3D Interativo";
 const MASCOTE_DESCRIPTION =
-  "Demonstração interativa do mascote 3D oficial do Artigen modelado em Three.js com animações procedurais e expressões em tempo real.";
+  "Demonstração interativa do Mulébi, o mascote 3D oficial do Artigen modelado em Three.js com animações procedurais e expressões em tempo real.";
 
 export const metadata: Metadata = {
   title: MASCOTE_TITLE,

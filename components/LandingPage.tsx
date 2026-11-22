@@ -850,7 +850,7 @@ export default function LandingPage() {
                           href="/mascote"
                           className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-700 hover:text-indigo-600 dark:text-slate-300 dark:hover:text-indigo-400"
                         >
-                          <span>Explorar Artigen AI Assistant 3D</span>
+                          <span>Explorar Mulébi — Mascote 3D</span>
                           <ArrowRight className="h-3 w-3" />
                         </Link>
                       </div>
@@ -882,12 +882,12 @@ export default function LandingPage() {
                               setMascotInteractClicks((c) => c + 1)
                             }
                             className="h-full w-full"
-                            ariaLabel="Mascote 3D Artigen demonstrando a etapa selecionada"
+                            ariaLabel="Mulébi — Mascote 3D do Artigen demonstrando a etapa selecionada"
                           />
                         );
                       })()}
                       <span className="pointer-events-none absolute bottom-2 text-[10px] font-medium text-slate-500 dark:text-slate-400">
-                        Arraste ou clique no mascote 3D
+                        Arraste ou clique no Mulébi 3D
                       </span>
                     </div>
                   </div>
@@ -1445,7 +1445,7 @@ export default function LandingPage() {
               href="/mascote"
               className="text-cyan-300 hover:text-white transition-colors whitespace-nowrap"
             >
-              Mascote 3D
+              Mulébi 3D
             </Link>
             <Link
               href="/studio"

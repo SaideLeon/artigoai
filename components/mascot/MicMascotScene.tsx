@@ -51,7 +51,7 @@ export default function MicMascotScene({
   onRotationChange,
   onRobotClick,
   className = "h-full w-full",
-  ariaLabel = "Mascote 3D Artigen segurando um microfone com ondas sonoras",
+  ariaLabel = "Mulébi segurando um microfone com ondas sonoras",
 }: MicMascotSceneProps) {
   const mountRef = useRef<HTMLDivElement | null>(null);
   const [contextLost, setContextLost] = useState(false);
@@ -555,7 +555,7 @@ export default function MicMascotScene({
             <BrandLogo className="size-7 text-white" />
           </div>
           <p className="mt-2 text-xs font-bold text-slate-900 dark:text-white">
-            Artigen AI Assistant
+            Mulébi · Mascote 3D
           </p>
         </div>
       )}

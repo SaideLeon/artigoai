@@ -232,7 +232,7 @@ export default function VoiceNarrationModal({
 
       setTranscricaoBruta(combinedTranscript);
       setStatusMsg(
-        "2/2 — Mascote a revisar, melhorar e organizar sua história…"
+        "2/2 — Mulébi a revisar, melhorar e organizar sua história…"
       );
 
       const organizeRes = await fetch("/api/narrate-organize", {
@@ -505,7 +505,7 @@ export default function VoiceNarrationModal({
                 Narrar Artigo por Voz
               </h2>
               <p className="text-xs text-slate-500 dark:text-slate-400">
-                Explique com as suas próprias palavras — o mascote organiza,
+                Explique com as suas próprias palavras — o Mulébi organiza,
                 verifica na web e cria o artigo completo com imagens.
               </p>
             </div>
@@ -557,7 +557,7 @@ export default function VoiceNarrationModal({
                 cameraZ={4.65}
                 scale={1.04}
                 className="h-full w-full"
-                ariaLabel="Mascote 3D Artigen segurando um microfone com ondas sonoras ao redor"
+                ariaLabel="Mulébi segurando um microfone com ondas sonoras ao redor"
               />
             </div>
 
@@ -614,7 +614,7 @@ export default function VoiceNarrationModal({
                     Configurações iniciais da narração
                   </h3>
                   <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
-                    Defina como o mascote deve conciliar os seus factos e
+                    Defina como o Mulébi deve conciliar os seus factos e
                     estruturar o artigo antes ou durante a gravação.
                   </p>
                 </div>
@@ -785,7 +785,7 @@ export default function VoiceNarrationModal({
                       <div className="rounded-xl border border-indigo-200 bg-indigo-50/70 px-4 py-3 text-xs text-indigo-900 dark:border-indigo-800/60 dark:bg-indigo-950/40 dark:text-indigo-200">
                         {isPaused
                           ? "Gravação em pausa. Clique em Retomar para continuar a falar ou em Concluir para organizar o artigo."
-                          : "Pode falar livremente sobre a sua história, contexto, detalhes e exemplos. As ondas ao redor do mascote confirmam que está a gravar."}
+                          : "Pode falar livremente sobre a sua história, contexto, detalhes e exemplos. As ondas ao redor do Mulébi confirmam que está a gravar."}
                       </div>
 
                       <div className="flex flex-wrap gap-2">
@@ -835,7 +835,7 @@ export default function VoiceNarrationModal({
               <div className="flex flex-1 flex-col items-center justify-center py-10 text-center">
                 <Loader2 className="h-9 w-9 animate-spin text-indigo-600 dark:text-indigo-400" />
                 <h3 className="mt-4 text-base font-bold text-slate-900 dark:text-white">
-                  O mascote está a preparar a sua história
+                  O Mulébi está a preparar a sua história
                 </h3>
                 <p className="mt-1.5 max-w-sm text-xs text-slate-500 dark:text-slate-400">
                   {statusMsg}
@@ -848,7 +848,7 @@ export default function VoiceNarrationModal({
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div className="flex items-center gap-1.5 text-xs font-semibold text-emerald-700 dark:text-emerald-400">
                     <CheckCircle2 className="h-4 w-4" />
-                    <span>Narração transcrita e revisada pelo mascote</span>
+                    <span>Narração transcrita e revisada pelo Mulébi</span>
                   </div>
                   <button
                     type="button"

@@ -199,7 +199,7 @@ export default function Sidebar({
               className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-xs font-medium text-cyan-300 transition-colors hover:bg-white/8 hover:text-white focus-visible:outline-2 focus-visible:outline-indigo-400"
             >
               <Bot className="h-4 w-4 text-cyan-400" />
-              <span>Mascote 3D</span>
+              <span>Mulébi 3D</span>
             </Link>
             <Link
               href="/"

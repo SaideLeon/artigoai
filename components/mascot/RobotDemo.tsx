@@ -112,7 +112,7 @@ export default function RobotDemo() {
               <BrandLogo className="size-5 text-white" />
             </span>
             <span className="text-base sm:text-lg font-bold tracking-tight text-slate-900 dark:text-white">
-              Artigen AI Assistant
+              Mulébi · Mascote 3D
             </span>
           </Link>
 
@@ -164,10 +164,10 @@ export default function RobotDemo() {
       <main className="relative flex flex-1 flex-col items-center justify-center px-4 pb-6 pt-4">
         <div className="text-center max-w-xl">
           <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-950 dark:text-white">
-            Artigen AI Assistant
+            Mulébi — Mascote 3D Artigen
           </h1>
           <p className="mt-1 text-xs sm:text-sm text-slate-500 dark:text-slate-400">
-            Mova o cursor para o robô acompanhar · Arraste para girar · Clique
+            Mova o cursor para o Mulébi acompanhar · Arraste para girar · Clique
             para saudação e expressões
           </p>
         </div>

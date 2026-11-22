@@ -59,7 +59,7 @@ export default function FloatingRobotAssistant({
       ? "Em modo de descanso. Clique em mim para despertar."
       : context === "studio"
       ? "Olá! Posso ajudar a sugerir configurações ou acompanhar a geração do artigo."
-      : "Olá! Sou o Artigen AI Assistant. Clique em mim ou explore minhas animações 3D.");
+      : "Olá! Sou o Mulébi, o mascote do Artigen. Clique em mim ou explore minhas animações 3D.");
 
   return (
     <div className="fixed bottom-4 right-4 z-50 sm:bottom-6 sm:right-6">
@@ -70,7 +70,7 @@ export default function FloatingRobotAssistant({
             setOpen(true);
             robot.setAnimation(externalState ?? "greeting");
           }}
-          aria-label="Abrir Artigen AI Assistant"
+          aria-label="Abrir Mulébi, mascote do Artigen"
           className="group flex items-center gap-2.5 rounded-2xl border border-indigo-500/30 bg-[#0E162E] px-3.5 py-2.5 text-white shadow-xl shadow-indigo-950/30 transition-transform duration-150 hover:scale-[1.03] active:scale-[0.98] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500"
         >
           <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-gradient-to-br from-[#5B4AF4] to-[#06B6D4] text-white">
@@ -78,7 +78,7 @@ export default function FloatingRobotAssistant({
           </span>
           <span className="text-left">
             <span className="block text-xs font-bold leading-tight whitespace-nowrap">
-              Artigen Assistant
+              Mulébi
             </span>
             <span className="block text-[10px] text-cyan-300 leading-tight whitespace-nowrap">
               Mascote 3D
@@ -91,7 +91,7 @@ export default function FloatingRobotAssistant({
           <div className="flex items-center justify-between border-b border-slate-100 bg-gradient-to-r from-[#0E162E] to-[#1E3A8A] px-4 py-3 text-white dark:border-slate-800">
             <div className="flex items-center gap-2">
               <Bot className="h-4 w-4 text-cyan-300" />
-              <span className="text-xs font-bold">Artigen AI Assistant</span>
+              <span className="text-xs font-bold">Mulébi · Mascote 3D</span>
             </div>
             <div className="flex items-center gap-1">
               <button
