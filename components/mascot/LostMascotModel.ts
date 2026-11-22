@@ -1,5 +1,9 @@
 import * as THREE from "three";
 import { RoundedBoxGeometry } from "three/examples/jsm/geometries/RoundedBoxGeometry.js";
+import {
+  applyHandPose,
+  createArticulatedHand,
+} from "@/components/mascot/RobotHandBuilder";
 
 export type FloatingQuestionMark = {
   group: THREE.Group;
@@ -792,17 +796,19 @@ export function createLostMascot(maxAnisotropy = 4): {
     forearmPivot.add(wristRing);
 
     const hand = new THREE.Group();
-    hand.position.set(0, -0.22, 0.01);
+    hand.position.set(0, -0.205, 0.01);
     forearmPivot.add(hand);
 
-    const palm = new THREE.Mesh(
-      trackGeo(new RoundedBoxGeometry(0.095, 0.075, 0.09, 3, 0.024)),
-      whiteShellMat
-    );
-    palm.castShadow = true;
-    hand.add(palm);
+    const handRig = createArticulatedHand({
+      side,
+      scale: 1.0,
+      whiteShellMat,
+      jointDarkMat,
+      trackGeo,
+    });
+    hand.add(handRig.handGroup);
 
-    return { shoulder, forearmPivot, hand };
+    return { shoulder, forearmPivot, hand, handRig };
   };
 
   const leftArm = buildArm(-1);
@@ -811,17 +817,21 @@ export function createLostMascot(maxAnisotropy = 4): {
   // Left arm holds the unfolded 3-panel map forward at reading height
   leftArm.shoulder.rotation.set(-0.75, 0.25, -0.28);
   leftArm.forearmPivot.rotation.set(-0.92, -0.12, 0.35);
+  leftArm.handRig.handGroup.rotation.set(0.1, 0.3, -0.15);
+  applyHandPose(leftArm.handRig, -1, "grip");
 
-  // Right arm raised up so hand rests near right temple/headphone scratching head
+  // Right arm raised up so fingers curl naturally near right temple/headphone scratching head
   rightArm.shoulder.rotation.set(-0.48, 0.22, 2.25);
   rightArm.forearmPivot.rotation.set(-0.22, 0.15, 0.95);
   rightArm.hand.rotation.set(0.25, -0.2, 0.18);
+  rightArm.handRig.handGroup.rotation.set(0.15, -0.45, 0);
+  applyHandPose(rightArm.handRig, 1, "relaxed");
 
   // --- UNFOLDED 3-PANEL PAPER MAP HELD IN LEFT HAND ---
   const mapGroup = new THREE.Group();
-  mapGroup.position.set(0.14, 0.05, 0.12);
+  mapGroup.position.set(0.12, 0.02, 0.04);
   mapGroup.rotation.set(0.45, 0.28, -0.12);
-  leftArm.hand.add(mapGroup);
+  leftArm.handRig.gripAnchor.add(mapGroup);
 
   const panelW = 0.22;
   const panelH = 0.36;

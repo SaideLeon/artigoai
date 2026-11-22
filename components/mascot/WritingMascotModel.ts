@@ -1,5 +1,9 @@
 import * as THREE from "three";
 import { RoundedBoxGeometry } from "three/examples/jsm/geometries/RoundedBoxGeometry.js";
+import {
+  applyHandPose,
+  createArticulatedHand,
+} from "@/components/mascot/RobotHandBuilder";
 
 export type WritingMascotRig = {
   root: THREE.Group;
@@ -773,26 +777,20 @@ export function createWritingMascot(maxAnisotropy = 4): {
     forearmPivot.add(wristRing);
 
     const hand = new THREE.Group();
-    hand.position.set(0, -0.22, 0.01);
+    hand.position.set(0, -0.205, 0.01);
     forearmPivot.add(hand);
 
-    const palm = new THREE.Mesh(
-      trackGeo(new RoundedBoxGeometry(0.09, 0.05, 0.095, 3, 0.022)),
-      whiteShellMat
-    );
-    palm.castShadow = true;
-    hand.add(palm);
-
-    // Subtle rounded fingertips
-    [-0.026, 0, 0.026].forEach((fx) => {
-      const tip = new THREE.Mesh(
-        trackGeo(new THREE.CapsuleGeometry(0.013, 0.025, 6, 10)),
-        whiteShellMat
-      );
-      tip.rotation.x = Math.PI / 2;
-      tip.position.set(fx, -0.005, 0.052);
-      hand.add(tip);
+    const handRig = createArticulatedHand({
+      side,
+      scale: 0.94,
+      whiteShellMat,
+      jointDarkMat,
+      trackGeo,
     });
+    // Flip 180 deg around Y so palms face downward onto keyboard and thumbs sit inward near spacebar
+    handRig.handGroup.rotation.y = Math.PI;
+    applyHandPose(handRig, side, "typing");
+    hand.add(handRig.handGroup);
 
     return { shoulder, forearmPivot, hand };
   };

@@ -1,5 +1,10 @@
 import * as THREE from "three";
 import { RoundedBoxGeometry } from "three/examples/jsm/geometries/RoundedBoxGeometry.js";
+import {
+  applyHandPose,
+  createArticulatedHand,
+  type ArticulatedHandRig,
+} from "@/components/mascot/RobotHandBuilder";
 
 export type RobotRig = {
   root: THREE.Group;
@@ -26,12 +31,11 @@ export type RobotRig = {
   leftShoulder: THREE.Group;
   leftElbow: THREE.Group;
   leftHand: THREE.Group;
-  leftFingersGroup: THREE.Group;
+  leftHandRig: ArticulatedHandRig;
   rightShoulder: THREE.Group;
   rightElbow: THREE.Group;
   rightHand: THREE.Group;
-  rightIndexFinger: THREE.Group;
-  rightOtherFingers: THREE.Group;
+  rightHandRig: ArticulatedHandRig;
   leftHip: THREE.Group;
   leftKnee: THREE.Group;
   rightHip: THREE.Group;
@@ -605,60 +609,26 @@ export function createArtigenRobot(): {
     wristCuff.position.set(0, -0.228, 0);
     elbow.add(wristCuff);
 
-    // Dark articulated robotic hand + distinct fingers
+    // Sculpted white-shell articulated hand with dark joints & thumb
     const hand = new THREE.Group();
-    hand.position.set(0, -0.285, 0);
+    hand.position.set(0, -0.255, 0);
     elbow.add(hand);
 
-    const palm = new THREE.Mesh(
-      trackGeo(new RoundedBoxGeometry(0.105, 0.095, 0.066, 3, 0.03)),
-      jointDarkMat
-    );
-    palm.castShadow = true;
-    hand.add(palm);
-
-    // Thumb (dark metallic)
-    const thumb = new THREE.Mesh(
-      trackGeo(new THREE.CapsuleGeometry(0.018, 0.048, 6, 10)),
-      jointDarkMat
-    );
-    thumb.position.set(-side * 0.058, -0.012, 0.02);
-    thumb.rotation.z = side * 0.58;
-    hand.add(thumb);
-
-    // Index finger (independent for pointing)
-    const indexFingerGroup = new THREE.Group();
-    indexFingerGroup.position.set(-side * 0.034, -0.048, 0.012);
-    hand.add(indexFingerGroup);
-
-    const indexFinger = new THREE.Mesh(
-      trackGeo(new THREE.CapsuleGeometry(0.017, 0.06, 6, 10)),
-      jointDarkMat
-    );
-    indexFinger.position.set(0, -0.036, 0);
-    indexFingerGroup.add(indexFinger);
-
-    // Remaining 3 articulated fingers
-    const otherFingersGroup = new THREE.Group();
-    otherFingersGroup.position.set(0, -0.048, 0);
-    hand.add(otherFingersGroup);
-
-    [-0.004, 0.024, 0.048].forEach((offset, idx) => {
-      const len = idx === 0 ? 0.064 : idx === 1 ? 0.058 : 0.046;
-      const finger = new THREE.Mesh(
-        trackGeo(new THREE.CapsuleGeometry(0.016, len, 6, 10)),
-        jointDarkMat
-      );
-      finger.position.set(side * offset, -0.035, 0.004);
-      otherFingersGroup.add(finger);
+    const handRig = createArticulatedHand({
+      side,
+      scale: 1.06,
+      whiteShellMat,
+      jointDarkMat,
+      trackGeo,
     });
+    applyHandPose(handRig, side, "relaxed");
+    hand.add(handRig.handGroup);
 
     return {
       shoulder,
       elbow,
       hand,
-      indexFingerGroup,
-      otherFingersGroup,
+      handRig,
     };
   };
 
@@ -797,12 +767,11 @@ export function createArtigenRobot(): {
     leftShoulder: leftArm.shoulder,
     leftElbow: leftArm.elbow,
     leftHand: leftArm.hand,
-    leftFingersGroup: leftArm.otherFingersGroup,
+    leftHandRig: leftArm.handRig,
     rightShoulder: rightArm.shoulder,
     rightElbow: rightArm.elbow,
     rightHand: rightArm.hand,
-    rightIndexFinger: rightArm.indexFingerGroup,
-    rightOtherFingers: rightArm.otherFingersGroup,
+    rightHandRig: rightArm.handRig,
     leftHip: leftLeg.hip,
     leftKnee: leftLeg.knee,
     rightHip: rightLeg.hip,

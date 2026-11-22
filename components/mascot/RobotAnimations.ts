@@ -113,7 +113,9 @@ export class RobotAnimator {
     let rElbowX = -0.25;
     let rElbowZ = -0.08;
     let rHandRotY = 0;
-    let rOtherFingersCurl = 0;
+    let rIndexCurl = 0.32;
+    let rOtherFingersCurl = 0.38;
+    let lFingersCurl = 0.36;
 
     // Legs
     let lHipX = 0.05 + Math.sin(t * 2.0) * 0.03;
@@ -137,18 +139,21 @@ export class RobotAnimator {
         headRotZ = -0.09;
         headRotY = pointerX * 0.22 + 0.06;
 
-        // Right arm raised waving warmly
+        // Right arm raised waving warmly with open fingers
         rShoulderX = -0.22;
         rShoulderZ = 2.28;
         rElbowX = -0.2;
         rElbowZ = -0.38 + Math.sin(t * 7.2) * 0.32;
         rHandRotY = Math.sin(t * 7.2) * 0.16;
+        rIndexCurl = 0.14;
+        rOtherFingersCurl = 0.18;
 
-        // Left hand resting confidently on hip (matching reference silhouette)
+        // Left hand resting confidently on hip
         lShoulderX = 0.1;
         lShoulderZ = -0.52;
         lElbowX = -0.58;
         lElbowZ = 0.56;
+        lFingersCurl = 0.45;
         break;
       }
 
@@ -166,12 +171,15 @@ export class RobotAnimator {
         rElbowX = -1.62;
         rElbowZ = 0.52;
         rHandRotY = -0.42;
+        rIndexCurl = 0.45;
+        rOtherFingersCurl = 0.85;
 
         // Left arm tucked across lower chest
         lShoulderX = -0.45;
         lShoulderZ = -0.22;
         lElbowX = -1.15;
         lElbowZ = -0.65;
+        lFingersCurl = 0.42;
         chestEmissive = 1.45 + Math.sin(t * 5.2) * 0.35;
         break;
       }
@@ -184,16 +192,19 @@ export class RobotAnimator {
         headRotX = -0.1 + bounce * 0.05;
         headRotZ = Math.sin(t * 5.4) * 0.08;
 
-        // Both arms raised high
+        // Both arms raised high with celebratory open hands
         lShoulderX = -0.35;
         lShoulderZ = -2.42 - Math.sin(t * 7.5) * 0.14;
         lElbowX = -0.25;
         lElbowZ = 0.25;
+        lFingersCurl = 0.16;
 
         rShoulderX = -0.35;
         rShoulderZ = 2.42 + Math.sin(t * 7.5) * 0.14;
         rElbowX = -0.25;
         rElbowZ = -0.25;
+        rIndexCurl = 0.16;
+        rOtherFingersCurl = 0.16;
 
         // Slight celebratory kick
         lHipX = -0.12 - bounce * 0.12;
@@ -210,20 +221,22 @@ export class RobotAnimator {
         headRotY = -0.24 + pointerX * 0.16;
         headRotZ = -0.05;
 
-        // Right arm extends outward/forward pointing at UI elements
+        // Right arm extends outward/forward pointing cleanly with index finger
         rShoulderX = -0.82;
         rShoulderY = 0.15;
         rShoulderZ = 1.08;
         rElbowX = -0.18;
         rElbowZ = -0.08;
         rHandRotY = -0.3;
-        rOtherFingersCurl = 1.25;
+        rIndexCurl = 0.06;
+        rOtherFingersCurl = 1.15;
 
         // Left hand resting confidently near hip
         lShoulderX = 0.12;
         lShoulderZ = -0.45;
         lElbowX = -0.65;
         lElbowZ = -0.45;
+        lFingersCurl = 0.45;
         break;
       }
 
@@ -240,6 +253,9 @@ export class RobotAnimator {
         rShoulderX = 0.12;
         rShoulderZ = 0.12;
         rElbowX = -0.15;
+        rIndexCurl = 0.48;
+        rOtherFingersCurl = 0.52;
+        lFingersCurl = 0.5;
 
         lHipX = 0.02;
         rHipX = 0.02;
@@ -259,6 +275,7 @@ export class RobotAnimator {
         lShoulderZ = -0.22;
         lElbowX = -0.78 + Math.sin(t * 9.5) * 0.18;
         lElbowZ = 0.18;
+        lFingersCurl = 0.48 + Math.sin(t * 12.0) * 0.16;
 
         rShoulderX = -0.88;
         rShoulderY = 0.18;
@@ -266,7 +283,8 @@ export class RobotAnimator {
         rElbowX = -0.75 + Math.cos(t * 10.5) * 0.22;
         rElbowZ = -0.18;
         rHandRotY = Math.sin(t * 11.0) * 0.22;
-        rOtherFingersCurl = 0.45 + Math.sin(t * 12.0) * 0.18;
+        rIndexCurl = 0.45 + Math.cos(t * 12.0) * 0.18;
+        rOtherFingersCurl = 0.48 + Math.sin(t * 12.0) * 0.18;
 
         chestEmissive = 1.35 + Math.sin(t * 6.0) * 0.3;
         break;
@@ -412,12 +430,52 @@ export class RobotAnimator {
       dampLambda,
       safeDt
     );
-    rig.rightOtherFingers.rotation.x = THREE.MathUtils.damp(
-      rig.rightOtherFingers.rotation.x,
-      rOtherFingersCurl,
+
+    // Articulate individual fingers smoothly (negative X curls forward toward palm)
+    rig.rightHandRig.indexFinger.proximal.rotation.x = THREE.MathUtils.damp(
+      rig.rightHandRig.indexFinger.proximal.rotation.x,
+      -rIndexCurl,
       dampLambda,
       safeDt
     );
+    rig.rightHandRig.indexFinger.distal.rotation.x = THREE.MathUtils.damp(
+      rig.rightHandRig.indexFinger.distal.rotation.x,
+      -rIndexCurl * 1.05,
+      dampLambda,
+      safeDt
+    );
+    for (let i = 0; i < rig.rightHandRig.otherFingers.length; i++) {
+      const f = rig.rightHandRig.otherFingers[i];
+      const step = rOtherFingersCurl + i * 0.04;
+      f.proximal.rotation.x = THREE.MathUtils.damp(
+        f.proximal.rotation.x,
+        -step,
+        dampLambda,
+        safeDt
+      );
+      f.distal.rotation.x = THREE.MathUtils.damp(
+        f.distal.rotation.x,
+        -step * 1.05,
+        dampLambda,
+        safeDt
+      );
+    }
+    for (let i = 0; i < rig.leftHandRig.allFingers.length; i++) {
+      const f = rig.leftHandRig.allFingers[i];
+      const step = lFingersCurl + i * 0.05;
+      f.proximal.rotation.x = THREE.MathUtils.damp(
+        f.proximal.rotation.x,
+        -step,
+        dampLambda,
+        safeDt
+      );
+      f.distal.rotation.x = THREE.MathUtils.damp(
+        f.distal.rotation.x,
+        -step * 1.05,
+        dampLambda,
+        safeDt
+      );
+    }
 
     // Legs
     rig.leftHip.rotation.x = THREE.MathUtils.damp(

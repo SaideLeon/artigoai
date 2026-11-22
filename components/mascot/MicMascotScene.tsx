@@ -345,56 +345,61 @@ export default function MicMascotScene({
       // Attentive breathing & lively listening head tilt
       r.bodyPivot.position.y = THREE.MathUtils.damp(
         r.bodyPivot.position.y,
-        Math.sin(t * 2.2) * (0.025 + smoothLevel * 0.018),
+        Math.sin(t * 2.2) * (0.02 + smoothLevel * 0.015),
         10,
         safeDt
       );
       r.headPivot.rotation.x = THREE.MathUtils.damp(
         r.headPivot.rotation.x,
-        -0.02 + Math.sin(t * 2.8) * (0.02 + smoothLevel * 0.04) - pointerTarget.y * 0.14,
+        -0.01 + Math.sin(t * 2.8) * (0.02 + smoothLevel * 0.035) - pointerTarget.y * 0.14,
         10,
         safeDt
       );
       r.headPivot.rotation.y = THREE.MathUtils.damp(
         r.headPivot.rotation.y,
-        Math.sin(t * 1.5) * 0.06 + pointerTarget.x * 0.22,
+        Math.sin(t * 1.5) * 0.05 + pointerTarget.x * 0.22,
         10,
         safeDt
       );
       r.headPivot.rotation.z = THREE.MathUtils.damp(
         r.headPivot.rotation.z,
-        -0.05 + Math.sin(t * 1.9) * 0.045,
+        0.04 + Math.sin(t * 1.9) * 0.04,
         10,
         safeDt
       );
 
-      // Right hand holds microphone steadily with expressive speaking motion
-      r.rightArmPivot.rotation.x = THREE.MathUtils.damp(
-        r.rightArmPivot.rotation.x,
-        -0.78 + Math.sin(t * 2.4) * 0.04,
+      // Left-side hand holds microphone upright in front of chin/chest
+      r.leftArmPivot.rotation.x = THREE.MathUtils.damp(
+        r.leftArmPivot.rotation.x,
+        -0.38 + Math.sin(t * 2.4) * 0.03,
         12,
-        safeDt
-      );
-      r.rightForearmPivot.rotation.x = THREE.MathUtils.damp(
-        r.rightForearmPivot.rotation.x,
-        -1.12 - smoothLevel * 0.08 + Math.sin(t * 3.1) * 0.035,
-        12,
-        safeDt
-      );
-
-      // Left arm gestures expressively while user explains
-      r.leftArmPivot.rotation.z = THREE.MathUtils.damp(
-        r.leftArmPivot.rotation.z,
-        -0.42 - Math.sin(t * 2.5) * (0.04 + smoothLevel * 0.1),
-        10,
         safeDt
       );
       r.leftForearmPivot.rotation.x = THREE.MathUtils.damp(
         r.leftForearmPivot.rotation.x,
-        -0.62 - Math.cos(t * 2.9) * (0.05 + smoothLevel * 0.12),
+        -1.72 - smoothLevel * 0.06 + Math.sin(t * 3.1) * 0.025,
+        12,
+        safeDt
+      );
+
+      // Right-side arm gestures warmly with open welcoming palm
+      r.rightArmPivot.rotation.z = THREE.MathUtils.damp(
+        r.rightArmPivot.rotation.z,
+        0.52 + Math.sin(t * 2.4) * (0.035 + smoothLevel * 0.07),
         10,
         safeDt
       );
+      r.rightForearmPivot.rotation.x = THREE.MathUtils.damp(
+        r.rightForearmPivot.rotation.x,
+        -0.98 - Math.cos(t * 2.8) * (0.04 + smoothLevel * 0.09),
+        10,
+        safeDt
+      );
+      for (let i = 0; i < r.rightHandRig.allFingers.length; i++) {
+        const f = r.rightHandRig.allFingers[i];
+        const waveOffset = Math.sin(t * 3.2 + i * 0.45) * (0.04 + smoothLevel * 0.08);
+        f.proximal.rotation.x = -(0.22 + i * 0.06) + waveOffset;
+      }
 
       // Eyes & smile react to voice energy
       r.leftEye.scale.y = THREE.MathUtils.damp(
@@ -418,42 +423,31 @@ export default function MicMascotScene({
         )
       );
 
-      // Microphone LED + Chest core glow
+      // Microphone LED + Chest core glow + Floor ring
       const ledBoost = s.isRecording
-        ? 1.4 + smoothLevel * 1.4 + Math.sin(t * 7.5) * 0.25
+        ? 1.35 + smoothLevel * 1.45 + Math.sin(t * 7.5) * 0.25
         : 0.45;
       r.micLedMat.emissiveIntensity = ledBoost;
       r.micLedMat.color.setHex(s.isRecording ? 0x38bdf8 : 0x6366f1);
       r.chestCoreMat.emissiveIntensity = 1.0 + smoothLevel * 0.9;
+      r.floorRingMat.opacity = s.isRecording
+        ? 0.34 + smoothLevel * 0.32 + Math.sin(t * 3.0) * 0.08
+        : 0.22;
 
-      // Expanding acoustic wave arcs around the microphone capsule
-      const micSpeed = s.isRecording ? 1.55 + smoothLevel * 1.35 : 0.45;
-      for (let i = 0; i < r.micWaves.length; i++) {
-        const w = r.micWaves[i];
-        const phase = (t * micSpeed + i / r.micWaves.length) % 1;
-        const waveScale = 0.72 + phase * (0.85 + smoothLevel * 0.55);
-        w.group.scale.setScalar(waveScale);
+      // Flanking blue acoustic wave arcs (left & right of Mulébi)
+      const waveSpeed = s.isRecording ? 1.55 + smoothLevel * 1.3 : 0.4;
+      for (let i = 0; i < r.sideWaves.length; i++) {
+        const w = r.sideWaves[i];
+        const ringIdx = i % 3;
+        const phase = (t * waveSpeed + (2 - ringIdx) * 0.33) % 1;
+        const pulseScale = 0.88 + phase * (0.28 + smoothLevel * 0.34);
+        w.group.scale.setScalar(pulseScale);
+        w.group.position.x =
+          w.baseX + w.dirX * (ringIdx * 0.05 + phase * (0.04 + smoothLevel * 0.08));
         const envelope = Math.sin(phase * Math.PI);
-        const visibility = s.isRecording ? 0.35 + smoothLevel * 0.65 : 0.16;
-        w.material.opacity = envelope * visibility;
-        w.material.emissiveIntensity = 1.1 + smoothLevel * 1.4;
-      }
-
-      // Concentric glowing sound wave rings enveloping the mascot
-      const mascotSpeed = s.isRecording ? 0.95 + smoothLevel * 0.85 : 0.3;
-      for (let i = 0; i < r.mascotWaves.length; i++) {
-        const w = r.mascotWaves[i];
-        const phase = (t * mascotSpeed + i / r.mascotWaves.length) % 1;
-        const ringScale = 0.86 + phase * (0.34 + smoothLevel * 0.28);
-        w.group.scale.setScalar(ringScale);
-        w.group.rotation.x =
-          w.baseTiltX + Math.sin(t * 1.4 + i) * (0.06 + smoothLevel * 0.08);
-        w.group.rotation.z =
-          w.baseTiltZ + Math.cos(t * 1.1 + i) * (0.05 + smoothLevel * 0.06);
-        const envelope = Math.sin(phase * Math.PI);
-        const visibility = s.isRecording ? 0.26 + smoothLevel * 0.58 : 0.1;
-        w.material.opacity = envelope * visibility;
-        w.material.emissiveIntensity = 1.0 + smoothLevel * 1.25;
+        const visibility = s.isRecording ? 0.42 + smoothLevel * 0.58 : 0.22;
+        w.material.opacity = 0.25 + envelope * visibility;
+        w.material.emissiveIntensity = 1.15 + smoothLevel * 1.35;
       }
 
       // Ground shadow responsiveness

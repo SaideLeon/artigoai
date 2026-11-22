@@ -1,12 +1,16 @@
 import * as THREE from "three";
 import { RoundedBoxGeometry } from "three/examples/jsm/geometries/RoundedBoxGeometry.js";
+import {
+  applyHandPose,
+  createArticulatedHand,
+  type ArticulatedHandRig,
+} from "@/components/mascot/RobotHandBuilder";
 
 export type WaveRingItem = {
   group: THREE.Group;
   material: THREE.MeshStandardMaterial;
-  baseScale: number;
-  baseTiltX: number;
-  baseTiltZ: number;
+  baseX: number;
+  dirX: number; // -1 left, +1 right, 0 radial
 };
 
 export type MicMascotRig = {
@@ -23,13 +27,14 @@ export type MicMascotRig = {
   chestCoreMat: THREE.MeshStandardMaterial;
   leftArmPivot: THREE.Group;
   leftForearmPivot: THREE.Group;
+  leftHandRig: ArticulatedHandRig;
   rightArmPivot: THREE.Group;
   rightForearmPivot: THREE.Group;
-  rightHand: THREE.Group;
+  rightHandRig: ArticulatedHandRig;
   micGroup: THREE.Group;
   micLedMat: THREE.MeshStandardMaterial;
-  micWaves: WaveRingItem[];
-  mascotWaves: WaveRingItem[];
+  sideWaves: WaveRingItem[];
+  floorRingMat: THREE.MeshStandardMaterial;
   shadowPlane: THREE.Mesh;
   shadowMat: THREE.MeshBasicMaterial;
 };
@@ -60,42 +65,83 @@ function createContactShadowTexture(): THREE.CanvasTexture {
   return tex;
 }
 
-function createMicGrilleTexture(maxAnisotropy: number): THREE.CanvasTexture {
+function createMicFoamTexture(maxAnisotropy: number): THREE.CanvasTexture {
   const size = 256;
   const canvas = document.createElement("canvas");
   canvas.width = size;
   canvas.height = size;
   const ctx = canvas.getContext("2d");
   if (ctx) {
-    ctx.fillStyle = "#cbd5e1";
+    ctx.fillStyle = "#1e2433";
     ctx.fillRect(0, 0, size, size);
-    const step = 16;
-    for (let y = 0; y < size; y += step) {
-      const offset = (y / step) % 2 === 0 ? 0 : step / 2;
-      for (let x = 0; x < size; x += step) {
-        ctx.fillStyle = "#1e293b";
-        ctx.beginPath();
-        ctx.arc((x + offset) % size, y + step * 0.5, 4.1, 0, Math.PI * 2);
-        ctx.fill();
-
-        ctx.fillStyle = "rgba(255,255,255,0.45)";
-        ctx.beginPath();
-        ctx.arc(
-          ((x + offset) % size) - 1.2,
-          y + step * 0.5 - 1.2,
-          1.4,
-          0,
-          Math.PI * 2
-        );
-        ctx.fill();
-      }
+    // Deterministic fine acoustic foam micro-pore grain
+    let seed = 1337;
+    const rand = () => {
+      seed = (seed * 16807) % 2147483647;
+      return (seed - 1) / 2147483646;
+    };
+    for (let i = 0; i < 2400; i++) {
+      const x = rand() * size;
+      const y = rand() * size;
+      const r = 0.8 + rand() * 1.4;
+      ctx.fillStyle =
+        rand() > 0.48 ? "rgba(15, 23, 42, 0.65)" : "rgba(148, 163, 184, 0.14)";
+      ctx.beginPath();
+      ctx.arc(x, y, r, 0, Math.PI * 2);
+      ctx.fill();
     }
   }
   const tex = new THREE.CanvasTexture(canvas);
   tex.colorSpace = THREE.SRGBColorSpace;
   tex.wrapS = THREE.RepeatWrapping;
   tex.wrapT = THREE.RepeatWrapping;
-  tex.repeat.set(3, 2);
+  tex.repeat.set(3, 3);
+  tex.anisotropy = maxAnisotropy;
+  return tex;
+}
+
+function createChestMicIconTexture(maxAnisotropy: number): THREE.CanvasTexture {
+  const size = 256;
+  const canvas = document.createElement("canvas");
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext("2d");
+  if (ctx) {
+    // Deep indigo-blue illuminated badge background
+    const grad = ctx.createRadialGradient(128, 128, 14, 128, 128, 124);
+    grad.addColorStop(0, "#1d4ed8");
+    grad.addColorStop(0.65, "#1e1b4b");
+    grad.addColorStop(1, "#0f172a");
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, size, size);
+
+    // Crisp glowing cyan microphone glyph in center
+    ctx.strokeStyle = "#67e8f9";
+    ctx.fillStyle = "#67e8f9";
+    ctx.lineWidth = 14;
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
+
+    // Mic capsule
+    ctx.beginPath();
+    ctx.roundRect(102, 54, 52, 82, 26);
+    ctx.fill();
+
+    // U-cradle arc
+    ctx.beginPath();
+    ctx.arc(128, 114, 46, 0.15, Math.PI - 0.15);
+    ctx.stroke();
+
+    // Stand stem & base
+    ctx.beginPath();
+    ctx.moveTo(128, 160);
+    ctx.lineTo(128, 194);
+    ctx.moveTo(98, 194);
+    ctx.lineTo(158, 194);
+    ctx.stroke();
+  }
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.colorSpace = THREE.SRGBColorSpace;
   tex.anisotropy = maxAnisotropy;
   return tex;
 }
@@ -213,12 +259,23 @@ export function createMicMascot(maxAnisotropy = 4): {
     })
   );
 
+  const chestTex = trackTex(createChestMicIconTexture(maxAnisotropy));
   const chestCoreMat = trackMat(
     new THREE.MeshStandardMaterial({
-      color: 0x38bdf8,
-      emissive: 0x4f46e5,
+      map: chestTex,
+      emissiveMap: chestTex,
+      emissive: 0x38bdf8,
       emissiveIntensity: 1.1,
       roughness: 0.18,
+    })
+  );
+
+  const chestRimMat = trackMat(
+    new THREE.MeshPhysicalMaterial({
+      color: 0x6366f1,
+      roughness: 0.22,
+      metalness: 0.18,
+      clearcoat: 0.8,
     })
   );
 
@@ -234,32 +291,31 @@ export function createMicMascot(maxAnisotropy = 4): {
 
   const micHandleMat = trackMat(
     new THREE.MeshPhysicalMaterial({
-      color: 0x1e293b,
-      roughness: 0.34,
-      metalness: 0.52,
-      clearcoat: 0.5,
-      clearcoatRoughness: 0.16,
+      color: 0x111827,
+      roughness: 0.36,
+      metalness: 0.35,
+      clearcoat: 0.38,
+      clearcoatRoughness: 0.22,
     })
   );
 
   const micMetalMat = trackMat(
     new THREE.MeshPhysicalMaterial({
-      color: 0xe2e8f0,
-      roughness: 0.18,
-      metalness: 0.88,
+      color: 0xcbd5e1,
+      roughness: 0.22,
+      metalness: 0.86,
       clearcoat: 0.4,
-      envMapIntensity: 1.0,
+      envMapIntensity: 0.95,
     })
   );
 
-  const micGrilleTex = trackTex(createMicGrilleTexture(maxAnisotropy));
-  const micGrilleMat = trackMat(
-    new THREE.MeshPhysicalMaterial({
-      map: micGrilleTex,
-      color: 0xf1f5f9,
-      roughness: 0.28,
-      metalness: 0.82,
-      envMapIntensity: 0.95,
+  const micFoamTex = trackTex(createMicFoamTexture(maxAnisotropy));
+  const micFoamMat = trackMat(
+    new THREE.MeshStandardMaterial({
+      map: micFoamTex,
+      color: 0x2a3142,
+      roughness: 0.88,
+      metalness: 0.02,
     })
   );
 
@@ -267,14 +323,14 @@ export function createMicMascot(maxAnisotropy = 4): {
     new THREE.MeshStandardMaterial({
       color: 0x38bdf8,
       emissive: 0x0ea5e9,
-      emissiveIntensity: 1.35,
+      emissiveIntensity: 1.45,
       roughness: 0.15,
     })
   );
 
   // --- Root & Grounded Pivot ---
   const root = new THREE.Group();
-  root.name = "ArtigenMicMascotRoot";
+  root.name = "MulebiMicMascotRoot";
 
   const scenePivot = new THREE.Group();
   scenePivot.position.set(0, -1.04, 0);
@@ -290,12 +346,31 @@ export function createMicMascot(maxAnisotropy = 4): {
     })
   );
   const shadowPlane = new THREE.Mesh(
-    trackGeo(new THREE.PlaneGeometry(2.15, 1.85)),
+    trackGeo(new THREE.PlaneGeometry(2.2, 1.85)),
     shadowMat
   );
   shadowPlane.rotation.x = -Math.PI / 2;
   shadowPlane.position.set(0, 0.002, 0);
   scenePivot.add(shadowPlane);
+
+  // Subtle glowing floor halo ring matching reference platform
+  const floorRingMat = trackMat(
+    new THREE.MeshStandardMaterial({
+      color: 0x818cf8,
+      emissive: 0x4f46e5,
+      emissiveIntensity: 0.85,
+      transparent: true,
+      opacity: 0.42,
+      roughness: 0.25,
+    })
+  );
+  const floorRing = new THREE.Mesh(
+    trackGeo(new THREE.TorusGeometry(0.68, 0.008, 10, 64)),
+    floorRingMat
+  );
+  floorRing.rotation.x = Math.PI / 2;
+  floorRing.position.set(0, 0.006, 0.02);
+  scenePivot.add(floorRing);
 
   const bodyPivot = new THREE.Group();
   scenePivot.add(bodyPivot);
@@ -363,7 +438,7 @@ export function createMicMascot(maxAnisotropy = 4): {
   buildStandingLeg(-1);
   buildStandingLeg(1);
 
-  // --- PELVIS + TORSO + CHEST CORE ---
+  // --- PELVIS + TORSO + CHEST MICROPHONE BADGE ---
   const pelvis = new THREE.Mesh(
     trackGeo(new THREE.SphereGeometry(0.22, 28, 22)),
     whiteShellMat
@@ -392,17 +467,17 @@ export function createMicMascot(maxAnisotropy = 4): {
   bodyPivot.add(torso);
 
   const chestBezel = new THREE.Mesh(
-    trackGeo(new THREE.TorusGeometry(0.075, 0.016, 12, 28)),
-    jointDarkMat
+    trackGeo(new THREE.TorusGeometry(0.088, 0.017, 14, 32)),
+    chestRimMat
   );
   chestBezel.position.set(0, 0.81, 0.228);
   bodyPivot.add(chestBezel);
 
   const chestCore = new THREE.Mesh(
-    trackGeo(new THREE.CircleGeometry(0.064, 24)),
+    trackGeo(new THREE.CircleGeometry(0.076, 28)),
     chestCoreMat
   );
-  chestCore.position.set(0, 0.81, 0.23);
+  chestCore.position.set(0, 0.81, 0.232);
   bodyPivot.add(chestCore);
 
   const collar = new THREE.Mesh(
@@ -557,7 +632,7 @@ export function createMicMascot(maxAnisotropy = 4): {
     ear.add(hinge);
   });
 
-  // --- ARTICULATED ARMS ---
+  // --- ARTICULATED ARMS WITH SCULPTED WHITE-SHELL HANDS ---
   const buildArm = (side: -1 | 1) => {
     const shoulder = new THREE.Group();
     shoulder.position.set(side * 0.315, 0.89, 0.02);
@@ -603,207 +678,143 @@ export function createMicMascot(maxAnisotropy = 4): {
     wristRing.position.set(0, -0.185, 0);
     forearmPivot.add(wristRing);
 
-    const hand = new THREE.Group();
-    hand.position.set(0, -0.22, 0.01);
-    forearmPivot.add(hand);
+    const handRig = createArticulatedHand({
+      side,
+      scale: 1.05,
+      whiteShellMat,
+      jointDarkMat,
+      trackGeo,
+    });
+    handRig.handGroup.position.set(0, -0.205, 0.006);
+    forearmPivot.add(handRig.handGroup);
 
-    const palm = new THREE.Mesh(
-      trackGeo(new RoundedBoxGeometry(0.095, 0.075, 0.09, 3, 0.024)),
-      whiteShellMat
-    );
-    palm.castShadow = true;
-    hand.add(palm);
-
-    return { shoulder, forearmPivot, hand };
+    return { shoulder, forearmPivot, handRig };
   };
 
+  // Viewer's LEFT arm (side = -1): bends inward in front of chest gripping the mic upright!
   const leftArm = buildArm(-1);
+  // Viewer's RIGHT arm (side = +1): extends outward with friendly open welcoming palm!
   const rightArm = buildArm(1);
 
-  // Left arm in friendly expressive storytelling pose
-  leftArm.shoulder.rotation.set(-0.24, 0.08, -0.42);
-  leftArm.forearmPivot.rotation.set(-0.62, 0.18, 0.25);
+  // Exact ergonomic grip pose matching reference photo
+  leftArm.shoulder.rotation.set(-0.38, 0.14, -0.26);
+  leftArm.forearmPivot.rotation.set(-1.72, 0.88, 0.0);
+  leftArm.handRig.handGroup.rotation.set(0.14, 1.48, -0.22);
+  applyHandPose(leftArm.handRig, -1, "grip");
 
-  // Right arm holding the studio microphone up near mouth/chest
-  rightArm.shoulder.rotation.set(-0.78, -0.32, 0.34);
-  rightArm.forearmPivot.rotation.set(-1.12, -0.28, -0.45);
+  // Exact open welcoming palm pose on viewer's right matching reference photo
+  rightArm.shoulder.rotation.set(-0.22, -0.1, 0.52);
+  rightArm.forearmPivot.rotation.set(-0.98, -0.16, 0.34);
+  rightArm.handRig.handGroup.rotation.set(-0.28, 0.28, 0.42);
+  applyHandPose(rightArm.handRig, 1, "open");
 
-  // --- DETAILED STUDIO HANDHELD MICROPHONE HELD IN RIGHT HAND ---
+  // --- DETAILED STUDIO HANDHELD MICROPHONE GRIPPED SNUGLY BY LEFT-SIDE HAND ---
   const micGroup = new THREE.Group();
-  micGroup.position.set(-0.02, 0.04, 0.06);
-  micGroup.rotation.set(0.32, 0.12, 0.28);
-  rightArm.hand.add(micGroup);
+  // Oriented inside gripAnchor so handle sits along hand's X axis and foam head points toward thumb/index (-X -> World +Y)
+  micGroup.position.set(-0.015, 0.008, -0.016);
+  micGroup.rotation.set(0, -0.12, Math.PI / 2);
+  leftArm.handRig.gripAnchor.add(micGroup);
 
   const micHandle = new THREE.Mesh(
-    trackGeo(new THREE.CylinderGeometry(0.04, 0.028, 0.29, 24)),
+    trackGeo(new THREE.CylinderGeometry(0.036, 0.026, 0.33, 24)),
     micHandleMat
   );
-  micHandle.position.set(0, 0.03, 0);
+  micHandle.position.set(0, 0.0, 0);
   micHandle.castShadow = true;
   micGroup.add(micHandle);
 
-  const micBottomCap = new THREE.Mesh(
-    trackGeo(new THREE.CylinderGeometry(0.029, 0.022, 0.035, 20)),
+  const micBottomRim = new THREE.Mesh(
+    trackGeo(new THREE.CylinderGeometry(0.028, 0.022, 0.028, 20)),
     micMetalMat
   );
-  micBottomCap.position.set(0, -0.125, 0);
-  micGroup.add(micBottomCap);
+  micBottomRim.position.set(0, -0.172, 0);
+  micGroup.add(micBottomRim);
 
+  // Glowing cyan LED ring & silver collar ring right under the foam capsule
   const micLedRing = new THREE.Mesh(
-    trackGeo(new THREE.TorusGeometry(0.042, 0.0085, 12, 28)),
+    trackGeo(new THREE.CylinderGeometry(0.044, 0.041, 0.026, 28)),
     micLedMat
   );
-  micLedRing.rotation.x = Math.PI / 2;
-  micLedRing.position.set(0, 0.155, 0);
+  micLedRing.position.set(0, 0.168, 0);
   micGroup.add(micLedRing);
 
   const micCollar = new THREE.Mesh(
-    trackGeo(new THREE.CylinderGeometry(0.056, 0.042, 0.045, 24)),
+    trackGeo(new THREE.CylinderGeometry(0.056, 0.044, 0.034, 26)),
     micMetalMat
   );
-  micCollar.position.set(0, 0.195, 0);
+  micCollar.position.set(0, 0.194, 0);
   micGroup.add(micCollar);
 
-  const micInnerFoam = new THREE.Mesh(
-    trackGeo(new THREE.SphereGeometry(0.088, 22, 18)),
-    jointDarkMat
+  // Matte dark-charcoal elongated acoustic foam windscreen head (exact match to photo!)
+  const micFoamHead = new THREE.Mesh(
+    trackGeo(new THREE.CapsuleGeometry(0.088, 0.115, 16, 28)),
+    micFoamMat
   );
-  micInnerFoam.position.set(0, 0.275, 0);
-  micGroup.add(micInnerFoam);
+  micFoamHead.position.set(0, 0.305, 0);
+  micFoamHead.castShadow = true;
+  micGroup.add(micFoamHead);
 
-  const micGrille = new THREE.Mesh(
-    trackGeo(new THREE.SphereGeometry(0.098, 28, 22)),
-    micGrilleMat
-  );
-  micGrille.position.set(0, 0.275, 0);
-  micGrille.castShadow = true;
-  micGroup.add(micGrille);
-
-  const micBelt = new THREE.Mesh(
-    trackGeo(new THREE.TorusGeometry(0.099, 0.008, 10, 32)),
-    micMetalMat
-  );
-  micBelt.rotation.x = Math.PI / 2;
-  micBelt.position.set(0, 0.275, 0);
-  micGroup.add(micBelt);
-
-  // --- SOUND WAVES AROUND MICROPHONE CAPSULE ---
-  const micWaves: WaveRingItem[] = [];
-  const micWaveAnchor = new THREE.Group();
-  micWaveAnchor.position.set(0, 0.275, 0);
-  micGroup.add(micWaveAnchor);
-
-  const micWaveSpecs = [
-    { radius: 0.16, tube: 0.011, color: 0x38bdf8, emissive: 0x0ea5e9 },
-    { radius: 0.24, tube: 0.01, color: 0x818cf8, emissive: 0x6366f1 },
-    { radius: 0.32, tube: 0.009, color: 0x67e8f9, emissive: 0x38bdf8 },
+  // --- CURVED BLUE ACOUSTIC SOUND WAVE ARCS FLANKING MULÉBI (LEFT & RIGHT) ---
+  const sideWaves: WaveRingItem[] = [];
+  const arcConfigs = [
+    { radius: 0.16, tube: 0.015, span: Math.PI * 0.56, offset: 0.0 },
+    { radius: 0.25, tube: 0.013, span: Math.PI * 0.62, offset: 0.05 },
+    { radius: 0.34, tube: 0.011, span: Math.PI * 0.68, offset: 0.1 },
   ];
 
-  micWaveSpecs.forEach((spec, idx) => {
-    const waveGroup = new THREE.Group();
-    const mat = trackMat(
-      new THREE.MeshStandardMaterial({
-        color: spec.color,
-        emissive: spec.emissive,
-        emissiveIntensity: 1.4,
-        transparent: true,
-        opacity: 0.72,
-        roughness: 0.2,
-        depthWrite: false,
-      })
-    );
+  [-1, 1].forEach((dirX) => {
+    const baseX = dirX * 0.56;
+    arcConfigs.forEach((cfg) => {
+      const waveGroup = new THREE.Group();
+      waveGroup.position.set(baseX + dirX * cfg.offset, 0.94, 0.02);
 
-    // Left and right curved acoustic arcs flanking the mic capsule
-    const leftArc = new THREE.Mesh(
-      trackGeo(
-        new THREE.TorusGeometry(spec.radius, spec.tube, 10, 28, Math.PI * 0.65)
-      ),
-      mat
-    );
-    leftArc.rotation.z = Math.PI * 0.675;
-    waveGroup.add(leftArc);
+      const mat = trackMat(
+        new THREE.MeshStandardMaterial({
+          color: 0x38bdf8,
+          emissive: 0x0ea5e9,
+          emissiveIntensity: 1.45,
+          transparent: true,
+          opacity: 0.85,
+          roughness: 0.2,
+          depthWrite: false,
+        })
+      );
 
-    const rightArc = new THREE.Mesh(
-      trackGeo(
-        new THREE.TorusGeometry(spec.radius, spec.tube, 10, 28, Math.PI * 0.65)
-      ),
-      mat
-    );
-    rightArc.rotation.z = -Math.PI * 0.325;
-    waveGroup.add(rightArc);
+      const arc = new THREE.Mesh(
+        trackGeo(new THREE.TorusGeometry(cfg.radius, cfg.tube, 12, 32, cfg.span)),
+        mat
+      );
+      // Center arc outward to left (-X) or right (+X)
+      arc.rotation.z =
+        dirX < 0 ? Math.PI - cfg.span / 2 : -cfg.span / 2;
+      waveGroup.add(arc);
 
-    micWaveAnchor.add(waveGroup);
-    micWaves.push({
-      group: waveGroup,
-      material: mat,
-      baseScale: 0.85 + idx * 0.15,
-      baseTiltX: 0,
-      baseTiltZ: 0,
-    });
-  });
+      // Rounded spherical endcaps for crisp graphic look matching the image
+      const capGeo = trackGeo(new THREE.SphereGeometry(cfg.tube, 10, 10));
+      const a0 = arc.rotation.z;
+      const a1 = arc.rotation.z + cfg.span;
+      const cap0 = new THREE.Mesh(capGeo, mat);
+      cap0.position.set(
+        Math.cos(a0) * cfg.radius,
+        Math.sin(a0) * cfg.radius,
+        0
+      );
+      waveGroup.add(cap0);
+      const cap1 = new THREE.Mesh(capGeo, mat);
+      cap1.position.set(
+        Math.cos(a1) * cfg.radius,
+        Math.sin(a1) * cfg.radius,
+        0
+      );
+      waveGroup.add(cap1);
 
-  // --- CONCENTRIC SOUND WAVES AROUND THE MASCOT ---
-  const mascotWaves: WaveRingItem[] = [];
-  const mascotWaveSpecs = [
-    {
-      radius: 0.88,
-      tube: 0.015,
-      color: 0x38bdf8,
-      emissive: 0x0ea5e9,
-      tiltX: Math.PI / 2 - 0.28,
-      tiltZ: 0.16,
-      y: 0.92,
-    },
-    {
-      radius: 1.05,
-      tube: 0.013,
-      color: 0x818cf8,
-      emissive: 0x6366f1,
-      tiltX: Math.PI / 2 + 0.24,
-      tiltZ: -0.22,
-      y: 1.05,
-    },
-    {
-      radius: 1.22,
-      tube: 0.011,
-      color: 0xa78bfa,
-      emissive: 0x7c3aed,
-      tiltX: Math.PI / 2 - 0.14,
-      tiltZ: -0.1,
-      y: 1.18,
-    },
-  ];
-
-  mascotWaveSpecs.forEach((spec) => {
-    const waveGroup = new THREE.Group();
-    waveGroup.position.set(0, spec.y, 0.02);
-    waveGroup.rotation.set(spec.tiltX, 0, spec.tiltZ);
-
-    const mat = trackMat(
-      new THREE.MeshStandardMaterial({
-        color: spec.color,
-        emissive: spec.emissive,
-        emissiveIntensity: 1.35,
-        transparent: true,
-        opacity: 0.55,
-        roughness: 0.2,
-        depthWrite: false,
-      })
-    );
-
-    const ring = new THREE.Mesh(
-      trackGeo(new THREE.TorusGeometry(spec.radius, spec.tube, 12, 64)),
-      mat
-    );
-    waveGroup.add(ring);
-
-    scenePivot.add(waveGroup);
-    mascotWaves.push({
-      group: waveGroup,
-      material: mat,
-      baseScale: 1,
-      baseTiltX: spec.tiltX,
-      baseTiltZ: spec.tiltZ,
+      scenePivot.add(waveGroup);
+      sideWaves.push({
+        group: waveGroup,
+        material: mat,
+        baseX,
+        dirX,
+      });
     });
   });
 
@@ -821,13 +832,14 @@ export function createMicMascot(maxAnisotropy = 4): {
     chestCoreMat,
     leftArmPivot: leftArm.shoulder,
     leftForearmPivot: leftArm.forearmPivot,
+    leftHandRig: leftArm.handRig,
     rightArmPivot: rightArm.shoulder,
     rightForearmPivot: rightArm.forearmPivot,
-    rightHand: rightArm.hand,
+    rightHandRig: rightArm.handRig,
     micGroup,
     micLedMat,
-    micWaves,
-    mascotWaves,
+    sideWaves,
+    floorRingMat,
     shadowPlane,
     shadowMat,
   };
