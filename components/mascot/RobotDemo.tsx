@@ -22,6 +22,7 @@ import {
 } from "lucide-react";
 import BrandLogo from "@/components/BrandLogo";
 import RobotScene from "@/components/mascot/RobotScene";
+import WritingMascotScene from "@/components/mascot/WritingMascotScene";
 import { useRobotStateController } from "@/components/mascot/RobotController";
 import type {
   RobotAnimationState,
@@ -165,18 +166,31 @@ export default function RobotDemo() {
 
         {/* 3D Canvas Container */}
         <div className="relative my-2 h-[380px] w-full max-w-[680px] sm:h-[460px] lg:h-[500px]">
-          <RobotScene
-            animation={robot.animation}
-            expression={robot.expression}
-            paused={robot.paused}
-            rotationDeg={robot.rotationDeg}
-            scale={robot.scale}
-            blinkNonce={robot.blinkNonce}
-            cameraZ={4.65}
-            onRotationChange={robot.setRotationDeg}
-            onRobotClick={robot.cycleClickInteraction}
-            className="h-full w-full"
-          />
+          {robot.animation === "writing" ? (
+            <WritingMascotScene
+              paused={robot.paused}
+              rotationDeg={robot.rotationDeg}
+              scale={robot.scale}
+              blinkNonce={robot.blinkNonce}
+              cameraZ={4.45}
+              onRotationChange={robot.setRotationDeg}
+              onRobotClick={robot.cycleClickInteraction}
+              className="h-full w-full"
+            />
+          ) : (
+            <RobotScene
+              animation={robot.animation}
+              expression={robot.expression}
+              paused={robot.paused}
+              rotationDeg={robot.rotationDeg}
+              scale={robot.scale}
+              blinkNonce={robot.blinkNonce}
+              cameraZ={4.65}
+              onRotationChange={robot.setRotationDeg}
+              onRobotClick={robot.cycleClickInteraction}
+              className="h-full w-full"
+            />
+          )}
         </div>
 
         {/* Collapsible Unified Bottom Control Dock (Zero Viewport Occlusion) */}

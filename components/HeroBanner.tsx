@@ -5,6 +5,7 @@ import Link from "next/link";
 import { CheckCircle2 } from "lucide-react";
 import BrandLogo from "@/components/BrandLogo";
 import RobotScene from "@/components/mascot/RobotScene";
+import WritingMascotScene from "@/components/mascot/WritingMascotScene";
 import type {
   RobotAnimationState,
   RobotExpression,
@@ -80,17 +81,28 @@ export default function HeroBanner({ mascotState = "idle" }: HeroBannerProps) {
           <div className="hidden sm:flex items-center gap-2">
             <div
               title="Artigen AI Assistant 3D — Clique para interagir"
-              className="relative h-20 w-20 overflow-hidden rounded-2xl border border-white/70 bg-white/60 shadow-sm backdrop-blur-xs dark:border-white/15 dark:bg-slate-900/60"
+              className="relative h-20 w-20 overflow-hidden rounded-2xl border border-white/75 bg-gradient-to-b from-[#DCE3FF] to-[#F3F6FF] shadow-sm dark:border-white/15 dark:from-[#131C3D] dark:to-slate-900"
             >
-              <RobotScene
-                animation={effectiveAnimation}
-                expression={effectiveExpression}
-                cameraZ={4.35}
-                scale={1.04}
-                onRobotClick={() => setClickedGreeting((v) => !v)}
-                className="h-full w-full"
-                ariaLabel="Mascote 3D Artigen no painel principal"
-              />
+              {effectiveAnimation === "writing" ? (
+                <WritingMascotScene
+                  interactive={false}
+                  cameraZ={4.25}
+                  scale={1.06}
+                  onRobotClick={() => setClickedGreeting((v) => !v)}
+                  className="h-full w-full"
+                  ariaLabel="Mascote 3D Artigen a escrever artigo"
+                />
+              ) : (
+                <RobotScene
+                  animation={effectiveAnimation}
+                  expression={effectiveExpression}
+                  cameraZ={4.35}
+                  scale={1.04}
+                  onRobotClick={() => setClickedGreeting((v) => !v)}
+                  className="h-full w-full"
+                  ariaLabel="Mascote 3D Artigen no painel principal"
+                />
+              )}
             </div>
             <Link
               href="/mascote"

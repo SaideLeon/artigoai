@@ -20,10 +20,12 @@ import {
   BookOpen,
   ExternalLink,
   SearchCheck,
+  Info,
 } from "lucide-react";
 import { motion } from "motion/react";
 import BrandLogo from "@/components/BrandLogo";
 import RobotScene from "@/components/mascot/RobotScene";
+import WritingMascotScene from "@/components/mascot/WritingMascotScene";
 import type { FontePesquisa, Secao, WorkspaceTab } from "@/lib/types";
 
 type ArticleWorkspaceProps = {
@@ -515,17 +517,16 @@ export default function ArticleWorkspace({
                       ))}
                     </div>
                   ) : i === activeWritingIndex ? (
-                    <div className="flex flex-col sm:flex-row items-center gap-4 rounded-2xl border border-indigo-200/80 bg-gradient-to-r from-indigo-50/70 via-white to-sky-50/60 p-4 dark:border-indigo-500/25 dark:from-[#0E162E] dark:via-slate-900 dark:to-[#0F2342]">
-                      <div className="h-32 w-32 shrink-0 overflow-hidden rounded-2xl border border-indigo-100 bg-white/80 shadow-xs dark:border-indigo-500/20 dark:bg-slate-950/70">
-                        <RobotScene
-                          animation="writing"
-                          expression="curious"
+                    <div className="flex flex-col sm:flex-row items-center gap-4 sm:gap-6 overflow-hidden rounded-2xl border border-indigo-200/80 bg-gradient-to-r from-[#DCE3FF] via-[#EEF2FF] to-[#F8FAFF] p-4 sm:py-3 sm:pr-6 dark:border-indigo-500/25 dark:from-[#131C3D] dark:via-[#111936] dark:to-slate-900">
+                      <div className="h-52 w-52 sm:h-56 sm:w-60 shrink-0">
+                        <WritingMascotScene
                           cameraZ={4.35}
+                          scale={1.04}
                           className="h-full w-full"
-                          ariaLabel={`Mascote 3D Artigen a escrever a secção ${i + 1}`}
+                          ariaLabel={`Mascote 3D Artigen sentado nos livros a escrever a secção ${i + 1}`}
                         />
                       </div>
-                      <div className="min-w-0 flex-1 text-center sm:text-left space-y-1.5">
+                      <div className="min-w-0 flex-1 space-y-2 text-center sm:text-left">
                         <div className="inline-flex items-center gap-2 text-xs font-semibold text-indigo-700 dark:text-indigo-300">
                           <BrandLogo
                             variant="write"
@@ -533,12 +534,15 @@ export default function ArticleWorkspace({
                           />
                           <span>Artigen AI Assistant está a escrever…</span>
                         </div>
-                        <p className="text-sm font-medium text-slate-800 dark:text-slate-200">
+                        <p className="text-sm font-semibold leading-relaxed text-slate-800 dark:text-slate-100">
                           {sec.objetivo ||
                             "A redigir os parágrafos desta secção com fluidez e contexto."}
                         </p>
-                        <p className="text-xs text-slate-500 dark:text-slate-400">
-                          O texto aparecerá aqui assim que a secção ficar pronta.
+                        <p className="inline-flex items-center justify-center sm:justify-start gap-1.5 text-xs text-slate-500 dark:text-slate-400">
+                          <Info className="h-3.5 w-3.5 shrink-0 text-indigo-500 dark:text-indigo-400" />
+                          <span>
+                            O texto aparecerá aqui assim que a secção ficar pronta.
+                          </span>
                         </p>
                       </div>
                     </div>
