@@ -201,6 +201,7 @@ export async function POST(req: Request) {
       idioma = "Português (Brasil)",
       modo = "auto",
       plano: rawPlano,
+      narracao = "",
     }: {
       tema: string;
       descricao?: string;
@@ -209,6 +210,7 @@ export async function POST(req: Request) {
       idioma?: string;
       modo?: ModoPesquisa;
       plano?: string;
+      narracao?: string;
     } = await req.json();
 
     if (modo === "desativada") {
@@ -229,6 +231,9 @@ export async function POST(req: Request) {
         ? `Pesquisa OBRIGATORIAMENTE na web usando ${ferramentaLabel} para recolher factos recentes, datas, estatísticas e fontes fiáveis sobre o tema.`
         : `Avalia primeiro se este artigo exige pesquisa na web para ser preciso e atualizado (especialmente se for notícia, atualidade, artigo informativo técnico/factual, mercado, leis, lançamentos ou eventos recentes). Se for necessário, usa ${ferramentaLabel} para pesquisar factos e fontes atualizadas. Se for puramente reflexivo/atemporal e não precisar de factos externos, define "necessario": false.`;
 
+    const narracaoLimpa =
+      typeof narracao === "string" ? narracao.trim().slice(0, 10000) : "";
+
     const prompt = `Analisa o pedido de artigo abaixo e faz pesquisa na web quando necessário.
 
 Tema: "${tema}"
@@ -238,6 +243,11 @@ ${descricao ? `Descrição: "${descricao}"` : ""}
 ${
   Array.isArray(palavrasChave) && palavrasChave.length > 0
     ? `Palavras-chave: ${palavrasChave.join(", ")}`
+    : ""
+}
+${
+  narracaoLimpa
+    ? `\nNarração/explicação fornecida pelo utilizador (verifica, atualiza e concilia os factos, datas, nomes e contexto desta narração com fontes atuais da web):\n"""\n${narracaoLimpa}\n"""`
     : ""
 }
 

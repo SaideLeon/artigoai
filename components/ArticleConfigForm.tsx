@@ -19,6 +19,7 @@ import {
   Search,
   Sparkles,
   Cpu,
+  Mic,
 } from "lucide-react";
 import {
   FAIXAS_PALAVRAS,
@@ -57,6 +58,9 @@ type ArticleConfigFormProps = {
   ocupado: boolean;
   onGerar: () => void;
   onCancelar: () => void;
+  narracaoContexto: string;
+  onAbrirNarracao: () => void;
+  onClearNarracao: () => void;
 };
 
 export default function ArticleConfigForm({
@@ -87,6 +91,9 @@ export default function ArticleConfigForm({
   ocupado,
   onGerar,
   onCancelar,
+  narracaoContexto,
+  onAbrirNarracao,
+  onClearNarracao,
 }: ArticleConfigFormProps) {
   const [novaTag, setNovaTag] = useState("");
 
@@ -176,6 +183,44 @@ export default function ArticleConfigForm({
               ? "Usa apenas modelos Google Gemini para artigo, pesquisa e imagens."
               : "Usa OpenRouter para texto, Groq para pesquisa web e NVIDIA para imagens."}
           </p>
+        </div>
+
+        {/* Narração por Voz com Microfone */}
+        <div className="rounded-xl border border-indigo-200/80 bg-gradient-to-r from-[#EEF2FF] via-[#F5F3FF] to-[#EFF6FF] p-3 dark:border-indigo-500/30 dark:from-[#161F42] dark:via-[#1B1945] dark:to-[#102542]">
+          <div className="flex items-center justify-between gap-2.5">
+            <div className="min-w-0">
+              <p className="text-xs font-bold text-indigo-950 dark:text-white">
+                Explicar o tema por voz
+              </p>
+              <p className="mt-0.5 text-[11px] leading-snug text-slate-600 dark:text-slate-300">
+                Ligue o microfone, conte com suas palavras e o mascote organiza e ilustra tudo.
+              </p>
+            </div>
+            <button
+              type="button"
+              disabled={ocupado || sugerindo}
+              onClick={onAbrirNarracao}
+              className="inline-flex shrink-0 items-center gap-1.5 rounded-xl bg-gradient-to-r from-[#5B4AF4] to-[#2563EB] px-3 py-2 text-xs font-semibold text-white shadow-xs transition-all hover:brightness-110 disabled:opacity-50"
+            >
+              <Mic className="h-3.5 w-3.5" />
+              <span>{narracaoContexto.trim() ? "Editar Voz" : "Narrar"}</span>
+            </button>
+          </div>
+          {narracaoContexto.trim() && (
+            <div className="mt-2.5 flex items-center justify-between gap-2 rounded-lg border border-indigo-200/80 bg-white/90 px-2.5 py-1.5 text-[11px] dark:border-indigo-500/30 dark:bg-slate-900/90">
+              <span className="truncate font-medium text-indigo-800 dark:text-indigo-200">
+                Narração ativa ({narracaoContexto.trim().split(/\s+/).filter(Boolean).length} palavras)
+              </span>
+              <button
+                type="button"
+                disabled={ocupado}
+                onClick={onClearNarracao}
+                className="shrink-0 font-semibold text-rose-600 hover:underline dark:text-rose-400 disabled:opacity-50"
+              >
+                Remover
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Tema ou Título Principal */}

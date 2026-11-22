@@ -19,10 +19,13 @@ export async function POST(req: Request) {
       descricao = "",
       primeiraPessoa = true,
       contextoPesquisa = "",
+      narracao = "",
       plano: rawPlano,
     } = await req.json();
 
     const plano = normalizePlano(rawPlano);
+    const narracaoLimpa =
+      typeof narracao === "string" ? narracao.trim().slice(0, 16000) : "";
 
     const extras = [
       descricao ? `Enquadramento geral: ${descricao}.` : "",
@@ -33,8 +36,11 @@ export async function POST(req: Request) {
       Array.isArray(palavrasChave) && palavrasChave.length > 0
         ? `Quando fizer sentido, integra naturalmente estas palavras-chave: ${palavrasChave.join(", ")}.`
         : "",
+      narracaoLimpa
+        ? `\nNarração explicada pelo utilizador (incorpora, melhora e aprofunda os detalhes, ideias, exemplos e história relevantes para esta secção, transformando a fala numa escrita rica e profissional sem perder a essência):\n"""\n${narracaoLimpa}\n"""`
+        : "",
       contextoPesquisa
-        ? `\nInformação pesquisada na web (usa estes factos, datas e dados com rigor, sem inventar estatísticas):\n${contextoPesquisa}`
+        ? `\nInformação pesquisada na web (concilia com a narração e usa estes factos, datas e dados com rigor, sem inventar estatísticas):\n${contextoPesquisa}`
         : "",
     ]
       .filter(Boolean)

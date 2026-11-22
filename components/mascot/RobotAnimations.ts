@@ -8,7 +8,8 @@ export type RobotAnimationState =
   | "excited"
   | "pointing"
   | "sleeping"
-  | "writing";
+  | "writing"
+  | "microphone";
 
 export type RobotExpression =
   | "neutral"

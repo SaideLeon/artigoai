@@ -36,10 +36,13 @@ export async function POST(req: Request) {
       idioma = "Português (Brasil)",
       primeiraPessoa = true,
       contextoPesquisa = "",
+      narracao = "",
       plano: rawPlano,
     } = await req.json();
 
     const plano = normalizePlano(rawPlano);
+    const narracaoLimpa =
+      typeof narracao === "string" ? narracao.trim().slice(0, 16000) : "";
 
     const extras = [
       descricao ? `Descrição/foco: "${descricao}".` : "",
@@ -51,8 +54,11 @@ export async function POST(req: Request) {
       primeiraPessoa
         ? `Perspectiva narrativa: estrutura o artigo em primeira pessoa do singular ("eu", "minha experiência", "o que aprendi").`
         : `Perspectiva narrativa: estrutura o artigo em terceira pessoa / forma impessoal, sem usar "eu" ou "meu".`,
+      narracaoLimpa
+        ? `\nNarração/explicação original do utilizador (usa esta história, argumentos, exemplos e ideias como espinha dorsal do artigo, melhorando a organização em secções lógicas e completas):\n"""\n${narracaoLimpa}\n"""`
+        : "",
       contextoPesquisa
-        ? `\nContexto factual pesquisado na web (usa estes factos e dados atualizados para estruturar as secções):\n${contextoPesquisa}`
+        ? `\nContexto factual pesquisado na web (concilia e integra estes factos e dados atualizados com a narração para estruturar as secções):\n${contextoPesquisa}`
         : "",
     ]
       .filter(Boolean)

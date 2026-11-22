@@ -12,6 +12,9 @@ import {
   SettingsView,
 } from "@/components/LibraryViews";
 import InfoModal from "@/components/InfoModal";
+import VoiceNarrationModal, {
+  type VoiceNarrationApplyPayload,
+} from "@/components/VoiceNarrationModal";
 import type { RobotAnimationState } from "@/components/mascot/RobotAnimations";
 import { useAuth } from "@/components/AuthProvider";
 import { useTheme } from "@/components/ThemeProvider";
@@ -203,6 +206,9 @@ export default function ArticleStudioApp() {
   const [sugerindo, setSugerindo] = useState(false);
   const [erroSugestao, setErroSugestao] = useState("");
   const [descricaoSugerida, setDescricaoSugerida] = useState(false);
+  const [narracaoContexto, setNarracaoContexto] = useState("");
+  const [voiceModalOpen, setVoiceModalOpen] = useState(false);
+  const [isRecordingVoice, setIsRecordingVoice] = useState(false);
 
   // Library & settings state
   const [artigosSalvos, setArtigosSalvos] = useState<ArtigoSalvo[]>([]);
@@ -638,8 +644,9 @@ export default function ArticleStudioApp() {
     }
   }
 
-  async function gerarArtigo() {
-    if (!tema.trim() || ocupado) return;
+  async function gerarArtigo(overrides?: Partial<VoiceNarrationApplyPayload>) {
+    const temaEfetivo = (overrides?.tema ?? tema).trim();
+    if (!temaEfetivo || ocupado) return;
     const controller = new AbortController();
     abortRef.current = controller;
 
@@ -653,19 +660,25 @@ export default function ArticleStudioApp() {
     setArtigoAtualId(null);
 
     try {
-      let descEfetiva = descricao.trim();
-      let tagsEfetivas = palavrasChave;
-      let tomEfetivo = tom;
-      let faixaEfetiva = faixaAtual;
-      let primeiraPessoaEfetiva = primeiraPessoa;
-      let pesquisaEfetiva = pesquisaWeb;
+      let descEfetiva = (overrides?.descricao ?? descricao).trim();
+      let tagsEfetivas = overrides?.palavrasChave ?? palavrasChave;
+      let tomEfetivo = overrides?.tom ?? tom;
+      const idiomaEfetivo = overrides?.idioma ?? idioma;
+      const faixaIdEfetiva = overrides?.faixaPalavras ?? faixaPalavras;
+      let faixaEfetiva =
+        FAIXAS_PALAVRAS.find((f) => f.id === faixaIdEfetiva) ?? faixaAtual;
+      let primeiraPessoaEfetiva = overrides?.primeiraPessoa ?? primeiraPessoa;
+      let pesquisaEfetiva = overrides?.pesquisaWeb ?? pesquisaWeb;
+      const incluirImagensEfetivo =
+        overrides?.incluirImagens ?? incluirImagens;
+      const narracaoEfetiva = (overrides?.narracao ?? narracaoContexto).trim();
 
-      if (!descEfetiva && tagsEfetivas.length === 0) {
+      if (!descEfetiva && tagsEfetivas.length === 0 && !narracaoEfetiva) {
         try {
           setEstado("A sugerir descrição, palavras-chave e estilo com IA…");
           const sug = await postJson(
             "/api/suggest",
-            { tema: tema.trim(), idioma, plano: planoGeracao },
+            { tema: temaEfetivo, idioma: idiomaEfetivo, plano: planoGeracao },
             controller.signal
           );
           if (Array.isArray(sug.palavrasChave) && sug.palavrasChave.length > 0) {
@@ -708,16 +721,21 @@ export default function ArticleStudioApp() {
       let usouPesquisa = false;
 
       if (pesquisaEfetiva !== "desativada") {
-        setEstado("A avaliar e pesquisar fontes atualizadas na web…");
+        setEstado(
+          narracaoEfetiva
+            ? "A pesquisar fontes na web para conciliar com a sua narração…"
+            : "A avaliar e pesquisar fontes atualizadas na web…"
+        );
         const resPesquisa = await postJson(
           "/api/research",
           {
-            tema: tema.trim(),
+            tema: temaEfetivo,
             descricao: descEfetiva,
             palavrasChave: tagsEfetivas,
             tom: tomEfetivo,
-            idioma,
+            idioma: idiomaEfetivo,
             modo: pesquisaEfetiva,
+            narracao: narracaoEfetiva,
             plano: planoGeracao,
           },
           controller.signal
@@ -729,18 +747,23 @@ export default function ArticleStudioApp() {
         setFontes(fontesPesquisadas);
       }
 
-      setEstado("A criar o esboço estruturado…");
+      setEstado(
+        narracaoEfetiva
+          ? "A organizar a sua narração em secções estruturadas…"
+          : "A criar o esboço estruturado…"
+      );
       const esb = await postJson(
         "/api/outline",
         {
-          tema: tema.trim(),
+          tema: temaEfetivo,
           secoes: faixaEfetiva.numSecoes,
           descricao: descEfetiva,
           palavrasChave: tagsEfetivas,
           tom: tomEfetivo,
-          idioma,
+          idioma: idiomaEfetivo,
           primeiraPessoa: primeiraPessoaEfetiva,
           contextoPesquisa,
+          narracao: narracaoEfetiva,
           plano: planoGeracao,
         },
         controller.signal
@@ -766,11 +789,12 @@ export default function ArticleStudioApp() {
             resumo,
             palavras: alvoPorSecao,
             tom: tomEfetivo,
-            idioma,
+            idioma: idiomaEfetivo,
             palavrasChave: tagsEfetivas,
             descricao: descEfetiva,
             primeiraPessoa: primeiraPessoaEfetiva,
             contextoPesquisa,
+            narracao: narracaoEfetiva,
             plano: planoGeracao,
           },
           controller.signal
@@ -780,7 +804,7 @@ export default function ArticleStudioApp() {
         atualizarSecao(i, { texto, prompt });
         resumo += `- ${lista[i].titulo}: ${texto.slice(0, 200)}…\n`;
 
-        if (incluirImagens && !controller.signal.aborted) {
+        if (incluirImagensEfetivo && !controller.signal.aborted) {
           setEstado(`A gerar a imagem da secção ${i + 1} de ${lista.length}…`);
           const imgUrl = await gerarImagemSecao(i, prompt, controller.signal);
           if (imgUrl) {
@@ -805,12 +829,12 @@ export default function ArticleStudioApp() {
 
         const novoArtigo: ArtigoSalvo = {
           id: novoId,
-          tema: tema.trim(),
+          tema: temaEfetivo,
           titulo: esb.titulo,
           descricao: descEfetiva,
           palavrasChave: tagsEfetivas,
           tom: tomEfetivo,
-          idioma,
+          idioma: idiomaEfetivo,
           faixaPalavras: faixaEfetiva.id,
           primeiraPessoa: primeiraPessoaEfetiva,
           pesquisaUsada: usouPesquisa,
@@ -957,6 +981,7 @@ export default function ArticleStudioApp() {
     setEstado("Artigo carregado do histórico.");
     setErroGeral("");
     setErroSugestao("");
+    setNarracaoContexto("");
     setDescricaoSugerida(false);
     setActiveTab("inicio");
 
@@ -995,10 +1020,32 @@ export default function ArticleStudioApp() {
     }
   }
 
+  function handleAplicarNarracao(payload: VoiceNarrationApplyPayload) {
+    setTema(payload.tema);
+    setDescricao(payload.descricao);
+    setDescricaoSugerida(Boolean(payload.descricao));
+    setPalavrasChave(payload.palavrasChave);
+    setTom(payload.tom);
+    setIdioma(payload.idioma);
+    setFaixaPalavras(payload.faixaPalavras);
+    setIncluirImagens(payload.incluirImagens);
+    setPrimeiraPessoa(payload.primeiraPessoa);
+    setPesquisaWeb(payload.pesquisaWeb);
+    setNarracaoContexto(payload.narracao);
+    setVoiceModalOpen(false);
+    setIsRecordingVoice(false);
+
+    if (payload.autoGenerate) {
+      void gerarArtigo(payload);
+    }
+  }
+
   const artigoAtualObj = artigosSalvos.find((a) => a.id === artigoAtualId);
   const totalFavoritos = artigosSalvos.filter((a) => a.favorito).length;
   const mascotState: RobotAnimationState =
-    ocupado && secoes.length > 0
+    isRecordingVoice || voiceModalOpen
+      ? "microphone"
+      : ocupado && secoes.length > 0
       ? "writing"
       : ocupado || sugerindo
       ? "thinking"
@@ -1072,8 +1119,11 @@ export default function ArticleStudioApp() {
                   descricaoSugerida={descricaoSugerida}
                   onSugerirComIa={sugerirComIa}
                   ocupado={ocupado}
-                  onGerar={gerarArtigo}
+                  onGerar={() => void gerarArtigo()}
                   onCancelar={cancelarGeracao}
+                  narracaoContexto={narracaoContexto}
+                  onAbrirNarracao={() => setVoiceModalOpen(true)}
+                  onClearNarracao={() => setNarracaoContexto("")}
                 />
               </div>
 
@@ -1182,6 +1232,26 @@ export default function ArticleStudioApp() {
         hasStripePortal={hasStripePortal}
         highlightPlanId={highlightPlanId}
         initialBillingCycle={initialBillingCycle}
+      />
+
+      <VoiceNarrationModal
+        key={voiceModalOpen ? "voice-modal-open" : "voice-modal-closed"}
+        open={voiceModalOpen}
+        initialTema={tema}
+        initialIdioma={idioma}
+        initialTom={tom}
+        initialFaixaPalavras={faixaPalavras}
+        initialIncluirImagens={incluirImagens}
+        initialPrimeiraPessoa={primeiraPessoa}
+        initialPesquisaWeb={pesquisaWeb}
+        initialNarracao={narracaoContexto}
+        planoGeracao={planoGeracao}
+        onRecordingStateChange={setIsRecordingVoice}
+        onClose={() => {
+          setVoiceModalOpen(false);
+          setIsRecordingVoice(false);
+        }}
+        onApply={handleAplicarNarracao}
       />
     </div>
   );

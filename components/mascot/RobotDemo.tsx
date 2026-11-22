@@ -19,10 +19,12 @@ import {
   RotateCcw,
   Sparkles,
   Sun,
+  Mic,
 } from "lucide-react";
 import BrandLogo from "@/components/BrandLogo";
 import RobotScene from "@/components/mascot/RobotScene";
 import WritingMascotScene from "@/components/mascot/WritingMascotScene";
+import MicMascotScene from "@/components/mascot/MicMascotScene";
 import { useRobotStateController } from "@/components/mascot/RobotController";
 import type {
   RobotAnimationState,
@@ -66,6 +68,12 @@ const ANIMATIONS: {
     label: "Escrevendo",
     desc: "Redige o artigo",
     icon: PenLine,
+  },
+  {
+    id: "microphone",
+    label: "Com Microfone",
+    desc: "Ouve a narração",
+    icon: Mic,
   },
   { id: "sleeping", label: "Dormindo", desc: "Modo repouso", icon: Moon },
 ];
@@ -177,6 +185,19 @@ export default function RobotDemo() {
               onRobotClick={robot.cycleClickInteraction}
               className="h-full w-full"
             />
+          ) : robot.animation === "microphone" ? (
+            <MicMascotScene
+              isRecording={!robot.paused}
+              audioLevel={0.48}
+              paused={robot.paused}
+              rotationDeg={robot.rotationDeg}
+              scale={robot.scale}
+              blinkNonce={robot.blinkNonce}
+              cameraZ={4.65}
+              onRotationChange={robot.setRotationDeg}
+              onRobotClick={robot.cycleClickInteraction}
+              className="h-full w-full"
+            />
           ) : (
             <RobotScene
               animation={robot.animation}
@@ -256,7 +277,7 @@ export default function RobotDemo() {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-7">
+                <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-8">
                   {ANIMATIONS.map((item) => {
                     const Icon = item.icon;
                     const active = robot.animation === item.id;

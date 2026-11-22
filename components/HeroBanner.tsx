@@ -6,6 +6,7 @@ import { CheckCircle2 } from "lucide-react";
 import BrandLogo from "@/components/BrandLogo";
 import RobotScene from "@/components/mascot/RobotScene";
 import WritingMascotScene from "@/components/mascot/WritingMascotScene";
+import MicMascotScene from "@/components/mascot/MicMascotScene";
 import type {
   RobotAnimationState,
   RobotExpression,
@@ -91,6 +92,17 @@ export default function HeroBanner({ mascotState = "idle" }: HeroBannerProps) {
                   onRobotClick={() => setClickedGreeting((v) => !v)}
                   className="h-full w-full"
                   ariaLabel="Mascote 3D Artigen a escrever artigo"
+                />
+              ) : effectiveAnimation === "microphone" ? (
+                <MicMascotScene
+                  isRecording
+                  audioLevel={0.45}
+                  interactive={false}
+                  cameraZ={4.65}
+                  scale={1.04}
+                  onRobotClick={() => setClickedGreeting((v) => !v)}
+                  className="h-full w-full"
+                  ariaLabel="Mascote 3D Artigen a gravar narração no microfone"
                 />
               ) : (
                 <RobotScene
