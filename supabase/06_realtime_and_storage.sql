@@ -3,8 +3,29 @@
 -- Dependências: 01 e 02
 -- =============================================================================
 
-alter publication supabase_realtime add table public.articles;
-alter publication supabase_realtime add table public.user_settings;
+do $$
+begin
+  if not exists (
+    select 1
+    from pg_publication_tables
+    where pubname = 'supabase_realtime'
+      and schemaname = 'public'
+      and tablename = 'articles'
+  ) then
+    alter publication supabase_realtime add table public.articles;
+  end if;
+
+  if not exists (
+    select 1
+    from pg_publication_tables
+    where pubname = 'supabase_realtime'
+      and schemaname = 'public'
+      and tablename = 'user_settings'
+  ) then
+    alter publication supabase_realtime add table public.user_settings;
+  end if;
+end
+$$;
 
 insert into storage.buckets (id, name, public)
 values ('article-images', 'article-images', true)
