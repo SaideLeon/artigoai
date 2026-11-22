@@ -696,10 +696,10 @@ export function createMicMascot(maxAnisotropy = 4): {
   // Viewer's RIGHT arm (side = +1): extends outward with friendly open welcoming palm!
   const rightArm = buildArm(1);
 
-  // Exact ergonomic grip pose matching reference photo
-  leftArm.shoulder.rotation.set(-0.38, 0.14, -0.26);
-  leftArm.forearmPivot.rotation.set(-1.72, 0.88, 0.0);
-  leftArm.handRig.handGroup.rotation.set(0.14, 1.48, -0.22);
+  // Exact ergonomic interviewer grip pose: arm extended forward, offering mic toward the user
+  leftArm.shoulder.rotation.set(-0.82, 0.24, -0.06);
+  leftArm.forearmPivot.rotation.set(-1.12, 0.34, 0.0);
+  leftArm.handRig.handGroup.rotation.set(0.12, 1.52, 0.36);
   applyHandPose(leftArm.handRig, -1, "grip");
 
   // Exact open welcoming palm pose on viewer's right matching reference photo
@@ -710,9 +710,9 @@ export function createMicMascot(maxAnisotropy = 4): {
 
   // --- DETAILED STUDIO HANDHELD MICROPHONE GRIPPED SNUGLY BY LEFT-SIDE HAND ---
   const micGroup = new THREE.Group();
-  // Oriented inside gripAnchor so handle sits along hand's X axis and foam head points toward thumb/index (-X -> World +Y)
+  // Oriented inside gripAnchor so foam capsule leans forward (+Z) and slightly inward toward user
   micGroup.position.set(-0.015, 0.008, -0.016);
-  micGroup.rotation.set(0, -0.12, Math.PI / 2);
+  micGroup.rotation.set(0, -0.06, Math.PI / 2 + 0.58);
   leftArm.handRig.gripAnchor.add(micGroup);
 
   const micHandle = new THREE.Mesh(

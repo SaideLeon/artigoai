@@ -368,16 +368,16 @@ export default function MicMascotScene({
         safeDt
       );
 
-      // Left-side hand holds microphone upright in front of chin/chest
+      // Left-side arm reaches forward offering microphone to user like an interviewer
       r.leftArmPivot.rotation.x = THREE.MathUtils.damp(
         r.leftArmPivot.rotation.x,
-        -0.38 + Math.sin(t * 2.4) * 0.03,
+        -0.82 + Math.sin(t * 2.2) * (0.025 + smoothLevel * 0.03),
         12,
         safeDt
       );
       r.leftForearmPivot.rotation.x = THREE.MathUtils.damp(
         r.leftForearmPivot.rotation.x,
-        -1.72 - smoothLevel * 0.06 + Math.sin(t * 3.1) * 0.025,
+        -1.12 - smoothLevel * 0.05 + Math.sin(t * 2.8) * 0.025,
         12,
         safeDt
       );
