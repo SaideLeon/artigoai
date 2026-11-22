@@ -78,6 +78,88 @@ function contarPalavrasTexto(texto?: string) {
   return texto.trim().split(/\s+/).filter(Boolean).length;
 }
 
+export type SourceBadgeProps = {
+  primaryCount: number;
+  secondaryCount: number;
+  variant?: "inline" | "badges";
+};
+
+export function SourceBadge({
+  primaryCount,
+  secondaryCount,
+  variant = "badges",
+}: SourceBadgeProps) {
+  if (primaryCount <= 0 && secondaryCount <= 0) return null;
+
+  if (variant === "inline") {
+    return (
+      <span
+        aria-label={`Atribuição de fontes: ${primaryCount} primária(s) e ${secondaryCount} secundária(s)`}
+        className="inline-flex flex-wrap items-center gap-1.5 font-medium tabular-nums"
+      >
+        {primaryCount > 0 && (
+          <span
+            title="Links fornecidos por si (fonte primária)"
+            className="inline-flex items-center gap-1 text-emerald-700 dark:text-emerald-400"
+          >
+            <Link2 className="h-3.5 w-3.5" />
+            <span>
+              {primaryCount} {primaryCount === 1 ? "primária" : "primárias"}
+            </span>
+          </span>
+        )}
+        {primaryCount > 0 && secondaryCount > 0 && (
+          <span className="text-slate-400" aria-hidden="true">
+            ·
+          </span>
+        )}
+        {secondaryCount > 0 && (
+          <span
+            title="Fontes complementares pesquisadas na web"
+            className="inline-flex items-center gap-1 text-slate-600 dark:text-slate-300"
+          >
+            <SearchCheck className="h-3.5 w-3.5 text-indigo-600 dark:text-indigo-400" />
+            <span>
+              {secondaryCount}{" "}
+              {secondarySourcesLabel(secondaryCount)}
+            </span>
+          </span>
+        )}
+      </span>
+    );
+  }
+
+  return (
+    <div
+      aria-label={`Atribuição de fontes: ${primaryCount} primária(s) e ${secondaryCount} secundária(s)`}
+      className="flex flex-wrap items-center gap-2 text-[11px] font-semibold tabular-nums"
+    >
+      <span
+        title="Links fornecidos por si como fonte primária"
+        className="inline-flex items-center gap-1 rounded-md border border-emerald-200/80 bg-emerald-50 px-2 py-0.5 text-emerald-800 dark:border-emerald-800/60 dark:bg-emerald-950/60 dark:text-emerald-300"
+      >
+        <Link2 className="h-3 w-3" />
+        <span>
+          {primaryCount} {primaryCount === 1 ? "primária" : "primárias"}
+        </span>
+      </span>
+      <span
+        title="Páginas complementares da pesquisa na web"
+        className="inline-flex items-center gap-1 rounded-md border border-slate-200 bg-slate-50 px-2 py-0.5 text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300"
+      >
+        <SearchCheck className="h-3 w-3 text-indigo-600 dark:text-indigo-400" />
+        <span>
+          {secondaryCount} {secondarySourcesLabel(secondaryCount)}
+        </span>
+      </span>
+    </div>
+  );
+}
+
+function secondarySourcesLabel(count: number) {
+  return count === 1 ? "secundária" : "secundárias";
+}
+
 export default function ArticleWorkspace({
   titulo,
   descricao,
@@ -443,38 +525,18 @@ export default function ArticleWorkspace({
               {(pesquisaUsada || fontes.length > 0) && (
                 <>
                   <span aria-hidden="true">·</span>
-                  <span className="inline-flex flex-wrap items-center gap-1.5 font-medium">
-                    <SearchCheck className="h-3.5 w-3.5 text-indigo-700 dark:text-indigo-400" />
-                    {fontes.length > 0 ? (
-                      <span className="tabular-nums">
-                        {primarySourcesCount > 0 && (
-                          <span className="text-emerald-700 dark:text-emerald-400">
-                            {primarySourcesCount}{" "}
-                            {primarySourcesCount === 1
-                              ? "primária"
-                              : "primárias"}
-                          </span>
-                        )}
-                        {primarySourcesCount > 0 && secondarySourcesCount > 0 && (
-                          <span className="mx-1 text-slate-400" aria-hidden="true">
-                            ·
-                          </span>
-                        )}
-                        {secondarySourcesCount > 0 && (
-                          <span className="text-slate-600 dark:text-slate-300">
-                            {secondarySourcesCount}{" "}
-                            {secondarySourcesCount === 1
-                              ? "secundária"
-                              : "secundárias"}
-                          </span>
-                        )}
-                      </span>
-                    ) : (
-                      <span className="text-indigo-700 dark:text-indigo-400">
-                        Pesquisa web
-                      </span>
-                    )}
-                  </span>
+                  {fontes.length > 0 ? (
+                    <SourceBadge
+                      primaryCount={primarySourcesCount}
+                      secondaryCount={secondarySourcesCount}
+                      variant="inline"
+                    />
+                  ) : (
+                    <span className="inline-flex items-center gap-1 font-medium text-indigo-700 dark:text-indigo-400">
+                      <SearchCheck className="h-3.5 w-3.5" />
+                      Pesquisa web
+                    </span>
+                  )}
                 </>
               )}
             </div>
@@ -616,22 +678,10 @@ export default function ArticleWorkspace({
                   <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">
                     Fontes consultadas
                   </h3>
-                  <div className="flex flex-wrap items-center gap-2 text-[11px] font-semibold tabular-nums">
-                    <span className="inline-flex items-center gap-1 rounded-md border border-emerald-200/80 bg-emerald-50 px-2 py-0.5 text-emerald-800 dark:border-emerald-800/60 dark:bg-emerald-950/60 dark:text-emerald-300">
-                      <Link2 className="h-3 w-3" />
-                      <span>
-                        {primarySourcesCount}{" "}
-                        {primarySourcesCount === 1 ? "primária" : "primárias"}
-                      </span>
-                    </span>
-                    <span className="inline-flex items-center gap-1 rounded-md border border-slate-200 bg-slate-50 px-2 py-0.5 text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300">
-                      <SearchCheck className="h-3 w-3 text-indigo-600 dark:text-indigo-400" />
-                      <span>
-                        {secondarySourcesCount}{" "}
-                        {secondarySourcesCount === 1 ? "secundária" : "secundárias"}
-                      </span>
-                    </span>
-                  </div>
+                  <SourceBadge
+                    primaryCount={primarySourcesCount}
+                    secondaryCount={secondarySourcesCount}
+                  />
                 </div>
                 <ol className="mt-3 space-y-2.5 text-xs text-slate-600 dark:text-slate-400">
                   {fontes.map((fonte, idx) => {
