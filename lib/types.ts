@@ -60,6 +60,7 @@ export type ModoPesquisa = "auto" | "sempre" | "desativada";
 export type FontePesquisa = {
   titulo: string;
   url: string;
+  tipo?: "primaria" | "secundaria";
 };
 
 export const IDIOMAS = [

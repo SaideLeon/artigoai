@@ -6,6 +6,10 @@ import {
   normalizePlano,
 } from "@/lib/ai-providers";
 import {
+  normalizeAndDedupeLinks,
+  scrapePrimaryLinks,
+} from "@/lib/link-scraper";
+import {
   FAIXAS_PALAVRAS,
   TONS_TEXTO,
   type FaixaPalavrasId,
@@ -19,6 +23,7 @@ const VALID_PESQUISA = new Set<ModoPesquisa>(["auto", "sempre", "desativada"]);
 const SUGGEST_SCHEMA: Schema = {
   type: Type.OBJECT,
   properties: {
+    temaSugerido: { type: Type.STRING },
     palavrasChave: {
       type: Type.ARRAY,
       items: { type: Type.STRING },
@@ -42,23 +47,47 @@ const SUGGEST_SCHEMA: Schema = {
 export async function POST(req: Request) {
   try {
     const {
-      tema,
+      tema = "",
       idioma = "Português (Brasil)",
       plano: rawPlano,
-    }: { tema: string; idioma?: string; plano?: string } = await req.json();
+      links = [],
+    }: {
+      tema?: string;
+      idioma?: string;
+      plano?: string;
+      links?: string[];
+    } = await req.json();
 
-    if (!tema || !tema.trim()) {
+    const primaryLinks = normalizeAndDedupeLinks(links, tema);
+
+    if ((!tema || !tema.trim()) && primaryLinks.length === 0) {
       return NextResponse.json(
-        { erro: "Informe o tema ou título principal primeiro." },
+        { erro: "Informe o tema ou adicione pelo menos um link de referência primeiro." },
         { status: 400 }
       );
     }
 
-    const plano = normalizePlano(rawPlano);
-    const prompt = `Com base apenas no título principal "${tema.trim()}" (idioma: ${idioma}), sugere as melhores configurações para gerar um artigo completo e bem posicionado em SEO.
+    const { formattedContext: primaryContext } =
+      primaryLinks.length > 0
+        ? await scrapePrimaryLinks(primaryLinks)
+        : { formattedContext: "" };
 
+    const plano = normalizePlano(rawPlano);
+    const prompt = `Com base ${
+      primaryContext
+        ? `nos links de referência (fonte primária) fornecidos pelo utilizador${
+            tema.trim() ? ` e no tema "${tema.trim()}"` : ""
+          }`
+        : `apenas no título principal "${tema.trim()}"`
+    } (idioma: ${idioma}), sugere as melhores configurações para gerar um artigo completo e bem posicionado em SEO.
+${primaryContext ? `\n${primaryContext}\n` : ""}
 Responde APENAS com JSON válido (sem texto antes ou depois) neste formato exato:
 {
+  ${
+    !tema.trim()
+      ? `"temaSugerido": "Título claro e atrativo em ${idioma} baseado nas fontes primárias (até 95 caracteres)",`
+      : ""
+  }
   "palavrasChave": ["palavra 1", "palavra 2", "palavra 3", "palavra 4"],
   "descricao": "Resumo claro e atrativo do que o artigo deve abordar, em no máximo 260 caracteres, no idioma ${idioma}.",
   "tom": "um dos valores exatos: ${TONS_TEXTO.join(" | ")}",
@@ -80,6 +109,11 @@ Responde APENAS com JSON válido (sem texto antes ou depois) neste formato exato
     }
 
     const raw = JSON.parse(jsonMatch);
+
+    const temaSugerido =
+      typeof raw.temaSugerido === "string"
+        ? raw.temaSugerido.trim().slice(0, 100)
+        : "";
 
     const palavrasChave = Array.isArray(raw.palavrasChave)
       ? raw.palavrasChave
@@ -110,6 +144,7 @@ Responde APENAS com JSON válido (sem texto antes ou depois) neste formato exato
       : "auto";
 
     return NextResponse.json({
+      temaSugerido,
       palavrasChave,
       descricao,
       tom,

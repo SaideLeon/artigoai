@@ -19,6 +19,7 @@ export async function POST(req: Request) {
       descricao = "",
       primeiraPessoa = true,
       contextoPesquisa = "",
+      contextoPrimario = "",
       narracao = "",
       plano: rawPlano,
     } = await req.json();
@@ -26,6 +27,8 @@ export async function POST(req: Request) {
     const plano = normalizePlano(rawPlano);
     const narracaoLimpa =
       typeof narracao === "string" ? narracao.trim().slice(0, 16000) : "";
+    const primarioLimpo =
+      typeof contextoPrimario === "string" ? contextoPrimario.trim() : "";
 
     const extras = [
       descricao ? `Enquadramento geral: ${descricao}.` : "",
@@ -39,8 +42,11 @@ export async function POST(req: Request) {
       narracaoLimpa
         ? `\nNarração explicada pelo utilizador (incorpora, melhora e aprofunda os detalhes, ideias, exemplos e história relevantes para esta secção, transformando a fala numa escrita rica e profissional sem perder a essência):\n"""\n${narracaoLimpa}\n"""`
         : "",
+      primarioLimpo
+        ? `\nFONTES PRIMÁRIAS FORNECIDAS PELO UTILIZADOR (PRIORIDADE MÁXIMA):\nEstes dados são a obra/referência original enviada pelo utilizador. Ancora esta secção prioritariamente nos factos, argumentos, exemplos e informações presentes nestas fontes primárias, sem jamais ignorá-las:\n${primarioLimpo}`
+        : "",
       contextoPesquisa
-        ? `\nInformação pesquisada na web (concilia com a narração e usa estes factos, datas e dados com rigor, sem inventar estatísticas):\n${contextoPesquisa}`
+        ? `\nInformação pesquisada (prioriza sempre as fontes primárias do utilizador e usa as fontes secundárias da web apenas como apoio contextual, sem inventar estatísticas):\n${contextoPesquisa}`
         : "",
     ]
       .filter(Boolean)

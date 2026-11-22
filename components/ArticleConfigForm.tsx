@@ -20,6 +20,8 @@ import {
   Sparkles,
   Cpu,
   Mic,
+  Link2,
+  Plus,
 } from "lucide-react";
 import {
   FAIXAS_PALAVRAS,
@@ -61,6 +63,8 @@ type ArticleConfigFormProps = {
   narracaoContexto: string;
   onAbrirNarracao: () => void;
   onClearNarracao: () => void;
+  linksReferencia: string[];
+  onChangeLinksReferencia: (links: string[]) => void;
 };
 
 export default function ArticleConfigForm({
@@ -94,8 +98,12 @@ export default function ArticleConfigForm({
   narracaoContexto,
   onAbrirNarracao,
   onClearNarracao,
+  linksReferencia,
+  onChangeLinksReferencia,
 }: ArticleConfigFormProps) {
   const [novaTag, setNovaTag] = useState("");
+  const [novoLink, setNovoLink] = useState("");
+  const [erroLink, setErroLink] = useState("");
 
   function adicionarTag(raw: string) {
     const limpa = raw.trim().replace(/,$/, "");
@@ -122,6 +130,58 @@ export default function ArticleConfigForm({
 
   function removerTag(idx: number) {
     onChangePalavrasChave(palavrasChave.filter((_, i) => i !== idx));
+  }
+
+  function adicionarLinks(raw: string) {
+    setErroLink("");
+    const pieces = raw
+      .split(/[\s,;\n]+/)
+      .map((s) => s.trim())
+      .filter(Boolean);
+    if (pieces.length === 0) return;
+
+    const next = [...linksReferencia];
+    let invalidCount = 0;
+
+    for (const p of pieces) {
+      if (next.length >= 5) break;
+      const withScheme = /^https?:\/\//i.test(p)
+        ? p
+        : /^[a-z0-9.-]+\.[a-z]{2,}(\/.*)?$/i.test(p)
+        ? `https://${p}`
+        : "";
+      if (!withScheme) {
+        invalidCount++;
+        continue;
+      }
+      try {
+        const parsed = new URL(withScheme);
+        if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+          invalidCount++;
+          continue;
+        }
+        const canonical = parsed.toString();
+        if (!next.includes(canonical)) {
+          next.push(canonical);
+        }
+      } catch {
+        invalidCount++;
+      }
+    }
+
+    if (next.length !== linksReferencia.length) {
+      onChangeLinksReferencia(next);
+      setNovoLink("");
+    } else if (invalidCount > 0) {
+      setErroLink("Informe um link válido começando com https:// ou http://.");
+    } else {
+      setNovoLink("");
+    }
+  }
+
+  function removerLink(idx: number) {
+    setErroLink("");
+    onChangeLinksReferencia(linksReferencia.filter((_, i) => i !== idx));
   }
 
   return (
@@ -254,7 +314,11 @@ export default function ArticleConfigForm({
             <button
               type="button"
               onClick={onSugerirComIa}
-              disabled={ocupado || sugerindo || tema.trim().length < 3}
+              disabled={
+                ocupado ||
+                sugerindo ||
+                (tema.trim().length < 3 && linksReferencia.length === 0)
+              }
               className="inline-flex items-center gap-1.5 rounded-lg border border-indigo-200 bg-indigo-50/80 px-2.5 py-1 text-[11px] font-semibold text-indigo-700 transition-colors hover:bg-indigo-100 disabled:cursor-not-allowed disabled:opacity-45 dark:border-indigo-800/70 dark:bg-indigo-950/60 dark:text-indigo-300 dark:hover:bg-indigo-900/60 whitespace-nowrap shrink-0"
             >
               {sugerindo ? (
@@ -274,6 +338,85 @@ export default function ArticleConfigForm({
             <p className="mt-1.5 text-xs text-rose-600 dark:text-rose-400">
               {erroSugestao}
             </p>
+          )}
+        </div>
+
+        {/* Links de Referência (Fonte Primária) */}
+        <div className="rounded-xl border border-emerald-200/80 bg-emerald-50/40 p-3 dark:border-emerald-800/50 dark:bg-emerald-950/20">
+          <div className="mb-1.5 flex items-center justify-between gap-2">
+            <label
+              htmlFor="campo-link-primario"
+              className="flex items-center gap-1.5 text-xs font-bold text-slate-900 dark:text-slate-100"
+            >
+              <Link2 className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
+              <span>Links de referência</span>
+              <span className="rounded bg-emerald-100 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-800 dark:bg-emerald-900/60 dark:text-emerald-300">
+                Fonte primária
+              </span>
+            </label>
+            <span className="text-[11px] font-medium text-slate-400 dark:text-slate-500 tabular-nums">
+              {linksReferencia.length}/5
+            </span>
+          </div>
+          <p className="mb-2 text-[11px] leading-snug text-slate-600 dark:text-slate-300">
+            Se enviar links, o sistema acede e raspa primeiro o conteúdo deles como fonte primária. Outras páginas da web entram apenas como apoio secundário.
+          </p>
+          <div className="flex gap-1.5">
+            <input
+              id="campo-link-primario"
+              type="url"
+              value={novoLink}
+              disabled={ocupado || linksReferencia.length >= 5}
+              onChange={(e) => {
+                setErroLink("");
+                setNovoLink(e.target.value);
+              }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  adicionarLinks(novoLink);
+                }
+              }}
+              placeholder="https://seu-link.com/trabalho-original"
+              className="min-w-0 flex-1 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-900 placeholder:text-slate-400 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/15 disabled:opacity-60 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:placeholder:text-slate-500"
+            />
+            <button
+              type="button"
+              disabled={ocupado || !novoLink.trim() || linksReferencia.length >= 5}
+              onClick={() => adicionarLinks(novoLink)}
+              className="inline-flex shrink-0 items-center gap-1 rounded-xl bg-emerald-600 px-3 py-2 text-xs font-semibold text-white transition-colors hover:bg-emerald-700 disabled:opacity-45"
+            >
+              <Plus className="h-3.5 w-3.5" />
+              <span>Adicionar</span>
+            </button>
+          </div>
+          {erroLink && (
+            <p className="mt-1.5 text-[11px] text-rose-600 dark:text-rose-400">
+              {erroLink}
+            </p>
+          )}
+          {linksReferencia.length > 0 && (
+            <ul className="mt-2.5 space-y-1.5">
+              {linksReferencia.map((linkUrl, idx) => (
+                <li
+                  key={linkUrl}
+                  className="flex items-center justify-between gap-2 rounded-lg border border-emerald-200/80 bg-white px-2.5 py-1.5 text-[11px] dark:border-emerald-800/50 dark:bg-slate-900"
+                >
+                  <span className="truncate font-medium text-slate-700 dark:text-slate-200">
+                    {linkUrl}
+                  </span>
+                  <button
+                    type="button"
+                    disabled={ocupado}
+                    onClick={() => removerLink(idx)}
+                    aria-label={`Remover link ${linkUrl}`}
+                    className="shrink-0 rounded p-0.5 text-slate-400 hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-950/60 dark:hover:text-rose-400 disabled:opacity-50"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                </li>
+              ))}
+            </ul>
           )}
         </div>
 
@@ -544,7 +687,7 @@ export default function ArticleConfigForm({
           <button
             type="button"
             onClick={onGerar}
-            disabled={!tema.trim()}
+            disabled={!tema.trim() && linksReferencia.length === 0}
             className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#6344F5] via-[#4F46E5] to-[#2563EB] px-5 py-3 text-sm font-semibold text-white shadow-md shadow-indigo-600/20 transition-all duration-150 hover:brightness-105 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
           >
             <Wand2 className="h-4 w-4 shrink-0" />

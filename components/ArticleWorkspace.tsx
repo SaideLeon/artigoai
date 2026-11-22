@@ -585,23 +585,40 @@ export default function ArticleWorkspace({
                 <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">
                   Fontes consultadas na web
                 </h3>
-                <ol className="mt-3 space-y-2 text-xs text-slate-600 dark:text-slate-400">
-                  {fontes.map((fonte, idx) => (
-                    <li key={fonte.url} className="flex items-start gap-2">
-                      <span className="font-mono text-slate-400 dark:text-slate-500 tabular-nums">
-                        {idx + 1}.
-                      </span>
-                      <a
-                        href={fonte.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1 font-medium text-indigo-700 hover:underline dark:text-indigo-400 break-all"
-                      >
-                        <span>{fonte.titulo}</span>
-                        <ExternalLink className="h-3 w-3 shrink-0" />
-                      </a>
-                    </li>
-                  ))}
+                <ol className="mt-3 space-y-2.5 text-xs text-slate-600 dark:text-slate-400">
+                  {fontes.map((fonte, idx) => {
+                    const safeHref = /^https?:\/\//i.test(fonte.url)
+                      ? fonte.url
+                      : "#";
+                    const isPrimaria = fonte.tipo === "primaria";
+                    return (
+                      <li key={fonte.url} className="flex flex-wrap items-start gap-2">
+                        <span className="font-mono text-slate-400 dark:text-slate-500 tabular-nums">
+                          {idx + 1}.
+                        </span>
+                        {fonte.tipo && (
+                          <span
+                            className={`inline-flex shrink-0 items-center rounded px-1.5 py-0.5 text-[10px] font-semibold ${
+                              isPrimaria
+                                ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-950/70 dark:text-emerald-300"
+                                : "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300"
+                            }`}
+                          >
+                            {isPrimaria ? "Fonte primária" : "Apoio secundário"}
+                          </span>
+                        )}
+                        <a
+                          href={safeHref}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1 font-medium text-indigo-700 hover:underline dark:text-indigo-400 break-all"
+                        >
+                          <span>{fonte.titulo}</span>
+                          <ExternalLink className="h-3 w-3 shrink-0" />
+                        </a>
+                      </li>
+                    );
+                  })}
                 </ol>
               </aside>
             )}

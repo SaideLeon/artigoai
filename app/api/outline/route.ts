@@ -36,6 +36,7 @@ export async function POST(req: Request) {
       idioma = "Português (Brasil)",
       primeiraPessoa = true,
       contextoPesquisa = "",
+      contextoPrimario = "",
       narracao = "",
       plano: rawPlano,
     } = await req.json();
@@ -43,6 +44,8 @@ export async function POST(req: Request) {
     const plano = normalizePlano(rawPlano);
     const narracaoLimpa =
       typeof narracao === "string" ? narracao.trim().slice(0, 16000) : "";
+    const primarioLimpo =
+      typeof contextoPrimario === "string" ? contextoPrimario.trim() : "";
 
     const extras = [
       descricao ? `Descrição/foco: "${descricao}".` : "",
@@ -57,8 +60,11 @@ export async function POST(req: Request) {
       narracaoLimpa
         ? `\nNarração/explicação original do utilizador (usa esta história, argumentos, exemplos e ideias como espinha dorsal do artigo, melhorando a organização em secções lógicas e completas):\n"""\n${narracaoLimpa}\n"""`
         : "",
+      primarioLimpo
+        ? `\nREGRA DE PRIORIDADE ABSOLUTA — FONTES PRIMÁRIAS FORNECIDAS PELO UTILIZADOR:\nOs dados abaixo vieram diretamente dos links fornecidos pelo utilizador (trabalho original com a mão humana). Estrutura o título e as secções de modo que TODO o conteúdo destas fontes primárias seja o eixo central do artigo.\n${primarioLimpo}`
+        : "",
       contextoPesquisa
-        ? `\nContexto factual pesquisado na web (concilia e integra estes factos e dados atualizados com a narração para estruturar as secções):\n${contextoPesquisa}`
+        ? `\nContexto completo pesquisado (prioriza sempre os dados das fontes primárias do utilizador acima e usa eventuais fontes secundárias da web apenas como apoio complementar):\n${contextoPesquisa}`
         : "",
     ]
       .filter(Boolean)

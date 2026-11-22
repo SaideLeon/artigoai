@@ -18,6 +18,7 @@ import {
   CheckCircle2,
   AlertCircle,
   Plus,
+  Link2,
 } from "lucide-react";
 import MicMascotScene from "@/components/mascot/MicMascotScene";
 import {
@@ -40,6 +41,7 @@ export type VoiceNarrationApplyPayload = {
   primeiraPessoa: boolean;
   pesquisaWeb: ModoPesquisa;
   narracao: string;
+  links?: string[];
   autoGenerate: boolean;
 };
 
@@ -53,6 +55,7 @@ type VoiceNarrationModalProps = {
   initialPrimeiraPessoa: boolean;
   initialPesquisaWeb: ModoPesquisa;
   initialNarracao: string;
+  initialLinks?: string[];
   planoGeracao: PlanoGeracao;
   onRecordingStateChange?: (recording: boolean) => void;
   onClose: () => void;
@@ -91,6 +94,7 @@ export default function VoiceNarrationModal({
   initialPrimeiraPessoa,
   initialPesquisaWeb,
   initialNarracao,
+  initialLinks = [],
   planoGeracao,
   onRecordingStateChange,
   onClose,
@@ -115,6 +119,7 @@ export default function VoiceNarrationModal({
   const [idioma, setIdioma] = useState(initialIdioma);
   const [incluirImagens, setIncluirImagens] = useState(initialIncluirImagens);
   const [primeiraPessoa, setPrimeiraPessoa] = useState(initialPrimeiraPessoa);
+  const [linksText, setLinksText] = useState(initialLinks.join("\n"));
 
   // Reviewed / organized narration outputs
   const [tema, setTema] = useState(initialTema);
@@ -463,6 +468,24 @@ export default function VoiceNarrationModal({
       .filter(Boolean)
       .slice(0, 10);
 
+    const parsedLinks = Array.from(
+      new Set(
+        linksText
+          .split(/[\s,;\n]+/)
+          .map((s) => s.trim())
+          .filter(Boolean)
+          .map((s) => (/^https?:\/\//i.test(s) ? s : `https://${s}`))
+          .filter((s) => {
+            try {
+              const u = new URL(s);
+              return u.protocol === "http:" || u.protocol === "https:";
+            } catch {
+              return false;
+            }
+          })
+      )
+    ).slice(0, 5);
+
     onApply({
       tema: tema.trim() || narracaoOrganizada.slice(0, 80).trim(),
       descricao: descricao.trim(),
@@ -474,6 +497,7 @@ export default function VoiceNarrationModal({
       primeiraPessoa,
       pesquisaWeb,
       narracao: narracaoOrganizada.trim(),
+      links: parsedLinks,
       autoGenerate,
     });
   }
@@ -645,9 +669,28 @@ export default function VoiceNarrationModal({
                       Automático (pesquisar se houver factos, datas ou notícias)
                     </option>
                     <option value="desativada">
-                      Não, basear-se apenas na minha narração
+                      Não, basear-se apenas na minha narração e links
                     </option>
                   </select>
+                </div>
+
+                {/* Primary reference links inside voice modal */}
+                <div>
+                  <label
+                    htmlFor="voice-links"
+                    className="mb-1 flex items-center gap-1.5 text-xs font-semibold text-slate-800 dark:text-slate-200"
+                  >
+                    <Link2 className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
+                    <span>Links de referência — Fonte primária (opcional)</span>
+                  </label>
+                  <textarea
+                    id="voice-links"
+                    rows={2}
+                    value={linksText}
+                    onChange={(e) => setLinksText(e.target.value)}
+                    placeholder="Cole até 5 links (um por linha). O Mulébi lê estes links primeiro como fonte primária."
+                    className="w-full resize-none rounded-xl border border-slate-200 bg-slate-50/70 px-3 py-2 text-xs text-slate-800 placeholder:text-slate-400 focus:border-emerald-500 focus:bg-white focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:placeholder:text-slate-500"
+                  />
                 </div>
 
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">

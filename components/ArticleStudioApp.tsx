@@ -122,14 +122,20 @@ function downloadArtigoHtml(
   const fontesHtml =
     fontes.length > 0
       ? `<section style="margin-top:2.5rem;padding-top:1.25rem;border-top:1px solid #e2e8f0"><h3 style="font-size:1rem">Fontes consultadas</h3><ol style="font-size:0.9rem;color:#475569">${fontes
-          .map(
-            (f) =>
-              `<li><a href="${escapeHtml(
-                f.url
-              )}" target="_blank" rel="noopener noreferrer">${escapeHtml(
-                f.titulo
-              )}</a></li>`
-          )
+          .map((f) => {
+            const safeUrl = /^https?:\/\//i.test(f.url) ? f.url : "#";
+            const badge =
+              f.tipo === "primaria"
+                ? "<strong>[Fonte primária]</strong> "
+                : f.tipo === "secundaria"
+                ? "[Apoio secundário] "
+                : "";
+            return `<li>${badge}<a href="${escapeHtml(
+              safeUrl
+            )}" target="_blank" rel="noopener noreferrer">${escapeHtml(
+              f.titulo
+            )}</a></li>`;
+          })
           .join("")}</ol></section>`
       : "";
 
@@ -207,6 +213,7 @@ export default function ArticleStudioApp() {
   const [erroSugestao, setErroSugestao] = useState("");
   const [descricaoSugerida, setDescricaoSugerida] = useState(false);
   const [narracaoContexto, setNarracaoContexto] = useState("");
+  const [linksReferencia, setLinksReferencia] = useState<string[]>([]);
   const [voiceModalOpen, setVoiceModalOpen] = useState(false);
   const [isRecordingVoice, setIsRecordingVoice] = useState(false);
 
@@ -615,7 +622,13 @@ export default function ArticleStudioApp() {
     FAIXAS_PALAVRAS.find((f) => f.id === faixaPalavras) ?? FAIXAS_PALAVRAS[2];
 
   async function sugerirComIa() {
-    if (tema.trim().length < 3 || ocupado || sugerindo) return;
+    if (
+      (tema.trim().length < 3 && linksReferencia.length === 0) ||
+      ocupado ||
+      sugerindo
+    ) {
+      return;
+    }
     setSugerindo(true);
     setErroSugestao("");
     try {
@@ -623,7 +636,11 @@ export default function ArticleStudioApp() {
         tema: tema.trim(),
         idioma,
         plano: planoGeracao,
+        links: linksReferencia,
       });
+      if (!tema.trim() && typeof sug.temaSugerido === "string" && sug.temaSugerido) {
+        setTema(sug.temaSugerido);
+      }
       if (Array.isArray(sug.palavrasChave)) {
         setPalavrasChave(sug.palavrasChave);
       }
@@ -645,8 +662,9 @@ export default function ArticleStudioApp() {
   }
 
   async function gerarArtigo(overrides?: Partial<VoiceNarrationApplyPayload>) {
-    const temaEfetivo = (overrides?.tema ?? tema).trim();
-    if (!temaEfetivo || ocupado) return;
+    const linksEfetivos = overrides?.links ?? linksReferencia;
+    let temaEfetivo = (overrides?.tema ?? tema).trim();
+    if ((!temaEfetivo && linksEfetivos.length === 0) || ocupado) return;
     const controller = new AbortController();
     abortRef.current = controller;
 
@@ -675,12 +693,25 @@ export default function ArticleStudioApp() {
 
       if (!descEfetiva && tagsEfetivas.length === 0 && !narracaoEfetiva) {
         try {
-          setEstado("A sugerir descrição, palavras-chave e estilo com IA…");
+          setEstado(
+            linksEfetivos.length > 0
+              ? "A ler os seus links primários e a sugerir configurações…"
+              : "A sugerir descrição, palavras-chave e estilo com IA…"
+          );
           const sug = await postJson(
             "/api/suggest",
-            { tema: temaEfetivo, idioma: idiomaEfetivo, plano: planoGeracao },
+            {
+              tema: temaEfetivo,
+              idioma: idiomaEfetivo,
+              plano: planoGeracao,
+              links: linksEfetivos,
+            },
             controller.signal
           );
+          if (!temaEfetivo && typeof sug.temaSugerido === "string" && sug.temaSugerido.trim()) {
+            temaEfetivo = sug.temaSugerido.trim();
+            setTema(temaEfetivo);
+          }
           if (Array.isArray(sug.palavrasChave) && sug.palavrasChave.length > 0) {
             tagsEfetivas = sug.palavrasChave;
             setPalavrasChave(tagsEfetivas);
@@ -716,13 +747,21 @@ export default function ArticleStudioApp() {
         }
       }
 
+      if (!temaEfetivo && linksEfetivos.length > 0) {
+        temaEfetivo = linksEfetivos[0];
+        setTema(temaEfetivo);
+      }
+
       let contextoPesquisa = "";
+      let contextoPrimario = "";
       let fontesPesquisadas: FontePesquisa[] = [];
       let usouPesquisa = false;
 
-      if (pesquisaEfetiva !== "desativada") {
+      if (pesquisaEfetiva !== "desativada" || linksEfetivos.length > 0) {
         setEstado(
-          narracaoEfetiva
+          linksEfetivos.length > 0
+            ? "A aceder e raspar os seus links como fonte primária e consultar apoio na web…"
+            : narracaoEfetiva
             ? "A pesquisar fontes na web para conciliar com a sua narração…"
             : "A avaliar e pesquisar fontes atualizadas na web…"
         );
@@ -736,12 +775,14 @@ export default function ArticleStudioApp() {
             idioma: idiomaEfetivo,
             modo: pesquisaEfetiva,
             narracao: narracaoEfetiva,
+            links: linksEfetivos,
             plano: planoGeracao,
           },
           controller.signal
         );
         usouPesquisa = Boolean(resPesquisa.pesquisou);
         contextoPesquisa = resPesquisa.resumoPesquisa ?? "";
+        contextoPrimario = resPesquisa.contextoPrimario ?? "";
         fontesPesquisadas = resPesquisa.fontes ?? [];
         setPesquisaUsada(usouPesquisa);
         setFontes(fontesPesquisadas);
@@ -763,6 +804,7 @@ export default function ArticleStudioApp() {
           idioma: idiomaEfetivo,
           primeiraPessoa: primeiraPessoaEfetiva,
           contextoPesquisa,
+          contextoPrimario,
           narracao: narracaoEfetiva,
           plano: planoGeracao,
         },
@@ -794,6 +836,7 @@ export default function ArticleStudioApp() {
             descricao: descEfetiva,
             primeiraPessoa: primeiraPessoaEfetiva,
             contextoPesquisa,
+            contextoPrimario,
             narracao: narracaoEfetiva,
             plano: planoGeracao,
           },
@@ -982,6 +1025,11 @@ export default function ArticleStudioApp() {
     setErroGeral("");
     setErroSugestao("");
     setNarracaoContexto("");
+    setLinksReferencia(
+      (artigo.fontes ?? [])
+        .filter((f) => f.tipo === "primaria" && /^https?:\/\//i.test(f.url))
+        .map((f) => f.url)
+    );
     setDescricaoSugerida(false);
     setActiveTab("inicio");
 
@@ -1032,6 +1080,9 @@ export default function ArticleStudioApp() {
     setPrimeiraPessoa(payload.primeiraPessoa);
     setPesquisaWeb(payload.pesquisaWeb);
     setNarracaoContexto(payload.narracao);
+    if (Array.isArray(payload.links)) {
+      setLinksReferencia(payload.links);
+    }
     setVoiceModalOpen(false);
     setIsRecordingVoice(false);
 
@@ -1124,6 +1175,8 @@ export default function ArticleStudioApp() {
                   narracaoContexto={narracaoContexto}
                   onAbrirNarracao={() => setVoiceModalOpen(true)}
                   onClearNarracao={() => setNarracaoContexto("")}
+                  linksReferencia={linksReferencia}
+                  onChangeLinksReferencia={setLinksReferencia}
                 />
               </div>
 
@@ -1245,6 +1298,7 @@ export default function ArticleStudioApp() {
         initialPrimeiraPessoa={primeiraPessoa}
         initialPesquisaWeb={pesquisaWeb}
         initialNarracao={narracaoContexto}
+        initialLinks={linksReferencia}
         planoGeracao={planoGeracao}
         onRecordingStateChange={setIsRecordingVoice}
         onClose={() => {

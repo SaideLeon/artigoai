@@ -7,11 +7,17 @@ import {
   GROQ_RESEARCH_MODEL,
   normalizePlano,
 } from "@/lib/ai-providers";
+import {
+  normalizeAndDedupeLinks,
+  scrapePrimaryLinks,
+  type ScrapedPrimarySource,
+} from "@/lib/link-scraper";
 import type { FontePesquisa, ModoPesquisa } from "@/lib/types";
 
 type ResearchResultJson = {
   necessario?: boolean;
   motivo?: string;
+  resumo_primario?: string;
   resumo_factual?: string;
   pontos_chave?: string[];
   fontes?: Array<{ titulo?: string; url?: string }>;
@@ -35,36 +41,101 @@ function parseResearchJson(rawContent: string): ResearchResultJson {
   }
 }
 
+function buildOrderedFontes(
+  primarySources: ScrapedPrimarySource[],
+  secondaryCandidates: FontePesquisa[]
+): FontePesquisa[] {
+  const seen = new Set<string>();
+  const ordered: FontePesquisa[] = [];
+
+  for (const src of primarySources) {
+    const url = src.url.trim();
+    if (!url || !/^https?:\/\//i.test(url)) continue;
+    const norm = url.replace(/\/+$/, "");
+    if (seen.has(norm)) continue;
+    seen.add(norm);
+    ordered.push({
+      titulo: src.title?.trim() || url,
+      url,
+      tipo: "primaria",
+    });
+  }
+
+  for (const sec of secondaryCandidates) {
+    const url = sec.url?.trim();
+    if (!url || !/^https?:\/\//i.test(url)) continue;
+    const norm = url.replace(/\/+$/, "");
+    if (seen.has(norm)) continue;
+    seen.add(norm);
+    ordered.push({
+      titulo: sec.titulo?.trim() || url,
+      url,
+      tipo: "secundaria",
+    });
+  }
+
+  return ordered.slice(0, 12);
+}
+
 function formatResearchResponse(
   parsed: ResearchResultJson,
-  fontes: FontePesquisa[],
+  secondaryFontes: FontePesquisa[],
   modo: ModoPesquisa,
-  provedor: "groq" | "gemini"
+  provedor: "groq" | "gemini" | "scraper",
+  primarySources: ScrapedPrimarySource[],
+  primaryContext: string
 ) {
-  const pesquisou = modo === "sempre" || Boolean(parsed.necessario);
+  const hasPrimary = primarySources.length > 0;
+  const pesquisou = modo === "sempre" || hasPrimary || Boolean(parsed.necessario);
+  const fontes = buildOrderedFontes(primarySources, secondaryFontes);
 
   const blocos: string[] = [];
-  if (parsed.resumo_factual?.trim()) {
-    blocos.push(`Resumo factual pesquisado:\n${parsed.resumo_factual.trim()}`);
+
+  if (primaryContext.trim()) {
+    blocos.push(primaryContext.trim());
   }
+
+  if (parsed.resumo_primario?.trim()) {
+    blocos.push(
+      `Síntese prioritária das fontes primárias do utilizador:\n${parsed.resumo_primario.trim()}`
+    );
+  }
+
+  if (parsed.resumo_factual?.trim()) {
+    blocos.push(
+      hasPrimary
+        ? `=== FONTES SECUNDÁRIAS DA WEB (APOIO COMPLEMENTAR) ===\n${parsed.resumo_factual.trim()}`
+        : `Resumo factual pesquisado:\n${parsed.resumo_factual.trim()}`
+    );
+  }
+
   if (Array.isArray(parsed.pontos_chave) && parsed.pontos_chave.length > 0) {
     blocos.push(
-      `Pontos-chave verificados:\n${parsed.pontos_chave
+      `Pontos-chave verificados (priorizando a fonte primária):\n${parsed.pontos_chave
         .map((p) => `- ${p}`)
         .join("\n")}`
     );
   }
+
   if (fontes.length > 0) {
     blocos.push(
       `Fontes consultadas:\n${fontes
-        .map((f) => `- ${f.titulo} (${f.url})`)
+        .map(
+          (f) =>
+            `- [${f.tipo === "primaria" ? "PRIMÁRIA" : "SECUNDÁRIA"}] ${f.titulo} (${f.url})`
+        )
         .join("\n")}`
     );
   }
 
   return NextResponse.json({
     pesquisou,
-    motivo: parsed.motivo ?? "",
+    motivo:
+      parsed.motivo ||
+      (hasPrimary
+        ? "Fontes primárias fornecidas pelo utilizador acedidas e priorizadas com apoio secundário da web."
+        : ""),
+    contextoPrimario: primaryContext.trim(),
     resumoPesquisa: pesquisou ? blocos.join("\n\n") : "",
     fontes: pesquisou ? fontes : [],
     provedor,
@@ -73,7 +144,9 @@ function formatResearchResponse(
 
 async function runGeminiResearch(
   prompt: string,
-  modo: ModoPesquisa
+  modo: ModoPesquisa,
+  primarySources: ScrapedPrimarySource[],
+  primaryContext: string
 ) {
   const ai = getGeminiClient();
 
@@ -95,6 +168,7 @@ async function runGeminiResearch(
         fontesMap.set(f.url, {
           titulo: f.titulo?.trim() || f.url,
           url: f.url.trim(),
+          tipo: "secundaria",
         });
       }
     }
@@ -108,19 +182,59 @@ async function runGeminiResearch(
         fontesMap.set(uri, {
           titulo: title?.trim() || uri,
           url: uri.trim(),
+          tipo: "secundaria",
         });
       }
     }
 
-    const fontes = Array.from(fontesMap.values()).slice(0, 8);
-    return formatResearchResponse(parsed, fontes, modo, "gemini");
+    return formatResearchResponse(
+      parsed,
+      Array.from(fontesMap.values()),
+      modo,
+      "gemini",
+      primarySources,
+      primaryContext
+    );
   } catch (err) {
+    if (primarySources.length > 0 && primaryContext.trim()) {
+      return formatResearchResponse(
+        {
+          necessario: true,
+          motivo:
+            "Fontes primárias raspadas diretamente; busca secundária indisponível no momento.",
+        },
+        [],
+        modo,
+        "scraper",
+        primarySources,
+        primaryContext
+      );
+    }
     throw formatGeminiError(err);
   }
 }
 
-async function runGroqResearch(prompt: string, modo: ModoPesquisa) {
+async function runGroqResearch(
+  prompt: string,
+  modo: ModoPesquisa,
+  primarySources: ScrapedPrimarySource[],
+  primaryContext: string
+) {
   if (!process.env.GROQ_API_KEY?.trim()) {
+    if (primarySources.length > 0 && primaryContext.trim()) {
+      return formatResearchResponse(
+        {
+          necessario: true,
+          motivo:
+            "Fontes primárias do utilizador raspadas diretamente (busca secundária via Groq não configurada).",
+        },
+        [],
+        modo,
+        "scraper",
+        primarySources,
+        primaryContext
+      );
+    }
     if (modo === "sempre") {
       return NextResponse.json(
         {
@@ -132,6 +246,7 @@ async function runGroqResearch(prompt: string, modo: ModoPesquisa) {
     return NextResponse.json({
       pesquisou: false,
       motivo: "Pesquisa automática ignorada (GROQ_API_KEY não configurada).",
+      contextoPrimario: "",
       resumoPesquisa: "",
       fontes: [] as FontePesquisa[],
       provedor: "groq",
@@ -160,6 +275,7 @@ async function runGroqResearch(prompt: string, modo: ModoPesquisa) {
       fontesMap.set(f.url, {
         titulo: f.titulo?.trim() || f.url,
         url: f.url.trim(),
+        tipo: "secundaria",
       });
     }
   }
@@ -170,6 +286,7 @@ async function runGroqResearch(prompt: string, modo: ModoPesquisa) {
         fontesMap.set(b.url, {
           titulo: b.title?.trim() || b.url,
           url: b.url.trim(),
+          tipo: "secundaria",
         });
       }
     }
@@ -182,19 +299,26 @@ async function runGroqResearch(prompt: string, modo: ModoPesquisa) {
         fontesMap.set(sr.url, {
           titulo: sr.title?.trim() || sr.url,
           url: sr.url.trim(),
+          tipo: "secundaria",
         });
       }
     }
   }
 
-  const fontes = Array.from(fontesMap.values()).slice(0, 8);
-  return formatResearchResponse(parsed, fontes, modo, "groq");
+  return formatResearchResponse(
+    parsed,
+    Array.from(fontesMap.values()),
+    modo,
+    "groq",
+    primarySources,
+    primaryContext
+  );
 }
 
 export async function POST(req: Request) {
   try {
     const {
-      tema,
+      tema = "",
       descricao = "",
       palavrasChave = [],
       tom = "Informativo e Didático",
@@ -202,8 +326,9 @@ export async function POST(req: Request) {
       modo = "auto",
       plano: rawPlano,
       narracao = "",
+      links = [],
     }: {
-      tema: string;
+      tema?: string;
       descricao?: string;
       palavrasChave?: string[];
       tom?: string;
@@ -211,30 +336,69 @@ export async function POST(req: Request) {
       modo?: ModoPesquisa;
       plano?: string;
       narracao?: string;
+      links?: string[];
     } = await req.json();
 
+    const narracaoLimpa =
+      typeof narracao === "string" ? narracao.trim().slice(0, 10000) : "";
+
+    const primaryLinks = normalizeAndDedupeLinks(
+      links,
+      tema,
+      descricao,
+      narracaoLimpa
+    );
+
+    const { sources: primarySources, formattedContext: primaryContext } =
+      await scrapePrimaryLinks(primaryLinks);
+
     if (modo === "desativada") {
-      return NextResponse.json({
-        pesquisou: false,
-        motivo: "Pesquisa web desativada pelo utilizador.",
-        resumoPesquisa: "",
-        fontes: [] as FontePesquisa[],
-      });
+      if (primarySources.length === 0) {
+        return NextResponse.json({
+          pesquisou: false,
+          motivo: "Pesquisa web desativada pelo utilizador.",
+          contextoPrimario: "",
+          resumoPesquisa: "",
+          fontes: [] as FontePesquisa[],
+        });
+      }
+
+      return formatResearchResponse(
+        {
+          necessario: true,
+          motivo:
+            "Fontes primárias fornecidas pelo utilizador acedidas e raspadas diretamente (busca web adicional desativada).",
+        },
+        [],
+        modo,
+        "scraper",
+        primarySources,
+        primaryContext
+      );
     }
 
     const plano = normalizePlano(rawPlano);
     const ferramentaLabel =
       plano === "paid" ? "Google Search grounding" : "browser_search";
 
-    const instrucaoModo =
-      modo === "sempre"
-        ? `Pesquisa OBRIGATORIAMENTE na web usando ${ferramentaLabel} para recolher factos recentes, datas, estatísticas e fontes fiáveis sobre o tema.`
-        : `Avalia primeiro se este artigo exige pesquisa na web para ser preciso e atualizado (especialmente se for notícia, atualidade, artigo informativo técnico/factual, mercado, leis, lançamentos ou eventos recentes). Se for necessário, usa ${ferramentaLabel} para pesquisar factos e fontes atualizadas. Se for puramente reflexivo/atemporal e não precisar de factos externos, define "necessario": false.`;
+    const hasPrimary = primarySources.length > 0;
+    const instrucaoModo = hasPrimary
+      ? modo === "sempre"
+        ? `REGRAS DE PRIORIDADE DE FONTES:
+1. FONTE PRIMÁRIA (OBRIGATÓRIA E PRIORITÁRIA): Os dados raspados dos links fornecidos pelo utilizador acima representam o trabalho original com a mão humana e têm prioridade absoluta sobre qualquer outra página. Preserva os argumentos, factos, obras, dados, datas e perspetiva dessas fontes primárias. Se alguma fonte primária não pôde ser raspada diretamente no aviso acima, tenta aceder a esse URL com ${ferramentaLabel}.
+2. FONTES SECUNDÁRIAS (APOIO COMPLEMENTAR): Depois de assimilar as fontes primárias, usa ${ferramentaLabel} para consultar outros links na web apenas como contexto secundário de apoio para enriquecer ou complementar o conteúdo sem jamais ignorar ou substituir o material original do utilizador.`
+        : `REGRAS DE PRIORIDADE DE FONTES:
+1. FONTE PRIMÁRIA (PRIORIDADE ABSOLUTA): Os links fornecidos pelo utilizador já foram raspados acima e contêm o trabalho/referência original. Trata esse conteúdo como a base principal e define "necessario": true. Se algum link do utilizador tiver aviso de raspagem direta, tenta consultá-lo com ${ferramentaLabel}.
+2. FONTES SECUNDÁRIAS: Em seguida, avalia se vale complementar com outras fontes da web via ${ferramentaLabel}. Se pesquisares outras páginas, usa-as estritamente como fontes secundárias de apoio, nunca ignorando ou ofuscando os dados originais fornecidos pelo utilizador.`
+      : modo === "sempre"
+      ? `Pesquisa OBRIGATORIAMENTE na web usando ${ferramentaLabel} para recolher factos recentes, datas, estatísticas e fontes fiáveis sobre o tema.`
+      : `Avalia primeiro se este artigo exige pesquisa na web para ser preciso e atualizado (especialmente se for notícia, atualidade, artigo informativo técnico/factual, mercado, leis, lançamentos ou eventos recentes). Se for necessário, usa ${ferramentaLabel} para pesquisar factos e fontes atualizadas. Se for puramente reflexivo/atemporal e não precisar de factos externos, define "necessario": false.`;
 
-    const narracaoLimpa =
-      typeof narracao === "string" ? narracao.trim().slice(0, 10000) : "";
-
-    const prompt = `Analisa o pedido de artigo abaixo e faz pesquisa na web quando necessário.
+    const prompt = `Analisa o pedido de artigo abaixo${
+      hasPrimary
+        ? ", priorizando rigorosamente as FONTES PRIMÁRIAS fornecidas pelo utilizador antes de consultar fontes secundárias na web"
+        : " e faz pesquisa na web quando necessário"
+    }.
 
 Tema: "${tema}"
 Tom/Formato: "${tom}"
@@ -246,8 +410,13 @@ ${
     : ""
 }
 ${
+  primaryContext
+    ? `\n${primaryContext}`
+    : ""
+}
+${
   narracaoLimpa
-    ? `\nNarração/explicação fornecida pelo utilizador (verifica, atualiza e concilia os factos, datas, nomes e contexto desta narração com fontes atuais da web):\n"""\n${narracaoLimpa}\n"""`
+    ? `\nNarração/explicação fornecida pelo utilizador (verifica, atualiza e concilia os factos, datas, nomes e contexto desta narração com as fontes primárias e apoio da web):\n"""\n${narracaoLimpa}\n"""`
     : ""
 }
 
@@ -256,17 +425,32 @@ ${instrucaoModo}
 Responde APENAS em JSON válido neste formato exato:
 {
   "necessario": true,
-  "motivo": "explicação breve em português de por que pesquisou ou não",
-  "resumo_factual": "síntese objetiva dos factos, datas, números, contexto atual e declarações encontradas",
-  "pontos_chave": ["facto verificado 1", "facto verificado 2"],
-  "fontes": [{"titulo": "Nome da publicação ou página", "url": "https://..."}]
+  "motivo": "explicação breve em português de por que pesquisou ou como priorizou as fontes",
+  "resumo_primario": "${
+    hasPrimary
+      ? "síntese detalhada dos factos, ideias, dados, argumentos e trabalho original extraídos dos links primários fornecidos pelo utilizador"
+      : ""
+  }",
+  "resumo_factual": "síntese objetiva dos factos complementares, datas, números e contexto encontrados nas fontes secundárias da web",
+  "pontos_chave": ["facto ou ideia prioritária 1", "facto ou ideia 2"],
+  "fontes": [{"titulo": "Nome da publicação ou página secundária", "url": "https://..."}]
 }`;
 
     if (plano === "paid") {
-      return await runGeminiResearch(prompt, modo);
+      return await runGeminiResearch(
+        prompt,
+        modo,
+        primarySources,
+        primaryContext
+      );
     }
 
-    return await runGroqResearch(prompt, modo);
+    return await runGroqResearch(
+      prompt,
+      modo,
+      primarySources,
+      primaryContext
+    );
   } catch (e) {
     return NextResponse.json({ erro: (e as Error).message }, { status: 500 });
   }
