@@ -60,11 +60,15 @@ export function getSubscriptionAmountCents(
 const DEFAULT_CAKTO_OFFERS: Partial<Record<string, string>> = {
   starter_monthly: "3e3ipym_1357216",
   starter_yearly: "jzeph29_1357316",
+  pro_monthly: "4em9936_1357359",
+  pro_yearly: "36fj5k5_1357550",
 };
 
 const DEFAULT_CAKTO_PRODUCT_IDS: Partial<Record<string, string>> = {
   starter_monthly: "091cc5d8-999b-4b97-8338-fc556eda39b7",
   starter_yearly: "0cb9127b-40b8-4248-b4d9-ada98a577519",
+  pro_monthly: "f4aff12b-7ae7-4568-952a-6e05d6734ec0",
+  pro_yearly: "e904c794-07cf-4497-84ac-ea802805c83d",
 };
 
 export function getConfiguredCaktoOfferRaw(
