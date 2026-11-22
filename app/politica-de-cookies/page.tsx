@@ -99,6 +99,18 @@ export default function PoliticaCookiesPage() {
               </tr>
               <tr>
                 <td className="px-4 py-3 font-semibold text-slate-900 dark:text-white">
+                  Registro de Consentimento (<code>artigen_consent</code>)
+                </td>
+                <td className="px-4 py-3">
+                  Cookie funcional e chave <code>artigoai:consent:v1</code> no{" "}
+                  <code>localStorage</code> que confirmam o aceite dos cookies e
+                  das políticas do site para que o aviso não seja exibido a cada
+                  nova página.
+                </td>
+                <td className="px-4 py-3 whitespace-nowrap">12 meses</td>
+              </tr>
+              <tr>
+                <td className="px-4 py-3 font-semibold text-slate-900 dark:text-white">
                   Pagamentos (Cakto)
                 </td>
                 <td className="px-4 py-3">

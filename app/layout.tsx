@@ -7,6 +7,7 @@ import {
 import { ThemeProvider } from "@/components/ThemeProvider";
 import { AuthProvider } from "@/components/AuthProvider";
 import { BrandLogoDefs } from "@/components/BrandLogo";
+import CookieConsentBanner from "@/components/CookieConsentBanner";
 import {
   DEFAULT_KEYWORDS,
   DEFAULT_OPEN_GRAPH,
@@ -91,7 +92,10 @@ export default function RootLayout({
         />
         <BrandLogoDefs />
         <ThemeProvider>
-          <AuthProvider>{children}</AuthProvider>
+          <AuthProvider>
+            {children}
+            <CookieConsentBanner />
+          </AuthProvider>
         </ThemeProvider>
       </body>
     </html>

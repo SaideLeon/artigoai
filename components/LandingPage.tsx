@@ -27,6 +27,7 @@ import {
   LogIn,
 } from "lucide-react";
 import BrandLogo from "@/components/BrandLogo";
+import CookieSettingsButton from "@/components/CookieSettingsButton";
 import { useTheme } from "@/components/ThemeProvider";
 import { useAuth } from "@/components/AuthProvider";
 import RobotScene from "@/components/mascot/RobotScene";
@@ -1504,6 +1505,7 @@ export default function LandingPage() {
               <Link href="/reembolso-e-cancelamento" className="hover:text-white transition-colors whitespace-nowrap">
                 Reembolso e Cancelamento
               </Link>
+              <CookieSettingsButton />
             </nav>
             <span className="text-[11px] text-slate-500">
               Transparência editorial · Pagamentos processados via Cakto (Pix, Cartão e Boleto)

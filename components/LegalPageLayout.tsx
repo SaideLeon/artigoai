@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import BrandLogo from "@/components/BrandLogo";
 import ThemeToggleButton from "@/components/ThemeToggleButton";
+import CookieSettingsButton from "@/components/CookieSettingsButton";
 import { SITE_NAME, SITE_URL } from "@/lib/seo";
 
 export type LegalDocNavItem = {
@@ -341,6 +342,7 @@ export default function LegalPageLayout({
             >
               Estúdio
             </Link>
+            <CookieSettingsButton />
           </nav>
 
           <div className="flex flex-wrap items-center gap-4">
