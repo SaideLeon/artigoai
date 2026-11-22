@@ -20,11 +20,13 @@ import {
   Sparkles,
   Sun,
   Mic,
+  Compass,
 } from "lucide-react";
 import BrandLogo from "@/components/BrandLogo";
 import RobotScene from "@/components/mascot/RobotScene";
 import WritingMascotScene from "@/components/mascot/WritingMascotScene";
 import MicMascotScene from "@/components/mascot/MicMascotScene";
+import LostMascotScene from "@/components/mascot/LostMascotScene";
 import { useRobotStateController } from "@/components/mascot/RobotController";
 import type {
   RobotAnimationState,
@@ -74,6 +76,12 @@ const ANIMATIONS: {
     label: "Com Microfone",
     desc: "Ouve a narração",
     icon: Mic,
+  },
+  {
+    id: "lost",
+    label: "Perdido (404)",
+    desc: "Procurando a rota",
+    icon: Compass,
   },
   { id: "sleeping", label: "Dormindo", desc: "Modo repouso", icon: Moon },
 ];
@@ -198,6 +206,17 @@ export default function RobotDemo() {
               onRobotClick={robot.cycleClickInteraction}
               className="h-full w-full"
             />
+          ) : robot.animation === "lost" ? (
+            <LostMascotScene
+              paused={robot.paused}
+              rotationDeg={robot.rotationDeg}
+              scale={robot.scale}
+              blinkNonce={robot.blinkNonce}
+              cameraZ={4.95}
+              onRotationChange={robot.setRotationDeg}
+              onRobotClick={robot.cycleClickInteraction}
+              className="h-full w-full"
+            />
           ) : (
             <RobotScene
               animation={robot.animation}
@@ -277,7 +296,7 @@ export default function RobotDemo() {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-8">
+                <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
                   {ANIMATIONS.map((item) => {
                     const Icon = item.icon;
                     const active = robot.animation === item.id;
