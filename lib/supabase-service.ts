@@ -16,6 +16,117 @@ const ALLOWED_FAIXAS = new Set<string>(FAIXAS_PALAVRAS.map((f) => f.id));
 const ALLOWED_PESQUISA = new Set<string>(["auto", "sempre", "desativada"]);
 const ARTICLE_IMAGES_BUCKET = "article-images";
 const MAX_DATA_URL_LENGTH = 2_500_000;
+const SIGNED_URL_TTL_SECONDS = 60 * 60 * 24 * 7;
+
+export function extractStoragePathFromUrl(url: string): string | null {
+  const trimmed = url.trim();
+  if (!trimmed) return null;
+  const regex = new RegExp(
+    `/storage/v1/object/(?:public|sign|authenticated)/${ARTICLE_IMAGES_BUCKET}/([^?#]+)`
+  );
+  const match = regex.exec(trimmed);
+  if (!match?.[1]) return null;
+  try {
+    return decodeURIComponent(match[1]);
+  } catch {
+    return match[1];
+  }
+}
+
+export async function resolveSecoesImageUrls(secoes: Secao[]): Promise<Secao[]> {
+  const supabase = getSupabaseClient();
+  if (!supabase || secoes.length === 0) return secoes;
+
+  const uniquePaths = Array.from(
+    new Set(
+      secoes
+        .map((s) => (s.img ? extractStoragePathFromUrl(s.img) : null))
+        .filter((p): p is string => Boolean(p))
+    )
+  );
+
+  if (uniquePaths.length === 0) return secoes;
+
+  try {
+    const { data, error } = await supabase.storage
+      .from(ARTICLE_IMAGES_BUCKET)
+      .createSignedUrls(uniquePaths, SIGNED_URL_TTL_SECONDS);
+
+    if (error || !Array.isArray(data)) {
+      return secoes;
+    }
+
+    const signedByPath = new Map<string, string>();
+    for (const item of data) {
+      if (item?.path && item?.signedUrl && !item.error) {
+        signedByPath.set(item.path, item.signedUrl);
+      }
+    }
+
+    if (signedByPath.size === 0) return secoes;
+
+    return secoes.map((sec) => {
+      if (!sec.img) return sec;
+      const path = extractStoragePathFromUrl(sec.img);
+      if (!path) return sec;
+      const signedUrl = signedByPath.get(path);
+      return signedUrl ? { ...sec, img: signedUrl } : sec;
+    });
+  } catch {
+    return secoes;
+  }
+}
+
+async function resolveArticlesImageUrls(
+  articles: ArtigoSalvo[]
+): Promise<ArtigoSalvo[]> {
+  const supabase = getSupabaseClient();
+  if (!supabase || articles.length === 0) return articles;
+
+  const uniquePaths = Array.from(
+    new Set(
+      articles.flatMap((article) =>
+        (article.secoes ?? [])
+          .map((s) => (s.img ? extractStoragePathFromUrl(s.img) : null))
+          .filter((p): p is string => Boolean(p))
+      )
+    )
+  );
+
+  if (uniquePaths.length === 0) return articles;
+
+  try {
+    const { data, error } = await supabase.storage
+      .from(ARTICLE_IMAGES_BUCKET)
+      .createSignedUrls(uniquePaths, SIGNED_URL_TTL_SECONDS);
+
+    if (error || !Array.isArray(data)) {
+      return articles;
+    }
+
+    const signedByPath = new Map<string, string>();
+    for (const item of data) {
+      if (item?.path && item?.signedUrl && !item.error) {
+        signedByPath.set(item.path, item.signedUrl);
+      }
+    }
+
+    if (signedByPath.size === 0) return articles;
+
+    return articles.map((article) => ({
+      ...article,
+      secoes: (article.secoes ?? []).map((sec) => {
+        if (!sec.img) return sec;
+        const path = extractStoragePathFromUrl(sec.img);
+        if (!path) return sec;
+        const signedUrl = signedByPath.get(path);
+        return signedUrl ? { ...sec, img: signedUrl } : sec;
+      }),
+    }));
+  } catch {
+    return articles;
+  }
+}
 
 export function sanitizeDocumentId(rawId: string): string {
   const cleaned = rawId.replace(/[^a-zA-Z0-9_-]/g, "-").slice(0, 128);
@@ -113,11 +224,18 @@ async function uploadSectionImageToStorage(
   const trimmed = imageValue.trim();
   if (!trimmed) return "";
 
-  if (trimmed.includes(`/storage/v1/object/public/${ARTICLE_IMAGES_BUCKET}/`)) {
-    return trimmed;
+  const supabase = getSupabaseClient();
+  const existingPath = extractStoragePathFromUrl(trimmed);
+  if (existingPath) {
+    if (supabase) {
+      const { data: pub } = supabase.storage
+        .from(ARTICLE_IMAGES_BUCKET)
+        .getPublicUrl(existingPath);
+      if (pub?.publicUrl) return pub.publicUrl;
+    }
+    return trimmed.split("?")[0].replace("/object/sign/", "/object/public/");
   }
 
-  const supabase = getSupabaseClient();
   if (!supabase) {
     return trimmed.startsWith("data:image/")
       ? await compressImageDataUrl(trimmed)
@@ -428,7 +546,10 @@ export function subscribeUserArticles(
       .order("criado_em", { ascending: false });
 
     if (!active || error || !data) return;
-    onData((data as ArticleRow[]).map(mapRowToArticle));
+    const mapped = (data as ArticleRow[]).map(mapRowToArticle);
+    const resolved = await resolveArticlesImageUrls(mapped);
+    if (!active) return;
+    onData(resolved);
   };
 
   void loadArticles();
@@ -519,9 +640,11 @@ export async function saveArticleCloud(
     { onConflict: "id" }
   );
 
+  const displaySecoes = await resolveSecoesImageUrls(preparedSecoes);
+
   if (error) {
     console.error("Erro ao salvar artigo no Supabase:", error.message);
-    return { ok: false, secoes: preparedSecoes, error: error.message };
+    return { ok: false, secoes: displaySecoes, error: error.message };
   }
 
   await supabase.from("generations").insert({
@@ -532,7 +655,7 @@ export async function saveArticleCloud(
     pesquisa_usada: Boolean(artigo.pesquisaUsada),
   });
 
-  return { ok: true, secoes: preparedSecoes };
+  return { ok: true, secoes: displaySecoes };
 }
 
 export async function updateArticleContentCloud(
@@ -567,12 +690,14 @@ export async function updateArticleContentCloud(
     .eq("id", safeId)
     .eq("user_id", userId);
 
+  const displaySecoes = await resolveSecoesImageUrls(preparedSecoes);
+
   if (error) {
     console.error("Erro ao atualizar artigo no Supabase:", error.message);
-    return { ok: false, secoes: preparedSecoes, error: error.message };
+    return { ok: false, secoes: displaySecoes, error: error.message };
   }
 
-  return { ok: true, secoes: preparedSecoes };
+  return { ok: true, secoes: displaySecoes };
 }
 
 export async function toggleArticleFavoriteCloud(

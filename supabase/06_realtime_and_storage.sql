@@ -29,7 +29,7 @@ $$;
 
 insert into storage.buckets (id, name, public)
 values ('article-images', 'article-images', true)
-on conflict (id) do nothing;
+on conflict (id) do update set public = excluded.public;
 
 drop policy if exists "article_images_public_read" on storage.objects;
 create policy "article_images_public_read"

@@ -19,6 +19,7 @@ import {
   clearAllArticlesCloud,
   compressImageDataUrl,
   deleteArticleCloud,
+  resolveSecoesImageUrls,
   sanitizeDocumentId,
   saveArticleCloud,
   saveUserSettings,
@@ -212,11 +213,16 @@ export default function ArticleStudioApp() {
   const abortRef = useRef<AbortController | null>(null);
   const cloudSyncTimerRef = useRef<number | null>(null);
   const migratedUidsRef = useRef<Set<string>>(new Set());
+  const artigoAtualIdRef = useRef<string | null>(null);
   const latestWorkspaceRef = useRef({
     titulo: "",
     descricao: "",
     secoes: [] as Secao[],
   });
+
+  useEffect(() => {
+    artigoAtualIdRef.current = artigoAtualId;
+  }, [artigoAtualId]);
 
   useEffect(() => {
     latestWorkspaceRef.current = { titulo, descricao, secoes };
@@ -947,11 +953,19 @@ export default function ArticleStudioApp() {
     setFontes(artigo.fontes ?? []);
     setSecoes(artigo.secoes);
     setArtigoAtualId(artigo.id);
+    artigoAtualIdRef.current = artigo.id;
     setEstado("Artigo carregado do histórico.");
     setErroGeral("");
     setErroSugestao("");
     setDescricaoSugerida(false);
     setActiveTab("inicio");
+
+    if (user && artigo.secoes.some((s) => Boolean(s.img))) {
+      void resolveSecoesImageUrls(artigo.secoes).then((resolvedSecoes) => {
+        if (artigoAtualIdRef.current !== artigo.id) return;
+        setSecoes(resolvedSecoes);
+      });
+    }
   }
 
   function salvarConfigPadrao(nova: ConfiguracoesPadrao) {
