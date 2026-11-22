@@ -102,6 +102,14 @@ export function buildStructuredDataJsonLd() {
           "@type": "ImageObject",
           url: `${SITE_URL}/icon.svg`,
         },
+        publishingPrinciples: `${SITE_URL}/sobre`,
+        contactPoint: {
+          "@type": "ContactPoint",
+          contactType: "customer support",
+          email: "contato@artificializar.site",
+          url: `${SITE_URL}/#contato`,
+          availableLanguage: ["Portuguese"],
+        },
       },
       {
         "@type": "WebSite",
@@ -124,6 +132,7 @@ export function buildStructuredDataJsonLd() {
         inLanguage: "pt-BR",
         description: SITE_DESCRIPTION,
         image: `${SITE_URL}/opengraph-image`,
+        termsOfService: `${SITE_URL}/termos-de-uso`,
         featureList: [
           "Geração de artigos longos para blogs seção a seção",
           "Pesquisa web automática em tempo real com fontes citadas",

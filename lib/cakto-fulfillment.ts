@@ -61,42 +61,35 @@ function normalizeCaktoAmountCents(
     ? getSubscriptionAmountCents(plan, billingCycle)
     : 0;
 
+  let numeric: number | null = null;
   if (typeof rawAmount === "number" && Number.isFinite(rawAmount) && rawAmount > 0) {
-    if (plan) {
-      const asBrlCents = Math.round(rawAmount * 100);
-      const monthlyCents = getSubscriptionAmountCents(plan, "monthly");
-      const yearlyCents = getSubscriptionAmountCents(plan, "yearly");
-      if (
-        Math.abs(rawAmount - monthlyCents) <= 200 ||
-        Math.abs(rawAmount - yearlyCents) <= 500
-      ) {
-        return Math.round(rawAmount);
-      }
-      if (
-        Math.abs(asBrlCents - monthlyCents) <= 200 ||
-        Math.abs(asBrlCents - yearlyCents) <= 500
-      ) {
-        return asBrlCents;
-      }
-    }
-    return Number.isInteger(rawAmount) && rawAmount >= 1000
-      ? rawAmount
-      : Math.round(rawAmount * 100);
-  }
-
-  if (typeof rawAmount === "string") {
+    numeric = rawAmount;
+  } else if (typeof rawAmount === "string") {
     const cleaned = rawAmount.replace(",", ".").trim();
-    const num = Number(cleaned);
-    if (Number.isFinite(num) && num > 0) {
-      return cleaned.includes(".")
-        ? Math.round(num * 100)
-        : num >= 1000
-        ? Math.round(num)
-        : Math.round(num * 100);
+    const parsed = Number(cleaned);
+    if (Number.isFinite(parsed) && parsed > 0) {
+      numeric = parsed;
     }
   }
 
-  return fallbackCents;
+  if (numeric === null) {
+    return fallbackCents;
+  }
+
+  const asBrlCents = Math.round(numeric * 100);
+  if (plan) {
+    const expectedCents = getSubscriptionAmountCents(plan, billingCycle);
+    const diffAsBrl = Math.abs(asBrlCents - expectedCents);
+    const diffAsCents = Math.abs(numeric - expectedCents);
+    if (diffAsCents < diffAsBrl && diffAsCents <= 500) {
+      return Math.round(numeric);
+    }
+    return asBrlCents;
+  }
+
+  return numeric >= 20000 && Number.isInteger(numeric)
+    ? Math.round(numeric)
+    : asBrlCents;
 }
 
 function resolvePlanHeuristic(params: {

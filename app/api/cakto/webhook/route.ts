@@ -49,14 +49,21 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ received: true });
   }
 
+  let fulfilled = false;
+  let alreadyProcessed = false;
+  let reason: string | undefined;
+
   try {
     switch (eventType) {
       case "purchase_approved":
       case "subscription_renewed": {
-        await fulfillCaktoOrderOrEvent({
+        const result = await fulfillCaktoOrderOrEvent({
           rawData: data,
           eventType,
         });
+        fulfilled = result.fulfilled;
+        alreadyProcessed = result.alreadyProcessed;
+        reason = result.error;
         break;
       }
       case "subscription_late": {
@@ -80,5 +87,11 @@ export async function POST(req: NextRequest) {
   }
 
   // Cakto recomenda responder 200 rapidamente (<= 8s) para evitar retentativas desnecessárias
-  return NextResponse.json({ received: true });
+  return NextResponse.json({
+    received: true,
+    event: eventType,
+    fulfilled,
+    alreadyProcessed,
+    ...(reason ? { reason } : {}),
+  });
 }

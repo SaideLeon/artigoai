@@ -1411,74 +1411,102 @@ export default function LandingPage() {
 
       {/* QUIET FOOTER */}
       <footer className="bg-[#0B1124] text-slate-300 border-t border-slate-800/80">
-        <div className="mx-auto flex max-w-[1280px] flex-col gap-6 px-4 py-10 sm:px-6 lg:flex-row lg:items-center lg:justify-between lg:px-8">
-          <div className="flex items-center gap-3">
-            <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-[#5B4AF4] to-[#2563EB] text-white">
-              <BrandLogo className="size-5 text-white" />
-            </span>
-            <div>
-              <span className="block text-sm font-bold text-white">
-                Artigen
+        <div className="mx-auto max-w-[1280px] px-4 py-10 sm:px-6 lg:px-8 space-y-6">
+          <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
+            <div className="flex items-center gap-3">
+              <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-[#5B4AF4] to-[#2563EB] text-white">
+                <BrandLogo className="size-5 text-white" />
               </span>
-              <span className="block text-xs text-slate-400">
-                Gerador de Artigos para Blogs com IA
+              <div>
+                <span className="block text-sm font-bold text-white">
+                  Artigen
+                </span>
+                <span className="block text-xs text-slate-400">
+                  Gerador de Artigos para Blogs com IA
+                </span>
+              </div>
+            </div>
+
+            <nav
+              aria-label="Navegação do rodapé"
+              className="flex flex-wrap items-center gap-x-6 gap-y-2 text-xs font-medium text-slate-400"
+            >
+              {NAV_LINKS.map((item) => (
+                <a
+                  key={item.href}
+                  href={item.href}
+                  className="hover:text-white transition-colors whitespace-nowrap"
+                >
+                  {item.label}
+                </a>
+              ))}
+              <a href="#faq" className="hover:text-white transition-colors whitespace-nowrap">
+                Perguntas Frequentes
+              </a>
+              <Link
+                href="/mascote"
+                className="text-cyan-300 hover:text-white transition-colors whitespace-nowrap"
+              >
+                Mulébi 3D
+              </Link>
+              <Link
+                href="/studio"
+                className="text-indigo-300 hover:text-white transition-colors whitespace-nowrap"
+              >
+                Abrir Estúdio
+              </Link>
+            </nav>
+
+            <div className="flex flex-wrap items-center gap-4">
+              <button
+                type="button"
+                onClick={toggleTheme}
+                aria-label={
+                  theme === "dark" ? "Ativar modo claro" : "Ativar modo escuro"
+                }
+                className="inline-flex items-center gap-1.5 rounded-lg border border-slate-800 bg-slate-900 px-3 py-1.5 text-xs font-medium text-slate-300 hover:bg-slate-800 hover:text-white whitespace-nowrap shrink-0"
+              >
+                {theme === "dark" ? (
+                  <>
+                    <Sun className="h-3.5 w-3.5 text-amber-400" />
+                    <span>Tema claro</span>
+                  </>
+                ) : (
+                  <>
+                    <Moon className="h-3.5 w-3.5" />
+                    <span>Tema escuro</span>
+                  </>
+                )}
+              </button>
+              <span className="text-xs text-slate-500">
+                © 2026 Artigen. Todos os direitos reservados.
               </span>
             </div>
           </div>
 
-          <nav
-            aria-label="Navegação do rodapé"
-            className="flex flex-wrap items-center gap-x-6 gap-y-2 text-xs font-medium text-slate-400"
-          >
-            {NAV_LINKS.map((item) => (
-              <a
-                key={item.href}
-                href={item.href}
-                className="hover:text-white transition-colors whitespace-nowrap"
-              >
-                {item.label}
-              </a>
-            ))}
-            <a href="#faq" className="hover:text-white transition-colors whitespace-nowrap">
-              Perguntas Frequentes
-            </a>
-            <Link
-              href="/mascote"
-              className="text-cyan-300 hover:text-white transition-colors whitespace-nowrap"
+          <div className="flex flex-col gap-3 border-t border-slate-800/80 pt-5 sm:flex-row sm:items-center sm:justify-between">
+            <nav
+              aria-label="Documentos legais e transparência"
+              className="flex flex-wrap items-center gap-x-5 gap-y-2 text-xs text-slate-400"
             >
-              Mulébi 3D
-            </Link>
-            <Link
-              href="/studio"
-              className="text-indigo-300 hover:text-white transition-colors whitespace-nowrap"
-            >
-              Abrir Estúdio
-            </Link>
-          </nav>
-
-          <div className="flex flex-wrap items-center gap-4">
-            <button
-              type="button"
-              onClick={toggleTheme}
-              aria-label={
-                theme === "dark" ? "Ativar modo claro" : "Ativar modo escuro"
-              }
-              className="inline-flex items-center gap-1.5 rounded-lg border border-slate-800 bg-slate-900 px-3 py-1.5 text-xs font-medium text-slate-300 hover:bg-slate-800 hover:text-white whitespace-nowrap shrink-0"
-            >
-              {theme === "dark" ? (
-                <>
-                  <Sun className="h-3.5 w-3.5 text-amber-400" />
-                  <span>Tema claro</span>
-                </>
-              ) : (
-                <>
-                  <Moon className="h-3.5 w-3.5" />
-                  <span>Tema escuro</span>
-                </>
-              )}
-            </button>
-            <span className="text-xs text-slate-500">
-              © 2026 Artigen. Todos os direitos reservados.
+              <Link href="/sobre" className="hover:text-white transition-colors whitespace-nowrap">
+                Sobre nós
+              </Link>
+              <Link href="/termos-de-uso" className="hover:text-white transition-colors whitespace-nowrap">
+                Termos de Uso
+              </Link>
+              <Link href="/privacidade" className="hover:text-white transition-colors whitespace-nowrap">
+                Política de Privacidade (LGPD)
+              </Link>
+              <Link href="/politica-de-cookies" className="hover:text-white transition-colors whitespace-nowrap">
+                Política de Cookies
+              </Link>
+              <Link href="/reembolso-e-cancelamento" className="hover:text-white transition-colors whitespace-nowrap">
+                Reembolso e Cancelamento
+              </Link>
+            </nav>
+            <span className="text-[11px] text-slate-500">
+              Transparência editorial · Pagamentos processados via Cakto (Pix, Cartão e Boleto)
             </span>
           </div>
         </div>

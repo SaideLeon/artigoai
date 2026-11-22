@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import {
   X,
   Package,
@@ -547,6 +548,34 @@ export default function InfoModal({
                   </button>
                 </div>
               )}
+
+              <p className="text-center text-[11px] text-slate-500 dark:text-slate-400">
+                Ao assinar, você concorda com nossos{" "}
+                <Link
+                  href="/termos-de-uso"
+                  onClick={onClose}
+                  className="underline underline-offset-2 hover:text-indigo-600 dark:hover:text-indigo-400"
+                >
+                  Termos de Uso
+                </Link>
+                ,{" "}
+                <Link
+                  href="/privacidade"
+                  onClick={onClose}
+                  className="underline underline-offset-2 hover:text-indigo-600 dark:hover:text-indigo-400"
+                >
+                  Política de Privacidade
+                </Link>{" "}
+                e{" "}
+                <Link
+                  href="/reembolso-e-cancelamento"
+                  onClick={onClose}
+                  className="underline underline-offset-2 hover:text-indigo-600 dark:hover:text-indigo-400"
+                >
+                  Política de Reembolso (7 dias)
+                </Link>
+                .
+              </p>
             </div>
           )}
 
@@ -589,6 +618,20 @@ export default function InfoModal({
                 disponíveis localmente nas secções Meus Artigos, Favoritos e
                 Estatísticas.
               </p>
+              <div className="flex flex-wrap gap-3 pt-2 text-xs font-medium text-indigo-600 dark:text-indigo-400">
+                <Link href="/sobre" onClick={onClose} className="hover:underline">
+                  Sobre nós
+                </Link>
+                <Link href="/termos-de-uso" onClick={onClose} className="hover:underline">
+                  Termos de Uso
+                </Link>
+                <Link href="/privacidade" onClick={onClose} className="hover:underline">
+                  Privacidade (LGPD)
+                </Link>
+                <Link href="/reembolso-e-cancelamento" onClick={onClose} className="hover:underline">
+                  Reembolso e Cancelamento
+                </Link>
+              </div>
             </div>
           )}
         </div>

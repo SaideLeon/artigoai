@@ -151,7 +151,25 @@ export default function NotFoundView() {
       <footer className="border-t border-slate-200/80 bg-white/80 dark:border-slate-800/80 dark:bg-slate-950">
         <div className="mx-auto flex max-w-[1200px] flex-wrap items-center justify-between gap-4 px-4 py-4 text-xs text-slate-500 dark:text-slate-400 sm:px-6 lg:px-8">
           <span>Artigen · Gerador de Artigos com IA</span>
-          <div className="flex items-center gap-4">
+          <div className="flex flex-wrap items-center gap-4">
+            <Link
+              href="/sobre"
+              className="hover:text-slate-900 dark:hover:text-white whitespace-nowrap"
+            >
+              Sobre
+            </Link>
+            <Link
+              href="/termos-de-uso"
+              className="hover:text-slate-900 dark:hover:text-white whitespace-nowrap"
+            >
+              Termos de Uso
+            </Link>
+            <Link
+              href="/privacidade"
+              className="hover:text-slate-900 dark:hover:text-white whitespace-nowrap"
+            >
+              Privacidade
+            </Link>
             <Link
               href="/"
               className="hover:text-slate-900 dark:hover:text-white whitespace-nowrap"

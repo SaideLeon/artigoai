@@ -63,6 +63,7 @@ const DEFAULT_CAKTO_OFFERS: Partial<Record<string, string>> = {
   pro_monthly: "4em9936_1357359",
   pro_yearly: "36fj5k5_1357550",
   agencia_monthly: "3cpxbah_1357633",
+  agencia_yearly: "3523arg_1357713",
 };
 
 const DEFAULT_CAKTO_PRODUCT_IDS: Partial<Record<string, string>> = {
@@ -71,6 +72,7 @@ const DEFAULT_CAKTO_PRODUCT_IDS: Partial<Record<string, string>> = {
   pro_monthly: "f4aff12b-7ae7-4568-952a-6e05d6734ec0",
   pro_yearly: "e904c794-07cf-4497-84ac-ea802805c83d",
   agencia_monthly: "4e65c12d-5c77-4345-b0b8-35ae6dc3ecdf",
+  agencia_yearly: "d8d0c055-417c-49a2-a2b8-fa761df558f7",
 };
 
 export function getConfiguredCaktoOfferRaw(
