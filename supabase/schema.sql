@@ -12,4 +12,5 @@
 --   5. 05_auth_triggers.sql         -> Trigger on_auth_user_created (handle_new_user)
 --   6. 06_realtime_and_storage.sql  -> Publicação Realtime e bucket article-images
 --   7. 07_partners_system.sql       -> Parceiros, convites, cliques, indicações e comissões
+--   8. 08_partners_ledger_and_withdrawals.sql -> Livro-caixa em centavos, garantia, saques e auditoria
 -- =============================================================================

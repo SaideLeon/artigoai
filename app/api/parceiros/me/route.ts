@@ -1,6 +1,20 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdminClient } from "@/lib/cakto-fulfillment";
-import { maskEmail, roundCurrencyBrl } from "@/lib/partners";
+import {
+  BASE_DE_CALCULO,
+  brlToCents,
+  centsToBrlNumber,
+  GARANTIA_DIAS,
+  maskEmail,
+  SAQUE_MINIMO_CENTAVOS,
+  type CommissionStatus,
+} from "@/lib/partners";
+import {
+  computePartnerBalanceSummary,
+  type LedgerAdjustmentRecord,
+  type LedgerCommissionRecord,
+  type LedgerWithdrawalRecord,
+} from "@/lib/partners-ledger";
 import {
   getAuthenticatedServerUser,
   getPublicSiteOrigin,
@@ -25,7 +39,9 @@ export async function GET(req: NextRequest) {
 
   const { data: partner, error: partnerErr } = await admin
     .from("partners")
-    .select("id, user_id, codigo, percentual_comissao, ativo, codigo_personalizado, criado_em")
+    .select(
+      "id, user_id, codigo, percentual_comissao, ativo, codigo_personalizado, criado_em"
+    )
     .eq("user_id", user.id)
     .maybeSingle();
 
@@ -45,6 +61,8 @@ export async function GET(req: NextRequest) {
     { data: clickRows },
     { data: referredProfiles, count: totalReferralsCount },
     { data: commissionsRows },
+    { data: withdrawalRows },
+    { data: ledgerRows },
   ] = await Promise.all([
     admin
       .from("referral_clicks")
@@ -60,12 +78,24 @@ export async function GET(req: NextRequest) {
       .limit(50),
     admin
       .from("commissions")
+      .select("*")
+      .eq("partner_id", partner.id)
+      .order("criado_em", { ascending: false })
+      .limit(500),
+    admin
+      .from("withdrawal_requests")
+      .select("*")
+      .eq("partner_id", partner.id)
+      .order("solicitado_em", { ascending: false })
+      .limit(100),
+    admin
+      .from("partner_ledger_entries")
       .select(
-        "id, user_id, plano, ciclo, valor_bruto, percentual_aplicado, valor_comissao, moeda, tipo, status, criado_em, paga_em"
+        "id, partner_id, commission_id, withdrawal_request_id, settled_withdrawal_id, tipo, valor_centavos, saldo_afetado, descricao, criado_em"
       )
       .eq("partner_id", partner.id)
       .order("criado_em", { ascending: false })
-      .limit(100),
+      .limit(500),
   ]);
 
   const clicksList = (clickRows ?? []) as { data: string; total: number }[];
@@ -99,7 +129,6 @@ export async function GET(req: NextRequest) {
     }
   }
 
-  // Contagem real de assinantes ativos entre todos os indicados
   let assinantesAtivos = 0;
   for (const sub of subByUser.values()) {
     if (sub.plan !== "free" && sub.status === "active") {
@@ -107,7 +136,6 @@ export async function GET(req: NextRequest) {
     }
   }
 
-  // Caso haja mais de 50 indicados, busca e-mails mascarados para comissões faltantes
   const commissionList = commissionsRows ?? [];
   const missingUserIds = Array.from(
     new Set(
@@ -126,21 +154,104 @@ export async function GET(req: NextRequest) {
     }
   }
 
-  let comissoesPendentesBrl = 0;
-  let comissoesPagasBrl = 0;
-  let comissoesEstornadasBrl = 0;
+  const normalizedCommissions: LedgerCommissionRecord[] = commissionList.map(
+    (c) => {
+      const baseCents =
+        typeof c.valor_base_centavos === "number"
+          ? c.valor_base_centavos
+          : brlToCents(Number(c.valor_bruto ?? 0));
+      const commCents =
+        typeof c.valor_comissao_centavos === "number"
+          ? c.valor_comissao_centavos
+          : brlToCents(Number(c.valor_comissao ?? 0));
+      const createdIso = String(c.criado_em);
+      const disponivelEm = c.disponivel_em
+        ? String(c.disponivel_em)
+        : new Date(
+            new Date(createdIso).getTime() + GARANTIA_DIAS * 24 * 60 * 60 * 1000
+          ).toISOString();
 
-  for (const c of commissionList) {
-    const val = Number(c.valor_comissao ?? 0);
-    if (c.status === "pendente") comissoesPendentesBrl += val;
-    else if (c.status === "paga") comissoesPagasBrl += val;
-    else if (c.status === "estornada") comissoesEstornadasBrl += val;
-  }
+      return {
+        id: String(c.id),
+        partnerId: String(c.partner_id),
+        userId: String(c.user_id),
+        transactionId: String(c.id_da_transacao_cakto),
+        plano: String(c.plano),
+        ciclo: c.ciclo === "yearly" ? "yearly" : "monthly",
+        tipo: c.tipo === "renovacao" ? "renovacao" : "primeiro_pagamento",
+        valorBaseCentavos: baseCents,
+        percentualAplicado: Number(c.percentual_aplicado ?? 0),
+        valorComissaoCentavos: commCents,
+        baseCalculo:
+          c.base_calculo === "valor_liquido" ? "valor_liquido" : "valor_bruto",
+        status: c.status as CommissionStatus,
+        criadoEm: createdIso,
+        disponivelEm,
+        pagaEm: c.paga_em ? String(c.paga_em) : null,
+        estornadaEm: c.estornada_em ? String(c.estornada_em) : null,
+        withdrawalRequestId: c.withdrawal_request_id
+          ? String(c.withdrawal_request_id)
+          : null,
+      };
+    }
+  );
+
+  const normalizedWithdrawals: LedgerWithdrawalRecord[] = (
+    withdrawalRows ?? []
+  ).map((w) => ({
+    id: String(w.id),
+    partnerId: String(w.partner_id),
+    valorCentavos: Number(w.valor_centavos ?? 0),
+    saldoNoMomentoCentavos: Number(w.saldo_no_momento_centavos ?? 0),
+    metodo: w.metodo === "outro" ? "outro" : "pix",
+    pixTipoChave: w.pix_tipo_chave ?? null,
+    dadosPagamento: String(w.dados_pagamento ?? ""),
+    status: w.status,
+    comprovativoRef: w.comprovativo_ref ? String(w.comprovativo_ref) : null,
+    motivoRecusa: w.motivo_recusa ? String(w.motivo_recusa) : null,
+    solicitadoEm: String(w.solicitado_em),
+    analisadoEm: w.analisado_em ? String(w.analisado_em) : null,
+    pagoEm: w.pago_em ? String(w.pago_em) : null,
+    recusadoEm: w.recusado_em ? String(w.recusado_em) : null,
+  }));
+
+  const normalizedLedger: LedgerAdjustmentRecord[] = (ledgerRows ?? []).map(
+    (l) => ({
+      id: String(l.id),
+      partnerId: String(l.partner_id),
+      commissionId: l.commission_id ? String(l.commission_id) : null,
+      withdrawalRequestId: l.withdrawal_request_id
+        ? String(l.withdrawal_request_id)
+        : null,
+      settledWithdrawalId: l.settled_withdrawal_id
+        ? String(l.settled_withdrawal_id)
+        : null,
+      tipo: l.tipo,
+      valorCentavos: Number(l.valor_centavos ?? 0),
+      saldoAfetado: l.saldo_afetado,
+      descricao: String(l.descricao ?? ""),
+      criadoEm: String(l.criado_em),
+    })
+  );
+
+  const balance = computePartnerBalanceSummary({
+    commissions: normalizedCommissions,
+    withdrawals: normalizedWithdrawals,
+    ledgerEntries: normalizedLedger,
+    minWithdrawalCents: SAQUE_MINIMO_CENTAVOS,
+    partnerActive: Boolean(partner.ativo),
+  });
 
   const origin = getPublicSiteOrigin(req.nextUrl.origin);
 
   return NextResponse.json({
     isPartner: true,
+    config: {
+      baseCalculo: BASE_DE_CALCULO,
+      garantiaDias: GARANTIA_DIAS,
+      saqueMinimoCentavos: SAQUE_MINIMO_CENTAVOS,
+      saqueMinimoBrl: centsToBrlNumber(SAQUE_MINIMO_CENTAVOS),
+    },
     partner: {
       id: partner.id,
       codigo: partner.codigo,
@@ -155,10 +266,20 @@ export async function GET(req: NextRequest) {
       cliquesUltimos30Dias,
       cadastrosTotais: Number(totalReferralsCount ?? referredIds.length),
       assinantesAtivos,
-      comissoesPendentesBrl: roundCurrencyBrl(comissoesPendentesBrl),
-      comissoesPagasBrl: roundCurrencyBrl(comissoesPagasBrl),
-      comissoesEstornadasBrl: roundCurrencyBrl(comissoesEstornadasBrl),
-      totalGanhoBrl: roundCurrencyBrl(comissoesPendentesBrl + comissoesPagasBrl),
+      saldoPendenteCentavos: balance.saldoPendenteCentavos,
+      saldoDisponivelCentavos: balance.saldoDisponivelCentavos,
+      saldoEmSaqueCentavos: balance.saldoEmSaqueCentavos,
+      totalGanhoCentavos: balance.totalGanhoCentavos,
+      totalRecebidoCentavos: balance.totalRecebidoCentavos,
+      ajustesEmAbertoCentavos: balance.ajustesEmAbertoCentavos,
+      saldoPendenteBrl: centsToBrlNumber(balance.saldoPendenteCentavos),
+      saldoDisponivelBrl: centsToBrlNumber(balance.saldoDisponivelCentavos),
+      saldoEmSaqueBrl: centsToBrlNumber(balance.saldoEmSaqueCentavos),
+      totalGanhoBrl: centsToBrlNumber(balance.totalGanhoCentavos),
+      totalRecebidoBrl: centsToBrlNumber(balance.totalRecebidoCentavos),
+      comissoesEstornadasBrl: centsToBrlNumber(balance.totalEstornadoCentavos),
+      hasOpenWithdrawal: balance.hasOpenWithdrawal,
+      podeSolicitarSaque: balance.podeSolicitarSaque,
     },
     clicksByDay: clicksList.slice(0, 14).reverse(),
     referrals: (referredProfiles ?? []).slice(0, 20).map((prof) => {
@@ -170,19 +291,38 @@ export async function GET(req: NextRequest) {
         subscriptionStatus: sub?.status ?? "active",
       };
     }),
-    commissions: commissionList.slice(0, 40).map((c) => ({
+    commissions: normalizedCommissions.slice(0, 60).map((c) => ({
       id: c.id,
-      criadoEm: c.criado_em,
-      pagaEm: c.paga_em,
-      maskedEmail: maskEmail(emailByUser.get(String(c.user_id))),
+      criadoEm: c.criadoEm,
+      disponivelEm: c.disponivelEm,
+      pagaEm: c.pagaEm,
+      estornadaEm: c.estornadaEm,
+      maskedEmail: maskEmail(emailByUser.get(c.userId)),
       plano: c.plano,
       ciclo: c.ciclo,
       tipo: c.tipo,
-      valorBruto: Number(c.valor_bruto),
-      percentualAplicado: Number(c.percentual_aplicado),
-      valorComissao: Number(c.valor_comissao),
-      moeda: c.moeda,
+      valorBaseCentavos: c.valorBaseCentavos,
+      valorBruto: centsToBrlNumber(c.valorBaseCentavos),
+      percentualAplicado: c.percentualAplicado,
+      valorComissaoCentavos: c.valorComissaoCentavos,
+      valorComissao: centsToBrlNumber(c.valorComissaoCentavos),
+      moeda: "BRL",
       status: c.status,
+    })),
+    withdrawals: normalizedWithdrawals.map((w) => ({
+      id: w.id,
+      valorCentavos: w.valorCentavos,
+      valorBrl: centsToBrlNumber(w.valorCentavos),
+      metodo: w.metodo,
+      pixTipoChave: w.pixTipoChave,
+      dadosPagamento: w.dadosPagamento,
+      status: w.status,
+      comprovativoRef: w.comprovativoRef,
+      motivoRecusa: w.motivoRecusa,
+      solicitadoEm: w.solicitadoEm,
+      analisadoEm: w.analisadoEm,
+      pagoEm: w.pagoEm,
+      recusadoEm: w.recusadoEm,
     })),
   });
 }

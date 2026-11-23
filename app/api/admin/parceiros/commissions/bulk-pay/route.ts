@@ -25,19 +25,37 @@ export async function POST(req: NextRequest) {
   }
 
   const nowIso = new Date().toISOString();
-  const { data, error } = await auth.admin
+  const { data: updatedRows, error } = await auth.admin
     .from("commissions")
     .update({ status: "paga", paga_em: nowIso })
     .eq("partner_id", body.partnerId)
-    .eq("status", "pendente")
-    .select("id");
+    .eq("status", "disponivel")
+    .select("id, valor_comissao_centavos");
 
   if (error) {
     return NextResponse.json({ erro: error.message }, { status: 500 });
   }
 
+  if (updatedRows && updatedRows.length > 0) {
+    const adminEmail = (auth.user.email ?? "").trim().toLowerCase();
+    await auth.admin.from("partner_audit_logs").insert(
+      updatedRows.map((row) => ({
+        entidade: "commission",
+        entidade_id: row.id,
+        partner_id: body.partnerId,
+        actor_type: "admin",
+        actor_id: auth.user.id,
+        actor_email: adminEmail,
+        acao: "paga_lote",
+        estado_anterior: { status: "disponivel" },
+        estado_novo: { status: "paga", paga_em: nowIso },
+        motivo: "Repasse em lote de comissões disponíveis.",
+      }))
+    );
+  }
+
   return NextResponse.json({
     ok: true,
-    updatedCount: data?.length ?? 0,
+    updatedCount: updatedRows?.length ?? 0,
   });
 }

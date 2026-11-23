@@ -1,6 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
-import { escapeCsvCell } from "@/lib/partners";
+import {
+  centsToBrlNumber,
+  escapeCsvCell,
+  type CommissionStatus,
+} from "@/lib/partners";
 import { requirePartnerAdmin } from "@/lib/partners-server";
+
+const ALLOWED_STATUSES = new Set<CommissionStatus>([
+  "pendente",
+  "disponivel",
+  "em_saque",
+  "paga",
+  "estornada",
+]);
 
 export async function GET(req: NextRequest) {
   const auth = await requirePartnerAdmin();
@@ -13,9 +25,7 @@ export async function GET(req: NextRequest) {
 
   let query = auth.admin
     .from("commissions")
-    .select(
-      "id, partner_id, user_id, id_da_transacao_cakto, plano, ciclo, tipo, valor_bruto, percentual_aplicado, valor_comissao, moeda, status, criado_em, paga_em"
-    )
+    .select("*")
     .order("criado_em", { ascending: false })
     .limit(5000);
 
@@ -24,9 +34,7 @@ export async function GET(req: NextRequest) {
   }
   if (
     statusFilter &&
-    (statusFilter === "pendente" ||
-      statusFilter === "paga" ||
-      statusFilter === "estornada")
+    ALLOWED_STATUSES.has(statusFilter as CommissionStatus)
   ) {
     query = query.eq("status", statusFilter);
   }
@@ -75,18 +83,30 @@ export async function GET(req: NextRequest) {
     "plano",
     "ciclo",
     "tipo",
-    "valor_bruto_brl",
+    "base_calculo",
+    "valor_base_brl",
     "percentual_comissao",
     "valor_comissao_brl",
     "moeda",
     "status",
     "criado_em",
+    "disponivel_em",
     "paga_em",
+    "estornada_em",
   ];
 
   const csvLines = [header.join(",")];
   for (const r of rows ?? []) {
     const partner = partnerMap.get(String(r.partner_id));
+    const baseBrl =
+      typeof r.valor_base_centavos === "number"
+        ? centsToBrlNumber(r.valor_base_centavos)
+        : Number(r.valor_bruto ?? 0);
+    const commBrl =
+      typeof r.valor_comissao_centavos === "number"
+        ? centsToBrlNumber(r.valor_comissao_centavos)
+        : Number(r.valor_comissao ?? 0);
+
     const line = [
       r.id,
       partner?.codigo ?? "",
@@ -96,13 +116,16 @@ export async function GET(req: NextRequest) {
       r.plano,
       r.ciclo,
       r.tipo,
-      Number(r.valor_bruto).toFixed(2),
+      r.base_calculo ?? "valor_bruto",
+      baseBrl.toFixed(2),
       Number(r.percentual_aplicado).toFixed(2),
-      Number(r.valor_comissao).toFixed(2),
+      commBrl.toFixed(2),
       r.moeda,
       r.status,
       r.criado_em,
+      r.disponivel_em ?? "",
       r.paga_em ?? "",
+      r.estornada_em ?? "",
     ].map(escapeCsvCell);
 
     csvLines.push(line.join(","));

@@ -16,18 +16,72 @@ export {
 };
 
 // =============================================================================
-// Regras configuráveis do Sistema de Parceiros e Comissões
+// Regras configuráveis do Sistema de Parceiros, Comissões e Saques
 // =============================================================================
+export type CommissionBaseMode = "valor_bruto" | "valor_liquido";
+
 export const COMISSAO_RECORRENTE = true;
 export const COMISSAO_MAX_MESES: number | null = null; // null = ilimitado
-export const BASE_DE_CALCULO = "valor_bruto" as const;
+export const BASE_DE_CALCULO: CommissionBaseMode = "valor_bruto"; // "valor_bruto" | "valor_liquido"
+export const GARANTIA_DIAS = 7; // Período em dias até comissão pendente virar disponível
+export const SAQUE_MINIMO_CENTAVOS = 5000; // R$ 50,00 em centavos inteiros
 
 export const DEFAULT_PARTNER_COMMISSION_PERCENT = 45;
 export const DEFAULT_INVITE_VALIDITY_DAYS = 14;
 
 export type InviteStatus = "pendente" | "aceito" | "expirado" | "cancelado";
 export type CommissionType = "primeiro_pagamento" | "renovacao";
-export type CommissionStatus = "pendente" | "paga" | "estornada";
+export type CommissionStatus =
+  | "pendente"
+  | "disponivel"
+  | "em_saque"
+  | "paga"
+  | "estornada";
+
+export type WithdrawalStatus =
+  | "solicitado"
+  | "em_analise"
+  | "pago"
+  | "recusado";
+export type WithdrawalMethod = "pix" | "outro";
+export type PixKeyType = "cpf" | "cnpj" | "email" | "telefone" | "aleatoria";
+
+export function brlToCents(value: number): number {
+  if (!Number.isFinite(value)) return 0;
+  return Math.round(value * 100);
+}
+
+export function centsToBrlNumber(cents: number): number {
+  if (!Number.isFinite(cents)) return 0;
+  return Math.round(cents) / 100;
+}
+
+export function roundCurrencyBrl(value: number): number {
+  return Math.round(value * 100) / 100;
+}
+
+export function calculateCommissionCents(
+  baseAmountCents: number,
+  percent: number
+): number {
+  if (!Number.isFinite(baseAmountCents) || baseAmountCents <= 0) return 0;
+  if (!Number.isFinite(percent) || percent <= 0) return 0;
+  const clampedPercent = Math.min(100, Math.max(0, percent));
+  // Multiplica em escala fixa para evitar imprecisão binária de ponto flutuante
+  const basisPoints = Math.round(clampedPercent * 100);
+  return Math.round((Math.round(baseAmountCents) * basisPoints) / 10000);
+}
+
+export function formatBrl(value: number): string {
+  return new Intl.NumberFormat("pt-BR", {
+    style: "currency",
+    currency: "BRL",
+  }).format(Number.isFinite(value) ? value : 0);
+}
+
+export function formatCentsBrl(cents: number): string {
+  return formatBrl(centsToBrlNumber(cents));
+}
 
 export function slugifyPartnerSeed(rawNameOrEmail: string): string {
   const withoutAccents = rawNameOrEmail
@@ -73,19 +127,26 @@ export function maskEmail(email: string | null | undefined): string {
   return `${prefix}***@${domain}`;
 }
 
-export function isPartnerAdminEmail(email: string | null | undefined): boolean {
-  const normalized = (email ?? "").trim().toLowerCase();
-  if (!normalized) return false;
+export function getPartnerAdminEmails(): string[] {
   const rawList =
     process.env.PARTNER_ADMIN_EMAILS?.trim() ||
     process.env.ADMIN_EMAIL?.trim() ||
     "";
-  if (!rawList) return false;
-  const allowed = rawList
-    .split(/[,;\s]+/)
-    .map((item) => item.trim().toLowerCase())
-    .filter(Boolean);
-  return allowed.includes(normalized);
+  if (!rawList) return [];
+  return Array.from(
+    new Set(
+      rawList
+        .split(/[,;\s]+/)
+        .map((item) => item.trim().toLowerCase())
+        .filter(Boolean)
+    )
+  );
+}
+
+export function isPartnerAdminEmail(email: string | null | undefined): boolean {
+  const normalized = (email ?? "").trim().toLowerCase();
+  if (!normalized) return false;
+  return getPartnerAdminEmails().includes(normalized);
 }
 
 export function escapeCsvCell(value: unknown): string {
@@ -99,13 +160,85 @@ export function escapeCsvCell(value: unknown): string {
   return str;
 }
 
-export function roundCurrencyBrl(value: number): number {
-  return Math.round(value * 100) / 100;
-}
+const PIX_KEY_TYPES = new Set<PixKeyType>([
+  "cpf",
+  "cnpj",
+  "email",
+  "telefone",
+  "aleatoria",
+]);
 
-export function formatBrl(value: number): string {
-  return new Intl.NumberFormat("pt-BR", {
-    style: "currency",
-    currency: "BRL",
-  }).format(Number.isFinite(value) ? value : 0);
+export function validateWithdrawalPayload(raw: {
+  metodo?: unknown;
+  pixTipoChave?: unknown;
+  dadosPagamento?: unknown;
+  valorCentavos?: unknown;
+}):
+  | {
+      ok: true;
+      metodo: WithdrawalMethod;
+      pixTipoChave: PixKeyType | null;
+      dadosPagamento: string;
+      requestedCents: number | null;
+    }
+  | { ok: false; error: string } {
+  const metodo =
+    raw.metodo === "pix" || raw.metodo === "outro" ? raw.metodo : null;
+  if (!metodo) {
+    return {
+      ok: false,
+      error: "Selecione um método de pagamento válido (Pix ou Outro).",
+    };
+  }
+
+  let pixTipoChave: PixKeyType | null = null;
+  if (metodo === "pix") {
+    if (
+      typeof raw.pixTipoChave !== "string" ||
+      !PIX_KEY_TYPES.has(raw.pixTipoChave as PixKeyType)
+    ) {
+      return {
+        ok: false,
+        error:
+          "Selecione o tipo da chave Pix (CPF, CNPJ, E-mail, Telefone ou Chave aleatória).",
+      };
+    }
+    pixTipoChave = raw.pixTipoChave as PixKeyType;
+  }
+
+  const dados =
+    typeof raw.dadosPagamento === "string" ? raw.dadosPagamento.trim() : "";
+  if (dados.length < 3 || dados.length > 500) {
+    return {
+      ok: false,
+      error:
+        metodo === "pix"
+          ? "Informe a chave Pix completa (3 a 500 caracteres)."
+          : "Descreva os dados completos de pagamento (3 a 500 caracteres).",
+    };
+  }
+
+  let requestedCents: number | null = null;
+  if (
+    raw.valorCentavos !== undefined &&
+    raw.valorCentavos !== null &&
+    raw.valorCentavos !== ""
+  ) {
+    const parsed = Number(raw.valorCentavos);
+    if (!Number.isInteger(parsed) || parsed <= 0) {
+      return {
+        ok: false,
+        error: "Valor de saque inválido (deve ser inteiro em centavos).",
+      };
+    }
+    requestedCents = parsed;
+  }
+
+  return {
+    ok: true,
+    metodo,
+    pixTipoChave,
+    dadosPagamento: dados,
+    requestedCents,
+  };
 }

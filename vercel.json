@@ -1,0 +1,8 @@
+{
+  "crons": [
+    {
+      "path": "/api/cron/parceiros/maturar-comissoes",
+      "schedule": "0 6 * * *"
+    }
+  ]
+}

@@ -4,26 +4,37 @@ import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import {
   Ban,
+  Banknote,
   Check,
   CheckCircle2,
   Clock,
   Copy,
   Download,
+  History,
+  Hourglass,
   Loader2,
   LogIn,
   LogOut,
   MousePointerClick,
   Plus,
+  RefreshCw,
   ShieldAlert,
   ShieldCheck,
-  TrendingUp,
-  UserCheck,
   Users,
   Wallet,
+  X,
   XCircle,
 } from "lucide-react";
 import BrandLogo from "@/components/BrandLogo";
 import { useAuth } from "@/components/AuthProvider";
+
+type CommissionStatus =
+  | "pendente"
+  | "disponivel"
+  | "em_saque"
+  | "paga"
+  | "estornada";
+type WithdrawalStatus = "solicitado" | "em_analise" | "pago" | "recusado";
 
 type AdminInviteItem = {
   id: string;
@@ -49,8 +60,11 @@ type AdminPartnerItem = {
   cadastros: number;
   assinantesAtivos: number;
   pendenteBrl: number;
+  disponivelBrl: number;
+  emSaqueBrl: number;
   pagaBrl: number;
   estornadaBrl: number;
+  totalGanhoBrl: number;
 };
 
 type AdminCommissionItem = {
@@ -67,9 +81,45 @@ type AdminCommissionItem = {
   percentualAplicado: number;
   valorComissao: number;
   moeda: string;
-  status: "pendente" | "paga" | "estornada";
+  status: CommissionStatus;
   criadoEm: string;
+  disponivelEm: string;
   pagaEm: string | null;
+};
+
+type AdminWithdrawalItem = {
+  id: string;
+  partnerId: string;
+  partnerCodigo: string;
+  partnerNome: string;
+  partnerEmail: string;
+  valorCentavos: number;
+  valorBrl: number;
+  saldoNoMomentoBrl: number;
+  metodo: "pix" | "outro";
+  pixTipoChave: string | null;
+  dadosPagamento: string;
+  status: WithdrawalStatus;
+  comprovativoRef: string | null;
+  motivoRecusa: string | null;
+  solicitadoEm: string;
+  analisadoEm: string | null;
+  pagoEm: string | null;
+  recusadoEm: string | null;
+};
+
+type AdminAuditItem = {
+  id: string;
+  entidade: string;
+  entidadeId: string;
+  partnerCodigo: string;
+  actorType: string;
+  actorEmail: string;
+  acao: string;
+  estadoAnterior: Record<string, unknown> | null;
+  estadoNovo: Record<string, unknown> | null;
+  motivo: string | null;
+  criadoEm: string;
 };
 
 type AdminOverviewPayload = {
@@ -80,11 +130,18 @@ type AdminOverviewPayload = {
     totalCliques: number;
     totalCadastros: number;
     totalPendenteBrl: number;
+    totalDisponivelBrl: number;
+    totalEmSaqueBrl: number;
+    totalAPagarBrl: number;
     totalPagaBrl: number;
+    totalEstornadoBrl: number;
+    saquesAbertosCount: number;
   };
   invites: AdminInviteItem[];
   partners: AdminPartnerItem[];
   commissions: AdminCommissionItem[];
+  withdrawals: AdminWithdrawalItem[];
+  auditLogs: AdminAuditItem[];
 };
 
 function fmtBrl(value: number): string {
@@ -116,6 +173,7 @@ export default function AdminPartnersClient() {
 
   const [partnerFilter, setPartnerFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
+  const [withdrawalStatusFilter, setWithdrawalStatusFilter] = useState("");
 
   // Formulário de convite
   const [nomeSugerido, setNomeSugerido] = useState("");
@@ -126,11 +184,26 @@ export default function AdminPartnersClient() {
   const [copiedInviteUrl, setCopiedInviteUrl] = useState(false);
   const [inviteError, setInviteError] = useState<string | null>(null);
 
-  // Edição inline de percentual de parceiro
+  // Edição inline e estados de ação
   const [editingPercent, setEditingPercent] = useState<Record<string, string>>(
     {}
   );
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [maturationMessage, setMaturationMessage] = useState<string | null>(
+    null
+  );
+
+  // Modal de ação de saque (pagar / recusar)
+  const [withdrawalActionModal, setWithdrawalActionModal] = useState<{
+    item: AdminWithdrawalItem;
+    mode: "pago" | "recusado";
+  } | null>(null);
+  const [comprovativoInput, setComprovativoInput] = useState("");
+  const [pagoDateInput, setPagoDateInput] = useState("");
+  const [motivoRecusaInput, setMotivoRecusaInput] = useState("");
+  const [withdrawalActionError, setWithdrawalActionError] = useState<
+    string | null
+  >(null);
 
   const loadAdminData = useCallback(async () => {
     setLoading(true);
@@ -140,6 +213,9 @@ export default function AdminPartnersClient() {
       const qs = new URLSearchParams();
       if (partnerFilter) qs.set("partnerId", partnerFilter);
       if (statusFilter) qs.set("status", statusFilter);
+      if (withdrawalStatusFilter) {
+        qs.set("withdrawalStatus", withdrawalStatusFilter);
+      }
 
       const res = await fetch(`/api/admin/parceiros?${qs.toString()}`, {
         cache: "no-store",
@@ -167,7 +243,7 @@ export default function AdminPartnersClient() {
     } finally {
       setLoading(false);
     }
-  }, [partnerFilter, statusFilter]);
+  }, [partnerFilter, statusFilter, withdrawalStatusFilter]);
 
   useEffect(() => {
     let active = true;
@@ -265,7 +341,7 @@ export default function AdminPartnersClient() {
 
   const handleUpdateCommissionStatus = async (
     commissionId: string,
-    status: "paga" | "pendente" | "estornada"
+    status: CommissionStatus
   ) => {
     setBusyId(commissionId);
     try {
@@ -294,11 +370,115 @@ export default function AdminPartnersClient() {
     }
   };
 
+  const handleRunMaturationCron = async () => {
+    setBusyId("cron-maturar");
+    setMaturationMessage(null);
+    try {
+      const res = await fetch("/api/cron/parceiros/maturar-comissoes", {
+        method: "POST",
+      });
+      const json = (await res.json()) as {
+        ok?: boolean;
+        maturedCount?: number;
+        erro?: string;
+      };
+      if (res.ok) {
+        setMaturationMessage(
+          `${json.maturedCount ?? 0} comissão(ões) liberada(s) para disponível.`
+        );
+        await loadAdminData();
+      } else {
+        setMaturationMessage(json.erro || "Falha ao processar maturação.");
+      }
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  const handleSetWithdrawalInAnalysis = async (withdrawalId: string) => {
+    setBusyId(withdrawalId);
+    try {
+      await fetch(`/api/admin/parceiros/saques/${withdrawalId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "em_analise" }),
+      });
+      await loadAdminData();
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  const openWithdrawalModal = (
+    item: AdminWithdrawalItem,
+    mode: "pago" | "recusado"
+  ) => {
+    setWithdrawalActionError(null);
+    setComprovativoInput("");
+    setPagoDateInput(new Date().toISOString().slice(0, 10));
+    setMotivoRecusaInput("");
+    setWithdrawalActionModal({ item, mode });
+  };
+
+  const handleSubmitWithdrawalAction = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!withdrawalActionModal) return;
+
+    const { item, mode } = withdrawalActionModal;
+    if (mode === "recusado" && !motivoRecusaInput.trim()) {
+      setWithdrawalActionError("Informe o motivo da recusa.");
+      return;
+    }
+
+    setBusyId(item.id);
+    setWithdrawalActionError(null);
+    try {
+      const res = await fetch(`/api/admin/parceiros/saques/${item.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(
+          mode === "pago"
+            ? {
+                action: "pago",
+                comprovativoRef: comprovativoInput.trim(),
+                pagoEm: pagoDateInput ? `${pagoDateInput}T12:00:00.000Z` : undefined,
+              }
+            : {
+                action: "recusado",
+                motivoRecusa: motivoRecusaInput.trim(),
+              }
+        ),
+      });
+      const json = (await res.json()) as { ok?: boolean; erro?: string };
+      if (!res.ok) {
+        setWithdrawalActionError(
+          json.erro || "Não foi possível atualizar o saque."
+        );
+      } else {
+        setWithdrawalActionModal(null);
+        await loadAdminData();
+      }
+    } catch {
+      setWithdrawalActionError("Falha de rede ao atualizar pedido de saque.");
+    } finally {
+      setBusyId(null);
+    }
+  };
+
   const exportCsvUrl = (() => {
     const qs = new URLSearchParams();
     if (partnerFilter) qs.set("partnerId", partnerFilter);
     if (statusFilter) qs.set("status", statusFilter);
     return `/api/admin/parceiros/commissions/export?${qs.toString()}`;
+  })();
+
+  const exportWithdrawalsCsvUrl = (() => {
+    const qs = new URLSearchParams();
+    if (partnerFilter) qs.set("partnerId", partnerFilter);
+    if (withdrawalStatusFilter) {
+      qs.set("withdrawalStatus", withdrawalStatusFilter);
+    }
+    return `/api/admin/parceiros/saques/export?${qs.toString()}`;
   })();
 
   return (
@@ -332,6 +512,12 @@ export default function AdminPartnersClient() {
               className="hover:text-white hover:underline underline-offset-4 whitespace-nowrap shrink-0"
             >
               Estúdio
+            </Link>
+            <Link
+              href="/termos-parceiros"
+              className="hover:text-white hover:underline underline-offset-4 whitespace-nowrap shrink-0"
+            >
+              Termos
             </Link>
             <Link
               href="/"
@@ -383,7 +569,7 @@ export default function AdminPartnersClient() {
               <p className="text-sm text-slate-300">
                 Entre com a conta Google configurada em{" "}
                 <code className="text-indigo-300">PARTNER_ADMIN_EMAILS</code>{" "}
-                para gerar convites e gerir comissões.
+                para gerar convites e gerir saques e comissões.
               </p>
             </div>
             <button
@@ -420,12 +606,27 @@ export default function AdminPartnersClient() {
                   Gestão Administrativa
                 </p>
                 <h1 className="mt-1 text-2xl sm:text-3xl font-bold tracking-tight text-white">
-                  Parceiros, Convites e Comissões
+                  Parceiros, Saques e Livro-Caixa
                 </h1>
                 <p className="mt-1 text-xs text-slate-400">
-                  Sessão verificada no servidor: {data.adminEmail}
+                  Sessão verificada: {data.adminEmail}
+                  {maturationMessage ? ` · ${maturationMessage}` : ""}
                 </p>
               </div>
+
+              <button
+                type="button"
+                disabled={busyId === "cron-maturar"}
+                onClick={() => void handleRunMaturationCron()}
+                className="inline-flex min-h-[40px] items-center gap-2 rounded-xl border border-slate-700 bg-slate-900 px-4 py-2 text-xs font-semibold text-slate-200 hover:bg-slate-800 disabled:opacity-50 whitespace-nowrap shrink-0"
+              >
+                <RefreshCw
+                  className={`h-3.5 w-3.5 ${
+                    busyId === "cron-maturar" ? "animate-spin" : ""
+                  }`}
+                />
+                <span>Liberar garantia vencida</span>
+              </button>
             </div>
 
             {/* Resumo Executivo */}
@@ -435,7 +636,7 @@ export default function AdminPartnersClient() {
                   <span>Parceiros</span>
                   <Users className="h-4 w-4 text-indigo-400" />
                 </div>
-                <p className="text-2xl font-bold text-white tabular-nums">
+                <p className="text-2xl font-bold text-white font-mono tabular-nums">
                   {data.summary.totalParceiros}
                 </p>
                 <p className="text-[11px] text-emerald-400 tabular-nums">
@@ -445,55 +646,236 @@ export default function AdminPartnersClient() {
 
               <div className="rounded-2xl border border-slate-800 bg-[#0F172A] p-4 space-y-1">
                 <div className="flex items-center justify-between text-xs text-slate-400">
-                  <span>Cliques</span>
+                  <span>Cliques / Indicados</span>
                   <MousePointerClick className="h-4 w-4 text-cyan-400" />
                 </div>
-                <p className="text-2xl font-bold text-white tabular-nums">
+                <p className="text-2xl font-bold text-white font-mono tabular-nums">
                   {data.summary.totalCliques}
                 </p>
-              </div>
-
-              <div className="rounded-2xl border border-slate-800 bg-[#0F172A] p-4 space-y-1">
-                <div className="flex items-center justify-between text-xs text-slate-400">
-                  <span>Cadastros</span>
-                  <UserCheck className="h-4 w-4 text-indigo-400" />
-                </div>
-                <p className="text-2xl font-bold text-white tabular-nums">
-                  {data.summary.totalCadastros}
+                <p className="text-[11px] text-slate-400 tabular-nums">
+                  {data.summary.totalCadastros} cadastros
                 </p>
               </div>
 
-              <div className="rounded-2xl border border-slate-800 bg-[#0F172A] p-4 space-y-1">
-                <div className="flex items-center justify-between text-xs text-slate-400">
-                  <span>A Pagar</span>
+              <div className="rounded-2xl border border-amber-800/60 bg-[#0F172A] p-4 space-y-1 lg:col-span-2">
+                <div className="flex items-center justify-between text-xs text-amber-300">
+                  <span>Total de Comissões a Pagar</span>
                   <Clock className="h-4 w-4 text-amber-400" />
                 </div>
-                <p className="text-2xl font-bold text-amber-300 tabular-nums">
-                  {fmtBrl(data.summary.totalPendenteBrl)}
+                <p className="text-2xl font-bold text-amber-300 font-mono tabular-nums">
+                  {fmtBrl(data.summary.totalAPagarBrl)}
+                </p>
+                <p className="text-[11px] text-slate-400 tabular-nums">
+                  Pendente {fmtBrl(data.summary.totalPendenteBrl)} · Disponível{" "}
+                  {fmtBrl(data.summary.totalDisponivelBrl)} · Em saque{" "}
+                  {fmtBrl(data.summary.totalEmSaqueBrl)}
                 </p>
               </div>
 
               <div className="rounded-2xl border border-slate-800 bg-[#0F172A] p-4 space-y-1">
                 <div className="flex items-center justify-between text-xs text-slate-400">
-                  <span>Já Pago</span>
+                  <span>Total Já Pago</span>
                   <Wallet className="h-4 w-4 text-emerald-400" />
                 </div>
-                <p className="text-2xl font-bold text-emerald-400 tabular-nums">
+                <p className="text-2xl font-bold text-emerald-400 font-mono tabular-nums">
                   {fmtBrl(data.summary.totalPagaBrl)}
+                </p>
+                <p className="text-[11px] text-slate-400 tabular-nums">
+                  Estornado: {fmtBrl(data.summary.totalEstornadoBrl)}
                 </p>
               </div>
 
               <div className="rounded-2xl border border-slate-800 bg-[#0F172A] p-4 space-y-1">
                 <div className="flex items-center justify-between text-xs text-slate-400">
-                  <span>Total Gerado</span>
-                  <TrendingUp className="h-4 w-4 text-indigo-400" />
+                  <span>Saques Abertos</span>
+                  <Banknote className="h-4 w-4 text-indigo-400" />
                 </div>
-                <p className="text-2xl font-bold text-white tabular-nums">
-                  {fmtBrl(
-                    data.summary.totalPendenteBrl + data.summary.totalPagaBrl
-                  )}
+                <p className="text-2xl font-bold text-white font-mono tabular-nums">
+                  {data.summary.saquesAbertosCount}
+                </p>
+                <p className="text-[11px] text-slate-400">
+                  Solicitado ou em análise
                 </p>
               </div>
+            </section>
+
+            {/* Gestão de Pedidos de Saque */}
+            <section className="rounded-2xl border border-slate-800 bg-[#0F172A] overflow-hidden">
+              <div className="flex flex-col gap-3 border-b border-slate-800 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <h2 className="text-sm font-bold text-white">
+                    Pedidos de Saque dos Parceiros
+                  </h2>
+                  <p className="text-xs text-slate-400">
+                    Confira os dados de pagamento, marque em análise, pague com
+                    comprovativo ou recuse devolvendo as comissões para disponível.
+                  </p>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2">
+                  <select
+                    value={withdrawalStatusFilter}
+                    onChange={(e) => setWithdrawalStatusFilter(e.target.value)}
+                    aria-label="Filtrar saques por estado"
+                    className="rounded-xl border border-slate-700 bg-[#070B16] px-3 py-2 text-xs text-slate-200 focus:border-indigo-500 focus:outline-none"
+                  >
+                    <option value="">Todos os estados</option>
+                    <option value="solicitado">Solicitado</option>
+                    <option value="em_analise">Em análise</option>
+                    <option value="pago">Pago</option>
+                    <option value="recusado">Recusado</option>
+                  </select>
+
+                  <a
+                    href={exportWithdrawalsCsvUrl}
+                    download
+                    className="inline-flex items-center gap-1.5 rounded-xl border border-slate-700 bg-slate-800 px-3.5 py-2 text-xs font-semibold text-white hover:bg-slate-700 whitespace-nowrap"
+                  >
+                    <Download className="h-3.5 w-3.5" />
+                    <span>Exportar Saques CSV</span>
+                  </a>
+                </div>
+              </div>
+
+              {data.withdrawals.length === 0 ? (
+                <div className="p-8 text-center text-xs text-slate-400">
+                  Nenhum pedido de saque encontrado para os filtros aplicados.
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full border-collapse text-left text-xs">
+                    <thead>
+                      <tr className="border-b border-slate-800 bg-[#0B1124] text-slate-400">
+                        <th className="px-4 py-3 font-semibold">Data</th>
+                        <th className="px-4 py-3 font-semibold">Parceiro</th>
+                        <th className="px-4 py-3 font-semibold text-right">
+                          Valor
+                        </th>
+                        <th className="px-4 py-3 font-semibold text-right">
+                          Saldo no Pedido
+                        </th>
+                        <th className="px-4 py-3 font-semibold">
+                          Método e Dados
+                        </th>
+                        <th className="px-4 py-3 font-semibold">Estado</th>
+                        <th className="px-4 py-3 font-semibold text-right">
+                          Ações
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-800/80">
+                      {data.withdrawals.map((w) => (
+                        <tr key={w.id} className="hover:bg-slate-800/30">
+                          <td className="px-4 py-3 whitespace-nowrap text-slate-300 tabular-nums">
+                            {fmtDate(w.solicitadoEm)}
+                          </td>
+                          <td className="px-4 py-3">
+                            <p className="font-semibold text-white">
+                              {w.partnerNome}{" "}
+                              <span className="font-mono text-indigo-300">
+                                ({w.partnerCodigo})
+                              </span>
+                            </p>
+                            <p className="text-[11px] text-slate-400">
+                              {w.partnerEmail}
+                            </p>
+                          </td>
+                          <td className="px-4 py-3 text-right font-mono font-bold text-white tabular-nums whitespace-nowrap">
+                            {fmtBrl(w.valorBrl)}
+                          </td>
+                          <td className="px-4 py-3 text-right font-mono text-slate-300 tabular-nums whitespace-nowrap">
+                            {fmtBrl(w.saldoNoMomentoBrl)}
+                          </td>
+                          <td className="px-4 py-3 max-w-xs">
+                            <p className="font-semibold text-slate-200">
+                              {w.metodo === "pix"
+                                ? `Pix (${w.pixTipoChave ?? "chave"})`
+                                : "Outro método"}
+                            </p>
+                            <p className="font-mono text-[11px] text-slate-400 break-all">
+                              {w.dadosPagamento}
+                            </p>
+                          </td>
+                          <td className="px-4 py-3 whitespace-nowrap">
+                            {w.status === "solicitado" ? (
+                              <span className="inline-flex items-center gap-1 font-semibold text-amber-300">
+                                <Clock className="h-3.5 w-3.5" />
+                                <span>Solicitado</span>
+                              </span>
+                            ) : w.status === "em_analise" ? (
+                              <span className="inline-flex items-center gap-1 font-semibold text-indigo-300">
+                                <Hourglass className="h-3.5 w-3.5" />
+                                <span>Em análise</span>
+                              </span>
+                            ) : w.status === "pago" ? (
+                              <span className="inline-flex items-center gap-1 font-semibold text-emerald-400">
+                                <CheckCircle2 className="h-3.5 w-3.5" />
+                                <span>Pago</span>
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center gap-1 font-semibold text-rose-400">
+                                <Ban className="h-3.5 w-3.5" />
+                                <span>Recusado</span>
+                              </span>
+                            )}
+                            {w.comprovativoRef ? (
+                              <div className="text-[11px] text-slate-400 mt-0.5">
+                                Ref: {w.comprovativoRef}
+                              </div>
+                            ) : null}
+                            {w.motivoRecusa ? (
+                              <div className="text-[11px] text-rose-300 mt-0.5">
+                                {w.motivoRecusa}
+                              </div>
+                            ) : null}
+                          </td>
+                          <td className="px-4 py-3 text-right whitespace-nowrap">
+                            {w.status === "solicitado" ||
+                            w.status === "em_analise" ? (
+                              <div className="inline-flex items-center gap-1.5">
+                                {w.status === "solicitado" ? (
+                                  <button
+                                    type="button"
+                                    disabled={busyId === w.id}
+                                    onClick={() =>
+                                      void handleSetWithdrawalInAnalysis(w.id)
+                                    }
+                                    className="rounded-lg border border-indigo-700/70 bg-indigo-950/50 px-2.5 py-1 text-[11px] font-semibold text-indigo-200 hover:bg-indigo-900/60"
+                                  >
+                                    Em análise
+                                  </button>
+                                ) : null}
+                                <button
+                                  type="button"
+                                  disabled={busyId === w.id}
+                                  onClick={() => openWithdrawalModal(w, "pago")}
+                                  className="rounded-lg bg-emerald-600/90 px-2.5 py-1 text-[11px] font-semibold text-white hover:bg-emerald-500"
+                                >
+                                  Marcar pago
+                                </button>
+                                <button
+                                  type="button"
+                                  disabled={busyId === w.id}
+                                  onClick={() =>
+                                    openWithdrawalModal(w, "recusado")
+                                  }
+                                  className="rounded-lg border border-rose-800/70 bg-rose-950/40 px-2.5 py-1 text-[11px] font-semibold text-rose-300 hover:bg-rose-900/50"
+                                >
+                                  Recusar
+                                </button>
+                              </div>
+                            ) : (
+                              <span className="text-[11px] text-slate-400 tabular-nums">
+                                {fmtDate(w.pagoEm ?? w.recusadoEm)}
+                              </span>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </section>
 
             {/* Gerador de Convites + Lista de Convites */}
@@ -689,7 +1071,7 @@ export default function AdminPartnersClient() {
             <section className="rounded-2xl border border-slate-800 bg-[#0F172A] overflow-hidden">
               <div className="flex items-center justify-between border-b border-slate-800 px-5 py-4">
                 <h2 className="text-sm font-bold text-white">
-                  Parceiros Cadastrados
+                  Parceiros Cadastrados (Saldos Derivados)
                 </h2>
                 <span className="text-xs text-slate-400 tabular-nums">
                   {data.partners.length} parceiro(s)
@@ -709,13 +1091,16 @@ export default function AdminPartnersClient() {
                         <th className="px-4 py-3 font-semibold">Código</th>
                         <th className="px-4 py-3 font-semibold">Comissão %</th>
                         <th className="px-4 py-3 font-semibold text-right">
-                          Cliques / Indicados / Pagos
+                          Cliq / Cad / Assin
                         </th>
                         <th className="px-4 py-3 font-semibold text-right">
                           Pendente
                         </th>
                         <th className="px-4 py-3 font-semibold text-right">
-                          Pago
+                          Disponível
+                        </th>
+                        <th className="px-4 py-3 font-semibold text-right">
+                          Já Recebido
                         </th>
                         <th className="px-4 py-3 font-semibold text-right">
                           Ações
@@ -777,6 +1162,9 @@ export default function AdminPartnersClient() {
                           <td className="px-4 py-3 text-right font-mono font-semibold text-amber-300 tabular-nums whitespace-nowrap">
                             {fmtBrl(p.pendenteBrl)}
                           </td>
+                          <td className="px-4 py-3 text-right font-mono font-semibold text-cyan-300 tabular-nums whitespace-nowrap">
+                            {fmtBrl(p.disponivelBrl)}
+                          </td>
                           <td className="px-4 py-3 text-right font-mono font-semibold text-emerald-400 tabular-nums whitespace-nowrap">
                             {fmtBrl(p.pagaBrl)}
                           </td>
@@ -789,14 +1177,14 @@ export default function AdminPartnersClient() {
                               >
                                 Filtrar
                               </button>
-                              {p.pendenteBrl > 0 ? (
+                              {p.disponivelBrl > 0 ? (
                                 <button
                                   type="button"
                                   disabled={busyId === `bulk-${p.id}`}
                                   onClick={() => void handleBulkPayPartner(p.id)}
                                   className="rounded-lg bg-emerald-600/90 px-2.5 py-1 text-[11px] font-semibold text-white hover:bg-emerald-500"
                                 >
-                                  Pagar tudo
+                                  Pagar disponíveis
                                 </button>
                               ) : null}
                               <button
@@ -859,7 +1247,9 @@ export default function AdminPartnersClient() {
                     className="rounded-xl border border-slate-700 bg-[#070B16] px-3 py-2 text-xs text-slate-200 focus:border-indigo-500 focus:outline-none"
                   >
                     <option value="">Todos os status</option>
-                    <option value="pendente">Pendentes</option>
+                    <option value="pendente">Pendentes (garantia)</option>
+                    <option value="disponivel">Disponíveis</option>
+                    <option value="em_saque">Em saque</option>
                     <option value="paga">Pagas</option>
                     <option value="estornada">Estornadas</option>
                   </select>
@@ -870,7 +1260,7 @@ export default function AdminPartnersClient() {
                     className="inline-flex items-center gap-1.5 rounded-xl border border-slate-700 bg-slate-800 px-3.5 py-2 text-xs font-semibold text-white hover:bg-slate-700 whitespace-nowrap"
                   >
                     <Download className="h-3.5 w-3.5" />
-                    <span>Exportar CSV</span>
+                    <span>Exportar Comissões CSV</span>
                   </a>
                 </div>
               </div>
@@ -892,14 +1282,14 @@ export default function AdminPartnersClient() {
                         </th>
                         <th className="px-4 py-3 font-semibold">Plano</th>
                         <th className="px-4 py-3 font-semibold text-right">
-                          Bruto
+                          Base
                         </th>
                         <th className="px-4 py-3 font-semibold text-right">
                           Comissão
                         </th>
                         <th className="px-4 py-3 font-semibold">Status</th>
                         <th className="px-4 py-3 font-semibold text-right">
-                          Repasse
+                          Ação
                         </th>
                       </tr>
                     </thead>
@@ -936,6 +1326,16 @@ export default function AdminPartnersClient() {
                                 <CheckCircle2 className="h-3.5 w-3.5" />
                                 <span>Paga</span>
                               </span>
+                            ) : c.status === "disponivel" ? (
+                              <span className="inline-flex items-center gap-1 text-cyan-300">
+                                <CheckCircle2 className="h-3.5 w-3.5" />
+                                <span>Disponível</span>
+                              </span>
+                            ) : c.status === "em_saque" ? (
+                              <span className="inline-flex items-center gap-1 text-indigo-300">
+                                <Hourglass className="h-3.5 w-3.5" />
+                                <span>Em saque</span>
+                              </span>
                             ) : c.status === "estornada" ? (
                               <span className="inline-flex items-center gap-1 text-rose-400">
                                 <Ban className="h-3.5 w-3.5" />
@@ -950,6 +1350,20 @@ export default function AdminPartnersClient() {
                           </td>
                           <td className="px-4 py-3 text-right whitespace-nowrap">
                             {c.status === "pendente" ? (
+                              <button
+                                type="button"
+                                disabled={busyId === c.id}
+                                onClick={() =>
+                                  void handleUpdateCommissionStatus(
+                                    c.id,
+                                    "disponivel"
+                                  )
+                                }
+                                className="rounded-lg border border-cyan-800/70 bg-cyan-950/40 px-2.5 py-1 text-[11px] font-semibold text-cyan-200 hover:bg-cyan-900/50 disabled:opacity-50"
+                              >
+                                Liberar
+                              </button>
+                            ) : c.status === "disponivel" ? (
                               <button
                                 type="button"
                                 disabled={busyId === c.id}
@@ -978,9 +1392,215 @@ export default function AdminPartnersClient() {
                 </div>
               )}
             </section>
+
+            {/* Auditoria Recente */}
+            <section className="rounded-2xl border border-slate-800 bg-[#0F172A] overflow-hidden">
+              <div className="flex items-center justify-between border-b border-slate-800 px-5 py-4">
+                <div className="flex items-center gap-2">
+                  <History className="h-4 w-4 text-indigo-400" />
+                  <h2 className="text-sm font-bold text-white">
+                    Auditoria de Mudanças de Estado
+                  </h2>
+                </div>
+                <span className="text-xs text-slate-400 tabular-nums">
+                  {data.auditLogs.length} evento(s) recente(s)
+                </span>
+              </div>
+
+              {data.auditLogs.length === 0 ? (
+                <div className="p-8 text-center text-xs text-slate-400">
+                  Nenhum registro de auditoria ainda.
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full border-collapse text-left text-xs">
+                    <thead>
+                      <tr className="border-b border-slate-800 bg-[#0B1124] text-slate-400">
+                        <th className="px-4 py-3 font-semibold">Quando</th>
+                        <th className="px-4 py-3 font-semibold">Quem</th>
+                        <th className="px-4 py-3 font-semibold">Parceiro</th>
+                        <th className="px-4 py-3 font-semibold">Ação</th>
+                        <th className="px-4 py-3 font-semibold">
+                          Antes → Depois
+                        </th>
+                        <th className="px-4 py-3 font-semibold">Motivo</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-800/80">
+                      {data.auditLogs.map((log) => (
+                        <tr key={log.id} className="hover:bg-slate-800/30">
+                          <td className="px-4 py-3 whitespace-nowrap text-slate-300 tabular-nums">
+                            {fmtDate(log.criadoEm)}
+                          </td>
+                          <td className="px-4 py-3 text-slate-300">
+                            <span className="font-semibold text-white">
+                              {log.actorType}
+                            </span>
+                            {log.actorEmail ? (
+                              <span className="ml-1 text-slate-400">
+                                ({log.actorEmail})
+                              </span>
+                            ) : null}
+                          </td>
+                          <td className="px-4 py-3 font-mono text-indigo-300">
+                            {log.partnerCodigo}
+                          </td>
+                          <td className="px-4 py-3 font-mono text-slate-200">
+                            {log.entidade}.{log.acao}
+                          </td>
+                          <td className="px-4 py-3 font-mono text-[11px] text-slate-400">
+                            {String(log.estadoAnterior?.status ?? "—")} →{" "}
+                            <span className="text-white">
+                              {String(log.estadoNovo?.status ?? "—")}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3 text-slate-300">
+                            {log.motivo || "—"}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </section>
           </>
         ) : null}
       </main>
+
+      {/* Modal Admin: Marcar Saque como Pago ou Recusar */}
+      {withdrawalActionModal ? (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="modal-admin-saque-titulo"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4 backdrop-blur-sm"
+        >
+          <div className="w-full max-w-md rounded-2xl border border-slate-800 bg-[#0F172A] p-6 space-y-4">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <h2
+                  id="modal-admin-saque-titulo"
+                  className="text-lg font-bold text-white"
+                >
+                  {withdrawalActionModal.mode === "pago"
+                    ? "Confirmar pagamento de saque"
+                    : "Recusar pedido de saque"}
+                </h2>
+                <p className="mt-1 text-xs text-slate-400">
+                  {withdrawalActionModal.item.partnerNome} (
+                  {withdrawalActionModal.item.partnerCodigo}) ·{" "}
+                  <strong className="text-white font-mono tabular-nums">
+                    {fmtBrl(withdrawalActionModal.item.valorBrl)}
+                  </strong>
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setWithdrawalActionModal(null)}
+                aria-label="Fechar janela"
+                className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-800 hover:text-white"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <form
+              onSubmit={handleSubmitWithdrawalAction}
+              className="space-y-4"
+            >
+              {withdrawalActionModal.mode === "pago" ? (
+                <>
+                  <div>
+                    <label
+                      htmlFor="admin-comprovativo"
+                      className="block text-xs font-medium text-slate-300 mb-1"
+                    >
+                      Referência / Comprovativo (ID Pix, E2E ou link)
+                    </label>
+                    <input
+                      id="admin-comprovativo"
+                      type="text"
+                      value={comprovativoInput}
+                      onChange={(e) => setComprovativoInput(e.target.value)}
+                      maxLength={300}
+                      placeholder="Ex: E0000000020261123..."
+                      className="w-full rounded-xl border border-slate-700 bg-[#070B16] px-3.5 py-2.5 text-sm text-white placeholder:text-slate-500 focus:border-indigo-500 focus:outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label
+                      htmlFor="admin-pago-data"
+                      className="block text-xs font-medium text-slate-300 mb-1"
+                    >
+                      Data do pagamento
+                    </label>
+                    <input
+                      id="admin-pago-data"
+                      type="date"
+                      value={pagoDateInput}
+                      onChange={(e) => setPagoDateInput(e.target.value)}
+                      required
+                      className="w-full rounded-xl border border-slate-700 bg-[#070B16] px-3.5 py-2.5 text-sm text-white focus:border-indigo-500 focus:outline-none"
+                    />
+                  </div>
+                </>
+              ) : (
+                <div>
+                  <label
+                    htmlFor="admin-motivo-recusa"
+                    className="block text-xs font-medium text-slate-300 mb-1"
+                  >
+                    Motivo da recusa (enviado ao parceiro)
+                  </label>
+                  <textarea
+                    id="admin-motivo-recusa"
+                    required
+                    rows={3}
+                    maxLength={500}
+                    value={motivoRecusaInput}
+                    onChange={(e) => setMotivoRecusaInput(e.target.value)}
+                    placeholder="Ex: Chave Pix divergente da titularidade do parceiro."
+                    className="w-full rounded-xl border border-slate-700 bg-[#070B16] px-3.5 py-2.5 text-sm text-white placeholder:text-slate-500 focus:border-indigo-500 focus:outline-none"
+                  />
+                </div>
+              )}
+
+              {withdrawalActionError ? (
+                <p className="text-xs text-rose-400">{withdrawalActionError}</p>
+              ) : null}
+
+              <div className="flex items-center justify-end gap-2.5 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setWithdrawalActionModal(null)}
+                  className="rounded-xl border border-slate-700 bg-slate-800 px-4 py-2 text-xs font-semibold text-slate-200 hover:bg-slate-700"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={busyId === withdrawalActionModal.item.id}
+                  className={`inline-flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-semibold text-white disabled:opacity-50 ${
+                    withdrawalActionModal.mode === "pago"
+                      ? "bg-emerald-600 hover:bg-emerald-500"
+                      : "bg-rose-600 hover:bg-rose-500"
+                  }`}
+                >
+                  {busyId === withdrawalActionModal.item.id ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  ) : null}
+                  <span>
+                    {withdrawalActionModal.mode === "pago"
+                      ? "Confirmar pago"
+                      : "Confirmar recusa"}
+                  </span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

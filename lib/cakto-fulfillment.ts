@@ -224,6 +224,14 @@ function extractFieldsFromOrderOrData(raw: Record<string, unknown>) {
   const rawAmount =
     raw.amount ?? nestedOrder?.amount ?? offer?.price ?? raw.baseAmount;
 
+  const rawFees = raw.fees ?? nestedOrder?.fees ?? 0;
+  const commissionsArr = Array.isArray(raw.commissions) ? raw.commissions : [];
+  const producerCommission = commissionsArr.find((item) => {
+    const rec = asRecord(item);
+    return rec && rec.type === "producer";
+  });
+  const producerNetRaw = asRecord(producerCommission)?.totalAmount ?? null;
+
   return {
     orderId,
     refId,
@@ -238,6 +246,8 @@ function extractFieldsFromOrderOrData(raw: Record<string, unknown>) {
     subscriptionId,
     paymentMethod,
     rawAmount,
+    rawFees,
+    producerNetRaw,
   };
 }
 
@@ -547,12 +557,35 @@ export async function fulfillCaktoOrderOrEvent(params: {
   const commissionTxId =
     extracted.orderId || extracted.refId || idempotencyKey || null;
   if (!insertError && commissionTxId) {
+    const parseBrlOrCents = (val: unknown): number => {
+      if (typeof val === "number" && Number.isFinite(val) && val > 0) {
+        return Math.round(val * 100);
+      }
+      if (typeof val === "string") {
+        const parsed = Number(val.replace(",", ".").trim());
+        if (Number.isFinite(parsed) && parsed > 0) {
+          return Math.round(parsed * 100);
+        }
+      }
+      return 0;
+    };
+
+    const producerNetCents = parseBrlOrCents(extracted.producerNetRaw);
+    const feesCents = parseBrlOrCents(extracted.rawFees);
+    const computedNetCents =
+      producerNetCents > 0 && producerNetCents <= amountCents
+        ? producerNetCents
+        : feesCents > 0 && feesCents < amountCents
+        ? Math.max(0, amountCents - feesCents)
+        : amountCents;
+
     await recordPartnerCommissionForPayment({
       admin,
       userId,
       planId: plan.id,
       billingCycle,
-      amountCents,
+      grossAmountCents: amountCents,
+      netAmountCents: computedNetCents,
       transactionId: commissionTxId,
       eventType: params.eventType,
     });

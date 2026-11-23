@@ -95,21 +95,35 @@ export default function TermosParceirosPage() {
 
       <section id="comissoes" className="scroll-mt-24 space-y-3">
         <h2 className="text-xl font-bold text-slate-950 dark:text-white">
-          3. Cálculo de comissões e estornos
+          3. Cálculo de comissões, saques e estornos
         </h2>
         <ul className="list-disc space-y-2 pl-5">
           <li>
             <strong>Base de cálculo e recorrência:</strong> a comissão incide
-            sobre o <strong>valor bruto</strong> de cada pagamento aprovado na
-            Cakto (Pix, Cartão de Crédito ou Boleto) pelo usuário indicado,
-            incluindo primeiro pagamento e renovações de assinatura.
+            sobre o valor configurado do programa (por padrão, o{" "}
+            <strong>valor bruto</strong>) de cada pagamento aprovado na Cakto
+            (Pix, Cartão de Crédito ou Boleto) pelo usuário indicado, incluindo
+            primeiro pagamento e renovações enquanto a assinatura estiver ativa.
           </li>
           <li>
-            <strong>Status pendente, paga e estornada:</strong> cada transação
-            aprovada gera uma comissão única com status inicial{" "}
-            <em>pendente</em> até o repasse financeiro. Em casos de reembolso ou
-            chargeback, a comissão correspondente é automaticamente marcada como{" "}
-            <em>estornada</em>.
+            <strong>Ciclo de estados (garantia de 7 dias):</strong> toda comissão
+            inicia como <em>pendente</em> durante o período de garantia de 7
+            dias e passa automaticamente para <em>disponível</em> após esse
+            prazo, podendo ser incluída em pedido de saque (<em>em saque</em>) e
+            concluída como <em>paga</em>.
+          </li>
+          <li>
+            <strong>Saques (mínimo R$ 50,00):</strong> quando o saldo disponível
+            atingir o mínimo configurável (padrão R$ 50,00), o parceiro pode
+            solicitar saque via Pix ou outro método informado no painel, sendo
+            permitido 1 pedido em aberto por vez.
+          </li>
+          <li>
+            <strong>Reembolsos e chargebacks:</strong> caso haja estorno antes do
+            pagamento, a comissão é marcada como <em>estornada</em> e removida
+            do saldo. Se a comissão já tiver sido paga, o estorno gera saldo
+            negativo equivalente para compensação automática nos ganhos
+            futuros.
           </li>
           <li>
             <strong>Privacidade dos indicados:</strong> o painel do parceiro

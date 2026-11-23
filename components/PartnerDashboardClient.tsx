@@ -6,13 +6,16 @@ import QRCode from "qrcode";
 import {
   AlertTriangle,
   ArrowRight,
+  ArrowUpRight,
   Ban,
+  Banknote,
   Check,
   CheckCircle2,
   Clock,
   Copy,
   Download,
   ExternalLink,
+  Hourglass,
   Loader2,
   Lock,
   LogIn,
@@ -24,14 +27,32 @@ import {
   UserCheck,
   Users,
   Wallet,
+  X,
 } from "lucide-react";
 import BrandLogo from "@/components/BrandLogo";
 import { useAuth } from "@/components/AuthProvider";
+
+type CommissionStatus =
+  | "pendente"
+  | "disponivel"
+  | "em_saque"
+  | "paga"
+  | "estornada";
+
+type WithdrawalStatus = "solicitado" | "em_analise" | "pago" | "recusado";
+type WithdrawalMethod = "pix" | "outro";
+type PixKeyType = "cpf" | "cnpj" | "email" | "telefone" | "aleatoria";
 
 type PartnerDashboardData =
   | { isPartner: false }
   | {
       isPartner: true;
+      config: {
+        baseCalculo: "valor_bruto" | "valor_liquido";
+        garantiaDias: number;
+        saqueMinimoCentavos: number;
+        saqueMinimoBrl: number;
+      };
       partner: {
         id: string;
         codigo: string;
@@ -46,10 +67,20 @@ type PartnerDashboardData =
         cliquesUltimos30Dias: number;
         cadastrosTotais: number;
         assinantesAtivos: number;
-        comissoesPendentesBrl: number;
-        comissoesPagasBrl: number;
-        comissoesEstornadasBrl: number;
+        saldoPendenteCentavos: number;
+        saldoDisponivelCentavos: number;
+        saldoEmSaqueCentavos: number;
+        totalGanhoCentavos: number;
+        totalRecebidoCentavos: number;
+        ajustesEmAbertoCentavos: number;
+        saldoPendenteBrl: number;
+        saldoDisponivelBrl: number;
+        saldoEmSaqueBrl: number;
         totalGanhoBrl: number;
+        totalRecebidoBrl: number;
+        comissoesEstornadasBrl: number;
+        hasOpenWithdrawal: boolean;
+        podeSolicitarSaque: boolean;
       };
       clicksByDay: { data: string; total: number }[];
       referrals: {
@@ -61,7 +92,9 @@ type PartnerDashboardData =
       commissions: {
         id: string;
         criadoEm: string;
+        disponivelEm: string;
         pagaEm: string | null;
+        estornadaEm: string | null;
         maskedEmail: string;
         plano: string;
         ciclo: string;
@@ -70,7 +103,22 @@ type PartnerDashboardData =
         percentualAplicado: number;
         valorComissao: number;
         moeda: string;
-        status: "pendente" | "paga" | "estornada";
+        status: CommissionStatus;
+      }[];
+      withdrawals: {
+        id: string;
+        valorCentavos: number;
+        valorBrl: number;
+        metodo: WithdrawalMethod;
+        pixTipoChave: PixKeyType | null;
+        dadosPagamento: string;
+        status: WithdrawalStatus;
+        comprovativoRef: string | null;
+        motivoRecusa: string | null;
+        solicitadoEm: string;
+        analisadoEm: string | null;
+        pagoEm: string | null;
+        recusadoEm: string | null;
       }[];
     };
 
@@ -87,6 +135,17 @@ function fmtDate(iso: string | null | undefined): string {
     return new Intl.DateTimeFormat("pt-BR", {
       dateStyle: "short",
       timeStyle: "short",
+    }).format(new Date(iso));
+  } catch {
+    return "—";
+  }
+}
+
+function fmtShortDate(iso: string | null | undefined): string {
+  if (!iso) return "—";
+  try {
+    return new Intl.DateTimeFormat("pt-BR", {
+      dateStyle: "short",
     }).format(new Date(iso));
   } catch {
     return "—";
@@ -114,6 +173,97 @@ function formatPlanLabel(plan: string): string {
   }
 }
 
+function formatPixType(type: PixKeyType | null): string {
+  switch (type) {
+    case "cpf":
+      return "CPF";
+    case "cnpj":
+      return "CNPJ";
+    case "email":
+      return "E-mail";
+    case "telefone":
+      return "Telefone";
+    case "aleatoria":
+      return "Aleatória";
+    default:
+      return "Pix";
+  }
+}
+
+function renderCommissionStatus(status: CommissionStatus) {
+  switch (status) {
+    case "disponivel":
+      return (
+        <span className="inline-flex items-center gap-1 font-semibold text-cyan-300">
+          <CheckCircle2 className="h-3.5 w-3.5" />
+          <span>Disponível</span>
+        </span>
+      );
+    case "em_saque":
+      return (
+        <span className="inline-flex items-center gap-1 font-semibold text-indigo-300">
+          <Hourglass className="h-3.5 w-3.5" />
+          <span>Em saque</span>
+        </span>
+      );
+    case "paga":
+      return (
+        <span className="inline-flex items-center gap-1 font-semibold text-emerald-400">
+          <CheckCircle2 className="h-3.5 w-3.5" />
+          <span>Paga</span>
+        </span>
+      );
+    case "estornada":
+      return (
+        <span className="inline-flex items-center gap-1 font-semibold text-rose-400">
+          <Ban className="h-3.5 w-3.5" />
+          <span>Estornada</span>
+        </span>
+      );
+    case "pendente":
+    default:
+      return (
+        <span className="inline-flex items-center gap-1 font-semibold text-amber-300">
+          <Clock className="h-3.5 w-3.5" />
+          <span>Pendente</span>
+        </span>
+      );
+  }
+}
+
+function renderWithdrawalStatus(status: WithdrawalStatus) {
+  switch (status) {
+    case "solicitado":
+      return (
+        <span className="inline-flex items-center gap-1 font-semibold text-amber-300">
+          <Clock className="h-3.5 w-3.5" />
+          <span>Solicitado</span>
+        </span>
+      );
+    case "em_analise":
+      return (
+        <span className="inline-flex items-center gap-1 font-semibold text-indigo-300">
+          <Hourglass className="h-3.5 w-3.5" />
+          <span>Em análise</span>
+        </span>
+      );
+    case "pago":
+      return (
+        <span className="inline-flex items-center gap-1 font-semibold text-emerald-400">
+          <CheckCircle2 className="h-3.5 w-3.5" />
+          <span>Pago</span>
+        </span>
+      );
+    case "recusado":
+      return (
+        <span className="inline-flex items-center gap-1 font-semibold text-rose-400">
+          <Ban className="h-3.5 w-3.5" />
+          <span>Recusado</span>
+        </span>
+      );
+  }
+}
+
 export default function PartnerDashboardClient() {
   const { user, loading: authLoading, signInWithGoogle, signOutUser } = useAuth();
 
@@ -132,6 +282,18 @@ export default function PartnerDashboardClient() {
     text: string;
   } | null>(null);
 
+  // Estado do formulário / modal de Solicitar Saque
+  const [withdrawModalOpen, setWithdrawModalOpen] = useState(false);
+  const [withdrawMethod, setWithdrawMethod] = useState<WithdrawalMethod>("pix");
+  const [pixKeyType, setPixKeyType] = useState<PixKeyType>("cpf");
+  const [paymentDetails, setPaymentDetails] = useState("");
+  const [withdrawAmountBrl, setWithdrawAmountBrl] = useState("");
+  const [submittingWithdraw, setSubmittingWithdraw] = useState(false);
+  const [withdrawFeedback, setWithdrawFeedback] = useState<{
+    type: "ok" | "err";
+    text: string;
+  } | null>(null);
+
   const loadDashboard = useCallback(async () => {
     setLoading(true);
     setError(null);
@@ -145,6 +307,7 @@ export default function PartnerDashboardClient() {
         setData(json);
         if (json.isPartner) {
           setCustomCodeInput(json.partner.codigo);
+          setWithdrawAmountBrl(json.metrics.saldoDisponivelBrl.toFixed(2));
         }
       }
     } catch {
@@ -244,6 +407,69 @@ export default function PartnerDashboardClient() {
     }
   };
 
+  const handleOpenWithdrawModal = () => {
+    if (!data || !data.isPartner) return;
+    setWithdrawFeedback(null);
+    setWithdrawAmountBrl(data.metrics.saldoDisponivelBrl.toFixed(2));
+    setWithdrawModalOpen(true);
+  };
+
+  const handleSubmitWithdrawal = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!data || !data.isPartner || submittingWithdraw) return;
+
+    const normalizedAmount = Number(withdrawAmountBrl.replace(",", ".").trim());
+    if (!Number.isFinite(normalizedAmount) || normalizedAmount <= 0) {
+      setWithdrawFeedback({
+        type: "err",
+        text: "Informe um valor válido para o saque.",
+      });
+      return;
+    }
+
+    const valorCentavos = Math.round(normalizedAmount * 100);
+    setSubmittingWithdraw(true);
+    setWithdrawFeedback(null);
+
+    try {
+      const res = await fetch("/api/parceiros/saques", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          metodo: withdrawMethod,
+          pixTipoChave: withdrawMethod === "pix" ? pixKeyType : null,
+          dadosPagamento: paymentDetails.trim(),
+          valorCentavos,
+        }),
+      });
+      const json = (await res.json()) as { ok?: boolean; erro?: string };
+      if (!res.ok) {
+        setWithdrawFeedback({
+          type: "err",
+          text: json.erro || "Não foi possível solicitar o saque.",
+        });
+      } else {
+        setWithdrawFeedback({
+          type: "ok",
+          text: "Pedido de saque registrado! Você receberá atualizações por e-mail.",
+        });
+        setPaymentDetails("");
+        await loadDashboard();
+        setTimeout(() => {
+          setWithdrawModalOpen(false);
+          setWithdrawFeedback(null);
+        }, 1200);
+      }
+    } catch {
+      setWithdrawFeedback({
+        type: "err",
+        text: "Erro de rede ao registrar solicitação de saque.",
+      });
+    } finally {
+      setSubmittingWithdraw(false);
+    }
+  };
+
   const maxDayClicks =
     data && data.isPartner
       ? Math.max(1, ...data.clicksByDay.map((d) => d.total))
@@ -337,7 +563,7 @@ export default function PartnerDashboardClient() {
               </h1>
               <p className="text-sm text-slate-300">
                 Faça login com a conta Google vinculada à sua parceria para
-                acessar seu link de indicação, cliques e comissões.
+                acessar seu link de indicação, saldo e pedidos de saque.
               </p>
             </div>
             <button
@@ -383,37 +609,56 @@ export default function PartnerDashboardClient() {
           </div>
         ) : data && data.isPartner ? (
           <>
-            {/* Cabeçalho do Painel */}
+            {/* Cabeçalho do Painel + Botão Principal de Saque */}
             <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
               <div>
                 <p className="text-xs font-semibold uppercase tracking-wider text-indigo-400">
                   Programa de Afiliados e Parceiros
                 </p>
-                <h1 className="mt-1 text-2xl sm:text-3xl font-bold tracking-tight text-white">
-                  Desempenho das suas Indicações
+                <h1 className="mt-1 text-2xl sm:text-3xl font-bold tracking-tight text-white text-balance">
+                  Saldo e Desempenho das Indicações
                 </h1>
                 <p className="mt-1 text-xs sm:text-sm text-slate-400">
-                  Comissão vigente:{" "}
+                  Comissão:{" "}
                   <strong className="text-emerald-400 tabular-nums">
                     {data.partner.percentualComissao}%
                   </strong>{" "}
-                  sobre o valor bruto · Recorrente em todas as renovações ·{" "}
-                  Cookie de 60 dias
+                  sobre o{" "}
+                  {data.config.baseCalculo === "valor_liquido"
+                    ? "valor líquido"
+                    : "valor bruto"}{" "}
+                  · Garantia de {data.config.garantiaDias} dias · Saque mínimo{" "}
+                  {fmtBrl(data.config.saqueMinimoBrl)}
                 </p>
               </div>
 
-              <div className="flex items-center gap-2 text-xs font-semibold">
-                {data.partner.ativo ? (
-                  <span className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-800/70 bg-emerald-950/50 px-3 py-1.5 text-emerald-300">
-                    <CheckCircle2 className="h-3.5 w-3.5" />
-                    <span>Parceiro Ativo</span>
+              <div className="flex flex-wrap items-center gap-3">
+                <span
+                  className={`inline-flex items-center gap-1.5 text-xs font-semibold ${
+                    data.partner.ativo ? "text-emerald-400" : "text-amber-300"
+                  }`}
+                >
+                  {data.partner.ativo ? (
+                    <CheckCircle2 className="h-4 w-4" />
+                  ) : (
+                    <AlertTriangle className="h-4 w-4" />
+                  )}
+                  <span>
+                    {data.partner.ativo
+                      ? "Parceiro Ativo"
+                      : "Parceiro Desativado"}
                   </span>
-                ) : (
-                  <span className="inline-flex items-center gap-1.5 rounded-lg border border-amber-800/70 bg-amber-950/50 px-3 py-1.5 text-amber-300">
-                    <AlertTriangle className="h-3.5 w-3.5" />
-                    <span>Parceiro Desativado</span>
-                  </span>
-                )}
+                </span>
+
+                <button
+                  type="button"
+                  disabled={!data.metrics.podeSolicitarSaque}
+                  onClick={handleOpenWithdrawModal}
+                  className="inline-flex min-h-[44px] items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#5B4AF4] to-[#2563EB] px-5 py-2.5 text-sm font-semibold text-white hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-45 whitespace-nowrap shrink-0"
+                >
+                  <Banknote className="h-4 w-4" />
+                  <span>Solicitar saque</span>
+                </button>
               </div>
             </div>
 
@@ -428,6 +673,142 @@ export default function PartnerDashboardClient() {
                 </div>
               </div>
             ) : null}
+
+            {data.metrics.saldoDisponivelCentavos < 0 ? (
+              <div className="flex items-start gap-3 rounded-2xl border border-rose-800/70 bg-rose-950/30 p-4 text-xs sm:text-sm text-rose-200">
+                <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-rose-400" />
+                <div>
+                  Você possui um saldo negativo de{" "}
+                  <strong className="font-mono tabular-nums">
+                    {fmtBrl(data.metrics.saldoDisponivelBrl)}
+                  </strong>{" "}
+                  referente ao estorno de uma comissão que já havia sido paga.
+                  Esse valor será compensado automaticamente nos seus próximos
+                  ganhos disponíveis.
+                </div>
+              </div>
+            ) : null}
+
+            {/* 4 KPIs Financeiros em Destaque + Métricas de Aquisição */}
+            <section
+              aria-label="Resumo financeiro do parceiro"
+              className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4"
+            >
+              <div className="rounded-2xl border border-cyan-800/60 bg-[#0F172A] p-5 space-y-2">
+                <div className="flex items-center justify-between text-xs font-medium text-cyan-300">
+                  <span>Saldo disponível</span>
+                  <Banknote className="h-4 w-4 text-cyan-400" />
+                </div>
+                <p className="text-3xl font-bold text-white font-mono tabular-nums">
+                  {fmtBrl(data.metrics.saldoDisponivelBrl)}
+                </p>
+                <p className="text-[11px] text-slate-400">
+                  {data.metrics.hasOpenWithdrawal
+                    ? `Saque em andamento de ${fmtBrl(data.metrics.saldoEmSaqueBrl)}`
+                    : data.metrics.saldoDisponivelCentavos >=
+                      data.config.saqueMinimoCentavos
+                    ? "Liberado para solicitação imediata"
+                    : `Mínimo de ${fmtBrl(data.config.saqueMinimoBrl)} para sacar`}
+                </p>
+              </div>
+
+              <div className="rounded-2xl border border-slate-800 bg-[#0F172A] p-5 space-y-2">
+                <div className="flex items-center justify-between text-xs font-medium text-slate-400">
+                  <span>Saldo pendente</span>
+                  <Clock className="h-4 w-4 text-amber-400" />
+                </div>
+                <p className="text-3xl font-bold text-amber-300 font-mono tabular-nums">
+                  {fmtBrl(data.metrics.saldoPendenteBrl)}
+                </p>
+                <p className="text-[11px] text-slate-400">
+                  Em período de garantia ({data.config.garantiaDias} dias)
+                </p>
+              </div>
+
+              <div className="rounded-2xl border border-slate-800 bg-[#0F172A] p-5 space-y-2">
+                <div className="flex items-center justify-between text-xs font-medium text-slate-400">
+                  <span>Total ganho</span>
+                  <TrendingUp className="h-4 w-4 text-indigo-400" />
+                </div>
+                <p className="text-3xl font-bold text-white font-mono tabular-nums">
+                  {fmtBrl(data.metrics.totalGanhoBrl)}
+                </p>
+                <p className="text-[11px] text-slate-400">
+                  Acumulado válido no programa
+                </p>
+              </div>
+
+              <div className="rounded-2xl border border-slate-800 bg-[#0F172A] p-5 space-y-2">
+                <div className="flex items-center justify-between text-xs font-medium text-slate-400">
+                  <span>Total já recebido</span>
+                  <Wallet className="h-4 w-4 text-emerald-400" />
+                </div>
+                <p className="text-3xl font-bold text-emerald-400 font-mono tabular-nums">
+                  {fmtBrl(data.metrics.totalRecebidoBrl)}
+                </p>
+                <p className="text-[11px] text-slate-400">
+                  Saques concluídos e pagos
+                </p>
+              </div>
+            </section>
+
+            {/* Faixa de Funil Operacional */}
+            <section
+              aria-label="Métricas de aquisição"
+              className="grid grid-cols-2 gap-3.5 sm:grid-cols-4"
+            >
+              <div className="rounded-2xl border border-slate-800 bg-[#0F172A] p-4 space-y-1">
+                <div className="flex items-center justify-between text-xs text-slate-400">
+                  <span>Cliques Totais</span>
+                  <MousePointerClick className="h-4 w-4 text-indigo-400" />
+                </div>
+                <p className="text-xl font-bold text-white font-mono tabular-nums">
+                  {data.metrics.cliquesTotais}
+                </p>
+                <p className="text-[11px] text-slate-400 tabular-nums">
+                  {data.metrics.cliquesUltimos30Dias} nos últimos 30d
+                </p>
+              </div>
+
+              <div className="rounded-2xl border border-slate-800 bg-[#0F172A] p-4 space-y-1">
+                <div className="flex items-center justify-between text-xs text-slate-400">
+                  <span>Cadastros</span>
+                  <Users className="h-4 w-4 text-cyan-400" />
+                </div>
+                <p className="text-xl font-bold text-white font-mono tabular-nums">
+                  {data.metrics.cadastrosTotais}
+                </p>
+                <p className="text-[11px] text-slate-400">
+                  Contas novas atribuídas
+                </p>
+              </div>
+
+              <div className="rounded-2xl border border-slate-800 bg-[#0F172A] p-4 space-y-1">
+                <div className="flex items-center justify-between text-xs text-slate-400">
+                  <span>Assinantes Ativos</span>
+                  <UserCheck className="h-4 w-4 text-emerald-400" />
+                </div>
+                <p className="text-xl font-bold text-white font-mono tabular-nums">
+                  {data.metrics.assinantesAtivos}
+                </p>
+                <p className="text-[11px] text-slate-400">
+                  Planos pagos ativos
+                </p>
+              </div>
+
+              <div className="rounded-2xl border border-slate-800 bg-[#0F172A] p-4 space-y-1">
+                <div className="flex items-center justify-between text-xs text-slate-400">
+                  <span>Em Saque / Análise</span>
+                  <Hourglass className="h-4 w-4 text-indigo-400" />
+                </div>
+                <p className="text-xl font-bold text-indigo-300 font-mono tabular-nums">
+                  {fmtBrl(data.metrics.saldoEmSaqueBrl)}
+                </p>
+                <p className="text-[11px] text-slate-400">
+                  Aguardando pagamento
+                </p>
+              </div>
+            </section>
 
             {/* Link de Divulgação + QR Code + Personalização Única */}
             <section className="rounded-2xl border border-slate-800 bg-[#0F172A] p-5 sm:p-6 space-y-5">
@@ -571,88 +952,102 @@ export default function PartnerDashboardClient() {
               </div>
             </section>
 
-            {/* KPIs principais */}
-            <section
-              aria-label="Métricas principais do parceiro"
-              className="grid grid-cols-2 gap-3.5 sm:grid-cols-3 lg:grid-cols-6"
-            >
-              <div className="rounded-2xl border border-slate-800 bg-[#0F172A] p-4 space-y-1.5">
-                <div className="flex items-center justify-between text-xs text-slate-400">
-                  <span>Cliques Totais</span>
-                  <MousePointerClick className="h-4 w-4 text-indigo-400" />
+            {/* Histórico de Saques */}
+            <section className="rounded-2xl border border-slate-800 bg-[#0F172A] overflow-hidden">
+              <div className="flex flex-col gap-2 border-b border-slate-800 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <h2 className="text-sm font-bold text-white">
+                    Histórico de Saques
+                  </h2>
+                  <p className="text-xs text-slate-400">
+                    Mínimo de {fmtBrl(data.config.saqueMinimoBrl)} · Máximo de 1
+                    pedido em aberto por vez
+                  </p>
                 </div>
-                <p className="text-2xl font-bold text-white tabular-nums">
-                  {data.metrics.cliquesTotais}
-                </p>
-                <p className="text-[11px] text-slate-400 tabular-nums">
-                  {data.metrics.cliquesUltimos30Dias} nos últimos 30 dias
-                </p>
+                <button
+                  type="button"
+                  disabled={!data.metrics.podeSolicitarSaque}
+                  onClick={handleOpenWithdrawModal}
+                  className="inline-flex items-center gap-1.5 rounded-xl border border-indigo-500/40 bg-indigo-600/20 px-3.5 py-2 text-xs font-semibold text-indigo-200 hover:bg-indigo-600/35 disabled:cursor-not-allowed disabled:opacity-45 whitespace-nowrap shrink-0"
+                >
+                  <ArrowUpRight className="h-3.5 w-3.5" />
+                  <span>Novo saque</span>
+                </button>
               </div>
 
-              <div className="rounded-2xl border border-slate-800 bg-[#0F172A] p-4 space-y-1.5">
-                <div className="flex items-center justify-between text-xs text-slate-400">
-                  <span>Cadastros</span>
-                  <Users className="h-4 w-4 text-cyan-400" />
+              {data.withdrawals.length === 0 ? (
+                <div className="p-8 text-center text-xs sm:text-sm text-slate-400">
+                  Você ainda não realizou nenhum pedido de saque. Assim que seu{" "}
+                  <strong className="text-white">Saldo disponível</strong>{" "}
+                  atingir{" "}
+                  <strong className="text-white">
+                    {fmtBrl(data.config.saqueMinimoBrl)}
+                  </strong>
+                  , você poderá solicitar a transferência aqui.
                 </div>
-                <p className="text-2xl font-bold text-white tabular-nums">
-                  {data.metrics.cadastrosTotais}
-                </p>
-                <p className="text-[11px] text-slate-400">
-                  Contas novas atribuídas
-                </p>
-              </div>
-
-              <div className="rounded-2xl border border-slate-800 bg-[#0F172A] p-4 space-y-1.5">
-                <div className="flex items-center justify-between text-xs text-slate-400">
-                  <span>Assinantes Ativos</span>
-                  <UserCheck className="h-4 w-4 text-emerald-400" />
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full border-collapse text-left text-xs">
+                    <thead>
+                      <tr className="border-b border-slate-800 bg-[#0B1124] text-slate-400">
+                        <th className="px-4 py-3 font-semibold">Data</th>
+                        <th className="px-4 py-3 font-semibold text-right">
+                          Valor
+                        </th>
+                        <th className="px-4 py-3 font-semibold">Método</th>
+                        <th className="px-4 py-3 font-semibold">Estado</th>
+                        <th className="px-4 py-3 font-semibold">
+                          Comprovativo / Observação
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-800/80">
+                      {data.withdrawals.map((w) => (
+                        <tr key={w.id} className="hover:bg-slate-800/30">
+                          <td className="px-4 py-3 text-slate-300 whitespace-nowrap tabular-nums">
+                            {fmtDate(w.solicitadoEm)}
+                          </td>
+                          <td className="px-4 py-3 text-right font-mono font-bold text-white tabular-nums whitespace-nowrap">
+                            {fmtBrl(w.valorBrl)}
+                          </td>
+                          <td className="px-4 py-3 text-slate-300">
+                            <span className="font-semibold text-white">
+                              {w.metodo === "pix"
+                                ? `Pix (${formatPixType(w.pixTipoChave)})`
+                                : "Outro método"}
+                            </span>
+                            <span className="mx-1.5 text-slate-600">·</span>
+                            <span className="font-mono text-[11px] text-slate-400 break-all">
+                              {w.dadosPagamento}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3 whitespace-nowrap">
+                            {renderWithdrawalStatus(w.status)}
+                          </td>
+                          <td className="px-4 py-3 text-slate-300">
+                            {w.status === "pago" ? (
+                              <span>
+                                Pago em {fmtShortDate(w.pagoEm)}
+                                {w.comprovativoRef
+                                  ? ` · Ref: ${w.comprovativoRef}`
+                                  : ""}
+                              </span>
+                            ) : w.status === "recusado" ? (
+                              <span className="text-rose-300">
+                                {w.motivoRecusa || "Recusado"}
+                              </span>
+                            ) : (
+                              <span className="text-slate-400">
+                                Aguardando conferência
+                              </span>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
                 </div>
-                <p className="text-2xl font-bold text-white tabular-nums">
-                  {data.metrics.assinantesAtivos}
-                </p>
-                <p className="text-[11px] text-slate-400">
-                  Planos pagos ativos
-                </p>
-              </div>
-
-              <div className="rounded-2xl border border-slate-800 bg-[#0F172A] p-4 space-y-1.5">
-                <div className="flex items-center justify-between text-xs text-slate-400">
-                  <span>Pendentes</span>
-                  <Clock className="h-4 w-4 text-amber-400" />
-                </div>
-                <p className="text-2xl font-bold text-amber-300 tabular-nums">
-                  {fmtBrl(data.metrics.comissoesPendentesBrl)}
-                </p>
-                <p className="text-[11px] text-slate-400">
-                  Aguardando repasse
-                </p>
-              </div>
-
-              <div className="rounded-2xl border border-slate-800 bg-[#0F172A] p-4 space-y-1.5">
-                <div className="flex items-center justify-between text-xs text-slate-400">
-                  <span>Pagas</span>
-                  <Wallet className="h-4 w-4 text-emerald-400" />
-                </div>
-                <p className="text-2xl font-bold text-emerald-400 tabular-nums">
-                  {fmtBrl(data.metrics.comissoesPagasBrl)}
-                </p>
-                <p className="text-[11px] text-slate-400">
-                  Já repassadas a você
-                </p>
-              </div>
-
-              <div className="rounded-2xl border border-indigo-900/60 bg-[#0F172A] p-4 space-y-1.5">
-                <div className="flex items-center justify-between text-xs text-indigo-300">
-                  <span>Total Ganho</span>
-                  <TrendingUp className="h-4 w-4 text-indigo-400" />
-                </div>
-                <p className="text-2xl font-bold text-white tabular-nums">
-                  {fmtBrl(data.metrics.totalGanhoBrl)}
-                </p>
-                <p className="text-[11px] text-slate-400">
-                  Pendentes + pagas
-                </p>
-              </div>
+              )}
             </section>
 
             {/* Cliques Diários (últimos 14 registros) */}
@@ -700,7 +1095,7 @@ export default function PartnerDashboardClient() {
               <section className="lg:col-span-8 rounded-2xl border border-slate-800 bg-[#0F172A] overflow-hidden">
                 <div className="flex items-center justify-between border-b border-slate-800 px-5 py-4">
                   <h2 className="text-sm font-bold text-white">
-                    Últimas Comissões
+                    Histórico de Comissões
                   </h2>
                   <span className="text-xs text-slate-400 tabular-nums">
                     {data.commissions.length} registro(s)
@@ -724,12 +1119,9 @@ export default function PartnerDashboardClient() {
                           <th className="px-4 py-3 font-semibold">Indicado</th>
                           <th className="px-4 py-3 font-semibold">Plano</th>
                           <th className="px-4 py-3 font-semibold text-right">
-                            Valor Bruto
+                            Valor Comissão
                           </th>
-                          <th className="px-4 py-3 font-semibold text-right">
-                            Comissão
-                          </th>
-                          <th className="px-4 py-3 font-semibold">Status</th>
+                          <th className="px-4 py-3 font-semibold">Estado</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-800/80">
@@ -739,7 +1131,12 @@ export default function PartnerDashboardClient() {
                             className="hover:bg-slate-800/30 transition-colors"
                           >
                             <td className="px-4 py-3 text-slate-300 whitespace-nowrap tabular-nums">
-                              {fmtDate(c.criadoEm)}
+                              <div>{fmtDate(c.criadoEm)}</div>
+                              {c.status === "pendente" ? (
+                                <div className="text-[11px] text-slate-500">
+                                  Libera em {fmtShortDate(c.disponivelEm)}
+                                </div>
+                              ) : null}
                             </td>
                             <td className="px-4 py-3 font-mono text-slate-300">
                               {c.maskedEmail}
@@ -753,29 +1150,14 @@ export default function PartnerDashboardClient() {
                                   : "1º pgto"}
                               </span>
                             </td>
-                            <td className="px-4 py-3 text-right font-mono text-slate-300 tabular-nums whitespace-nowrap">
-                              {fmtBrl(c.valorBruto)}
-                            </td>
                             <td className="px-4 py-3 text-right font-mono font-bold text-white tabular-nums whitespace-nowrap">
-                              {fmtBrl(c.valorComissao)}
+                              <div>{fmtBrl(c.valorComissao)}</div>
+                              <div className="text-[11px] font-normal text-slate-400">
+                                {c.percentualAplicado}% de {fmtBrl(c.valorBruto)}
+                              </div>
                             </td>
                             <td className="px-4 py-3 whitespace-nowrap">
-                              {c.status === "paga" ? (
-                                <span className="inline-flex items-center gap-1 font-semibold text-emerald-400">
-                                  <CheckCircle2 className="h-3.5 w-3.5" />
-                                  <span>Paga</span>
-                                </span>
-                              ) : c.status === "estornada" ? (
-                                <span className="inline-flex items-center gap-1 font-semibold text-rose-400">
-                                  <Ban className="h-3.5 w-3.5" />
-                                  <span>Estornada</span>
-                                </span>
-                              ) : (
-                                <span className="inline-flex items-center gap-1 font-semibold text-amber-300">
-                                  <Clock className="h-3.5 w-3.5" />
-                                  <span>Pendente</span>
-                                </span>
-                              )}
+                              {renderCommissionStatus(c.status)}
                             </td>
                           </tr>
                         ))}
@@ -837,6 +1219,196 @@ export default function PartnerDashboardClient() {
           </>
         ) : null}
       </main>
+
+      {/* Modal de Solicitar Saque */}
+      {withdrawModalOpen && data && data.isPartner ? (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="modal-saque-titulo"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4 backdrop-blur-sm"
+        >
+          <div className="w-full max-w-md rounded-2xl border border-slate-800 bg-[#0F172A] p-6 space-y-5">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <h2
+                  id="modal-saque-titulo"
+                  className="text-lg font-bold text-white"
+                >
+                  Solicitar saque
+                </h2>
+                <p className="mt-1 text-xs text-slate-400">
+                  Saldo disponível:{" "}
+                  <strong className="text-cyan-300 font-mono tabular-nums">
+                    {fmtBrl(data.metrics.saldoDisponivelBrl)}
+                  </strong>
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setWithdrawModalOpen(false)}
+                aria-label="Fechar janela de saque"
+                className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-800 hover:text-white"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSubmitWithdrawal} className="space-y-4">
+              <div>
+                <span className="block text-xs font-medium text-slate-300 mb-1.5">
+                  Método de recebimento
+                </span>
+                <div className="grid grid-cols-2 gap-2 rounded-xl bg-[#070B16] p-1 border border-slate-800">
+                  <button
+                    type="button"
+                    onClick={() => setWithdrawMethod("pix")}
+                    className={`rounded-lg py-2 text-xs font-semibold transition-colors ${
+                      withdrawMethod === "pix"
+                        ? "bg-indigo-600 text-white"
+                        : "text-slate-400 hover:text-white"
+                    }`}
+                  >
+                    Pix
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setWithdrawMethod("outro")}
+                    className={`rounded-lg py-2 text-xs font-semibold transition-colors ${
+                      withdrawMethod === "outro"
+                        ? "bg-indigo-600 text-white"
+                        : "text-slate-400 hover:text-white"
+                    }`}
+                  >
+                    Outro método
+                  </button>
+                </div>
+              </div>
+
+              {withdrawMethod === "pix" ? (
+                <>
+                  <div>
+                    <label
+                      htmlFor="saque-pix-tipo"
+                      className="block text-xs font-medium text-slate-300 mb-1"
+                    >
+                      Tipo de chave Pix
+                    </label>
+                    <select
+                      id="saque-pix-tipo"
+                      value={pixKeyType}
+                      onChange={(e) =>
+                        setPixKeyType(e.target.value as PixKeyType)
+                      }
+                      className="w-full rounded-xl border border-slate-700 bg-[#070B16] px-3.5 py-2.5 text-sm text-white focus:border-indigo-500 focus:outline-none"
+                    >
+                      <option value="cpf">CPF</option>
+                      <option value="cnpj">CNPJ</option>
+                      <option value="email">E-mail</option>
+                      <option value="telefone">Telefone</option>
+                      <option value="aleatoria">Chave aleatória</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label
+                      htmlFor="saque-dados-pix"
+                      className="block text-xs font-medium text-slate-300 mb-1"
+                    >
+                      Chave Pix
+                    </label>
+                    <input
+                      id="saque-dados-pix"
+                      type="text"
+                      required
+                      minLength={3}
+                      maxLength={500}
+                      value={paymentDetails}
+                      onChange={(e) => setPaymentDetails(e.target.value)}
+                      placeholder="Digite sua chave Pix"
+                      className="w-full rounded-xl border border-slate-700 bg-[#070B16] px-3.5 py-2.5 text-sm text-white placeholder:text-slate-500 focus:border-indigo-500 focus:outline-none"
+                    />
+                  </div>
+                </>
+              ) : (
+                <div>
+                  <label
+                    htmlFor="saque-dados-outro"
+                    className="block text-xs font-medium text-slate-300 mb-1"
+                  >
+                    Dados completos do método de pagamento
+                  </label>
+                  <textarea
+                    id="saque-dados-outro"
+                    required
+                    rows={3}
+                    minLength={3}
+                    maxLength={500}
+                    value={paymentDetails}
+                    onChange={(e) => setPaymentDetails(e.target.value)}
+                    placeholder="Ex: Transferência bancária, IBAN, Wise, carteira móvel ou titularidade completa"
+                    className="w-full rounded-xl border border-slate-700 bg-[#070B16] px-3.5 py-2.5 text-sm text-white placeholder:text-slate-500 focus:border-indigo-500 focus:outline-none"
+                  />
+                </div>
+              )}
+
+              <div>
+                <label
+                  htmlFor="saque-valor"
+                  className="block text-xs font-medium text-slate-300 mb-1"
+                >
+                  Valor do saque (R$) — padrão: todo o saldo disponível
+                </label>
+                <input
+                  id="saque-valor"
+                  type="number"
+                  step="0.01"
+                  min={data.config.saqueMinimoBrl}
+                  max={data.metrics.saldoDisponivelBrl}
+                  required
+                  value={withdrawAmountBrl}
+                  onChange={(e) => setWithdrawAmountBrl(e.target.value)}
+                  className="w-full rounded-xl border border-slate-700 bg-[#070B16] px-3.5 py-2.5 font-mono text-sm text-white tabular-nums focus:border-indigo-500 focus:outline-none"
+                />
+              </div>
+
+              {withdrawFeedback ? (
+                <p
+                  className={`text-xs font-medium ${
+                    withdrawFeedback.type === "ok"
+                      ? "text-emerald-400"
+                      : "text-rose-400"
+                  }`}
+                >
+                  {withdrawFeedback.text}
+                </p>
+              ) : null}
+
+              <div className="flex items-center justify-end gap-2.5 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setWithdrawModalOpen(false)}
+                  className="rounded-xl border border-slate-700 bg-slate-800 px-4 py-2.5 text-xs font-semibold text-slate-200 hover:bg-slate-700"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={submittingWithdraw}
+                  className="inline-flex min-h-[42px] items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#5B4AF4] to-[#2563EB] px-5 py-2.5 text-xs font-semibold text-white hover:brightness-110 disabled:opacity-50"
+                >
+                  {submittingWithdraw ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Banknote className="h-4 w-4" />
+                  )}
+                  <span>Confirmar solicitação</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }
