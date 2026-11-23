@@ -45,3 +45,5 @@ drop trigger if exists trg_protect_profile_role_field on public.profiles;
 create trigger trg_protect_profile_role_field
   before insert or update on public.profiles
   for each row execute procedure public.protect_profile_role_field();
+
+notify pgrst, 'reload schema';

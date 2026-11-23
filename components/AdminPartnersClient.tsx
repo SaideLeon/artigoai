@@ -169,6 +169,16 @@ export default function AdminPartnersClient() {
   const [data, setData] = useState<AdminOverviewPayload | null>(null);
   const [loading, setLoading] = useState(false);
   const [accessDenied, setAccessDenied] = useState<string | null>(null);
+  const [accessDiag, setAccessDiag] = useState<{
+    supabaseProjectRef?: string;
+    userIdPrefix?: string;
+    userProfileRole?: string | null;
+    adminProfileRole?: string | null;
+    userQueryError?: string | null;
+    adminQueryError?: string | null;
+    serviceRoleBypassOk?: boolean;
+    envSuperAdminConfigured?: boolean;
+  } | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const [partnerFilter, setPartnerFilter] = useState("");
@@ -209,6 +219,7 @@ export default function AdminPartnersClient() {
     setLoading(true);
     setError(null);
     setAccessDenied(null);
+    setAccessDiag(null);
     try {
       const qs = new URLSearchParams();
       if (partnerFilter) qs.set("partnerId", partnerFilter);
@@ -222,14 +233,17 @@ export default function AdminPartnersClient() {
       });
       const json = (await res.json()) as AdminOverviewPayload & {
         erro?: string;
+        diag?: typeof accessDiag;
       };
       if (res.status === 401 || res.status === 403) {
         setAccessDenied(
           json.erro ||
             "Acesso restrito exclusivamente ao administrador supremo."
         );
+        setAccessDiag(json.diag ?? null);
         setData(null);
       } else if (!res.ok) {
+        setAccessDiag(json.diag ?? null);
         setError(json.erro || "Erro ao carregar painel administrativo.");
       } else {
         setData(json);
@@ -591,6 +605,23 @@ export default function AdminPartnersClient() {
                 Sessão atual: <span className="text-slate-200">{user.email}</span>
               </p>
             ) : null}
+            {accessDiag ? (
+              <div className="rounded-xl border border-slate-800 bg-[#070B16] px-3.5 py-2.5 text-left text-[11px] font-mono text-slate-400 space-y-1">
+                <p>
+                  Projeto Supabase: <span className="text-slate-200">{accessDiag.supabaseProjectRef}</span> · ID:{" "}
+                  <span className="text-slate-200">{accessDiag.userIdPrefix}</span>
+                </p>
+                <p>
+                  Papel (cliente): <span className="text-slate-200">{accessDiag.userProfileRole ?? "ausente"}</span> · Papel (servidor):{" "}
+                  <span className="text-slate-200">{accessDiag.adminProfileRole ?? "ausente"}</span>
+                </p>
+                {accessDiag.adminQueryError || accessDiag.userQueryError ? (
+                  <p className="text-rose-300">
+                    Erro DB: {accessDiag.adminQueryError || accessDiag.userQueryError}
+                  </p>
+                ) : null}
+              </div>
+            ) : null}
             <div className="flex flex-wrap items-center justify-center gap-2.5 pt-1">
               <button
                 type="button"
@@ -611,8 +642,14 @@ export default function AdminPartnersClient() {
             </div>
           </div>
         ) : error ? (
-          <div className="rounded-2xl border border-rose-800/70 bg-rose-950/30 p-6 text-sm text-rose-200">
-            {error}
+          <div className="rounded-2xl border border-rose-800/70 bg-rose-950/30 p-6 text-sm text-rose-200 space-y-2">
+            <p>{error}</p>
+            {accessDiag ? (
+              <p className="text-xs font-mono text-rose-300/90">
+                Projeto Supabase: {accessDiag.supabaseProjectRef} · ID: {accessDiag.userIdPrefix}
+                {accessDiag.adminQueryError ? ` · ${accessDiag.adminQueryError}` : ""}
+              </p>
+            ) : null}
           </div>
         ) : data ? (
           <>

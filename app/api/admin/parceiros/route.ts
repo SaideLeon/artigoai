@@ -31,7 +31,10 @@ const VALID_WITHDRAWAL_STATUSES = new Set<WithdrawalStatus>([
 export async function GET(req: NextRequest) {
   const auth = await requirePartnerAdmin();
   if (!auth.ok) {
-    return NextResponse.json({ erro: auth.error }, { status: auth.status });
+    return NextResponse.json(
+      { erro: auth.error, diag: auth.diag ?? null },
+      { status: auth.status }
+    );
   }
 
   const partnerIdFilter = req.nextUrl.searchParams.get("partnerId")?.trim();

@@ -3,6 +3,7 @@ import type { SupabaseClient, User } from "@supabase/supabase-js";
 import { createClient as createSupabaseServerClient } from "@/utils/supabase/server";
 import { getSupabaseAdminClient } from "@/lib/cakto-fulfillment";
 import {
+  getSuperAdminEmails,
   isSupremeAdminEmail,
   RESERVED_REF_CODES,
   slugifyPartnerSeed,
@@ -32,7 +33,31 @@ export type PartnerInviteRow = {
   criado_por_email: string;
 };
 
-export async function getAuthenticatedServerUser(): Promise<User | null> {
+export type SuperAdminDiag = {
+  supabaseProjectRef: string;
+  userIdPrefix: string;
+  userProfileRole: string | null;
+  adminProfileRole: string | null;
+  userQueryError: string | null;
+  adminQueryError: string | null;
+  serviceRoleBypassOk: boolean;
+  envSuperAdminConfigured: boolean;
+};
+
+function extractSupabaseProjectRef(): string {
+  try {
+    const raw = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
+    if (!raw) return "nao-configurado";
+    return new URL(raw).hostname.split(".")[0] || "desconhecido";
+  } catch {
+    return "url-invalida";
+  }
+}
+
+export async function getAuthenticatedServerContext(): Promise<{
+  user: User;
+  supabase: ReturnType<typeof createSupabaseServerClient>;
+} | null> {
   try {
     const cookieStore = await cookies();
     const supabase = createSupabaseServerClient(cookieStore);
@@ -41,47 +66,67 @@ export async function getAuthenticatedServerUser(): Promise<User | null> {
       error,
     } = await supabase.auth.getUser();
     if (error || !user) return null;
-    return user;
+    return { user, supabase };
   } catch {
     return null;
   }
 }
 
-export async function isUserSuperAdmin(
-  admin: SupabaseClient,
-  user: User
-): Promise<boolean> {
-  const { data: profile, error: profErr } = await admin
-    .from("profiles")
-    .select("role")
-    .eq("id", user.id)
-    .maybeSingle();
+export async function getAuthenticatedServerUser(): Promise<User | null> {
+  const ctx = await getAuthenticatedServerContext();
+  return ctx?.user ?? null;
+}
 
-  if (!profErr && profile?.role === "superadmin") {
-    return true;
-  }
-
+function hasVerifiedEmailForEnv(user: User): boolean {
   const provider =
     typeof user.app_metadata?.provider === "string"
       ? user.app_metadata.provider
       : "email";
-  const hasVerifiedEmail = Boolean(
+  return Boolean(
     user.email &&
       (user.email_confirmed_at ||
         user.confirmed_at ||
         provider !== "email")
   );
-  if (!hasVerifiedEmail) return false;
+}
 
+export async function isUserSuperAdmin(
+  admin: SupabaseClient,
+  user: User,
+  userClient?: SupabaseClient
+): Promise<boolean> {
+  const { data: adminProfile, error: adminErr } = await admin
+    .from("profiles")
+    .select("role")
+    .eq("id", user.id)
+    .maybeSingle();
+
+  if (!adminErr && adminProfile?.role === "superadmin") {
+    return true;
+  }
+
+  if (userClient) {
+    const { data: userProfile, error: userErr } = await userClient
+      .from("profiles")
+      .select("role")
+      .eq("id", user.id)
+      .maybeSingle();
+
+    if (!userErr && userProfile?.role === "superadmin") {
+      return true;
+    }
+  }
+
+  if (!hasVerifiedEmailForEnv(user)) return false;
   return isSupremeAdminEmail(user.email);
 }
 
 export async function requireSupremeAdmin(): Promise<
   | { ok: true; user: User; admin: SupabaseClient }
-  | { ok: false; status: number; error: string }
+  | { ok: false; status: number; error: string; diag?: SuperAdminDiag }
 > {
-  const user = await getAuthenticatedServerUser();
-  if (!user) {
+  const ctx = await getAuthenticatedServerContext();
+  if (!ctx) {
     return {
       ok: false,
       status: 401,
@@ -89,6 +134,7 @@ export async function requireSupremeAdmin(): Promise<
     };
   }
 
+  const { user, supabase } = ctx;
   const admin = getSupabaseAdminClient();
   if (!admin) {
     return {
@@ -98,12 +144,57 @@ export async function requireSupremeAdmin(): Promise<
     };
   }
 
-  const isSuperAdmin = await isUserSuperAdmin(admin, user);
-  if (!isSuperAdmin) {
+  const [
+    { data: userProfile, error: userProfileErr },
+    { data: adminProfile, error: adminProfileErr },
+  ] = await Promise.all([
+    supabase.from("profiles").select("role").eq("id", user.id).maybeSingle(),
+    admin.from("profiles").select("role").eq("id", user.id).maybeSingle(),
+  ]);
+
+  const serviceRoleInvalid =
+    Boolean(
+      adminProfileErr &&
+        /invalid api key|jwt|unauthorized|permission denied/i.test(
+          adminProfileErr.message
+        )
+    ) || Boolean(userProfile && !adminProfile && !adminProfileErr);
+
+  const diag: SuperAdminDiag = {
+    supabaseProjectRef: extractSupabaseProjectRef(),
+    userIdPrefix: user.id.slice(0, 8),
+    userProfileRole: userProfile?.role ? String(userProfile.role) : null,
+    adminProfileRole: adminProfile?.role ? String(adminProfile.role) : null,
+    userQueryError: userProfileErr?.message ?? null,
+    adminQueryError: adminProfileErr?.message ?? null,
+    serviceRoleBypassOk: !serviceRoleInvalid,
+    envSuperAdminConfigured: getSuperAdminEmails().length > 0,
+  };
+
+  if (serviceRoleInvalid) {
+    console.error("[Artigen SuperAdmin] Erro com SUPABASE_SERVICE_ROLE_KEY:", diag);
+    return {
+      ok: false,
+      status: 503,
+      error:
+        "Chave SUPABASE_SERVICE_ROLE_KEY inválida ou sem permissão service_role na Vercel (não use a chave anon/publishable).",
+      diag,
+    };
+  }
+
+  const isRoleSuperAdmin =
+    (!adminProfileErr && adminProfile?.role === "superadmin") ||
+    (!userProfileErr && userProfile?.role === "superadmin");
+
+  const isEnvSuperAdmin =
+    hasVerifiedEmailForEnv(user) && isSupremeAdminEmail(user.email);
+
+  if (!isRoleSuperAdmin && !isEnvSuperAdmin) {
     return {
       ok: false,
       status: 403,
       error: "Acesso restrito exclusivamente ao administrador supremo.",
+      diag,
     };
   }
 
