@@ -73,7 +73,7 @@ returns trigger
 language plpgsql
 security definer
 set search_path = public
-as $$
+as $trg_ref$
 begin
   if (
     new.referred_by is distinct from old.referred_by
@@ -97,7 +97,7 @@ begin
 
   return new;
 end;
-$$;
+$trg_ref$;
 
 drop trigger if exists trg_protect_profile_referral_fields on public.profiles;
 create trigger trg_protect_profile_referral_fields
@@ -143,14 +143,14 @@ returns void
 language plpgsql
 security definer
 set search_path = public
-as $$
+as $fn_inc_click$
 begin
   insert into public.referral_clicks (partner_id, data, total)
   values (p_partner_id, coalesce(p_data, current_date), 1)
   on conflict (partner_id, data)
   do update set total = public.referral_clicks.total + 1;
 end;
-$$;
+$fn_inc_click$;
 
 revoke all on function public.increment_referral_click(uuid, date) from public;
 grant execute on function public.increment_referral_click(uuid, date) to service_role;
@@ -163,7 +163,7 @@ returns boolean
 language plpgsql
 security definer
 set search_path = public
-as $$
+as $fn_track_ref$
 declare
   v_clean text;
   v_partner_id uuid;
@@ -191,7 +191,7 @@ begin
 
   return true;
 end;
-$$;
+$fn_track_ref$;
 
 revoke all on function public.track_referral_visit(text) from public;
 grant execute on function public.track_referral_visit(text) to anon, authenticated, service_role;

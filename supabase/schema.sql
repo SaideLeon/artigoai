@@ -1,16 +1,20 @@
 -- =============================================================================
 -- Artigen — Índice Esquemático do Banco PostgreSQL (Supabase)
 -- =============================================================================
--- Para facilitar a leitura e manutenção, o esquema foi dividido em 6 módulos
--- independentes com menos de 100 linhas cada. Execute-os na ordem numérica
--- no SQL Editor do Supabase (ou via CLI):
+-- Para facilitar a leitura e manutenção, o esquema foi dividido em módulos
+-- independentes e idempotentes. Execute-os na ordem numérica no SQL Editor
+-- do Supabase (ou via CLI):
 --
---   1. 01_extensions_and_users.sql  -> Extensão pgcrypto, profiles, user_settings
---   2. 02_content_tables.sql        -> categories, articles, generations
---   3. 03_billing_and_limits.sql    -> subscriptions, usage_limits, payments
---   4. 04_rls_policies.sql          -> Isolamento RLS e papéis (owner vs service_role)
---   5. 05_auth_triggers.sql         -> Trigger on_auth_user_created (handle_new_user)
---   6. 06_realtime_and_storage.sql  -> Publicação Realtime e bucket article-images
---   7. 07_partners_system.sql       -> Parceiros, convites, cliques, indicações e comissões
---   8. 08_partners_ledger_and_withdrawals.sql -> Livro-caixa em centavos, garantia, saques e auditoria
+--   1.  01_extensions_and_users.sql         -> Extensão pgcrypto, profiles, user_settings
+--   2.  02_content_tables.sql               -> categories, articles, generations
+--   3.  03_billing_and_limits.sql           -> subscriptions, usage_limits, payments
+--   4.  04_rls_policies.sql                 -> Isolamento RLS e papéis (owner vs service_role)
+--   5.  05_auth_triggers.sql                -> Trigger on_auth_user_created (handle_new_user)
+--   6.  06_realtime_and_storage.sql         -> Publicação Realtime e bucket article-images
+--   7.  07_partners_system.sql              -> Parceiros, convites, cliques, indicações e comissões
+--   8.  08_partners_ledger_and_withdrawals.sql -> Tabelas de saque, livro-caixa em centavos e auditoria
+--   9.  09_partners_rpc_maturar.sql         -> RPC diária de maturação (pendente -> disponível)
+--   10. 10_partners_rpc_saque.sql           -> RPC atómica de solicitação de saque
+--   11. 11_partners_rpc_admin_saque.sql     -> RPC de análise/pagamento/recusa pelo admin supremo
+--   12. 12_partners_rpc_estorno.sql         -> RPC de estorno com compensação automática
 -- =============================================================================
