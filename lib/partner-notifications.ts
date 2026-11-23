@@ -1,5 +1,5 @@
 import { getSupabaseAdminClient } from "@/lib/cakto-fulfillment";
-import { formatCentsBrl, getSupremeAdminEmail } from "@/lib/partners";
+import { formatCentsBrl, getSuperAdminEmails } from "@/lib/partners";
 import { SITE_NAME, SITE_URL } from "@/lib/seo";
 
 export type NotificationResult = {
@@ -177,11 +177,7 @@ export async function notifyAdminWithdrawalRequested(params: {
   metodo: string;
   dadosPagamento: string;
 }): Promise<NotificationResult> {
-  const recipients = new Set<string>();
-  const envSupremeAdmin = getSupremeAdminEmail();
-  if (envSupremeAdmin) {
-    recipients.add(envSupremeAdmin);
-  }
+  const recipients = new Set<string>(getSuperAdminEmails());
 
   const admin = getSupabaseAdminClient();
   if (admin) {

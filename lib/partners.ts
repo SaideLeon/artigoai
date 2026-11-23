@@ -127,48 +127,63 @@ export function maskEmail(email: string | null | undefined): string {
   return `${prefix}***@${domain}`;
 }
 
-function parseSingleEmail(raw: string | undefined): string | null {
-  const cleaned = (raw ?? "").trim().replace(/^["']|["']$/g, "").toLowerCase();
+function parseEmailToken(raw: string | undefined): string | null {
+  const cleaned = (raw ?? "")
+    .trim()
+    .replace(/^["']|["']$/g, "")
+    .toLowerCase();
   if (!cleaned) return null;
-  // Bloqueia listas separadas por vírgula, ponto-e-vírgula ou espaço: apenas 1 administrador supremo
-  if (/[,;\s]/.test(cleaned)) return null;
   if (!/^[^\s,;]+@[^\s,;]+\.[^\s,;]+$/.test(cleaned)) return null;
   return cleaned;
 }
 
+function parseEmailList(raw: string | undefined): string[] {
+  const trimmed = (raw ?? "").trim();
+  if (!trimmed) return [];
+  return Array.from(
+    new Set(
+      trimmed
+        .split(/[,;\s]+/)
+        .map((item) => parseEmailToken(item))
+        .filter((item): item is string => Boolean(item))
+    )
+  );
+}
+
+export function getSuperAdminEmails(): string[] {
+  const sources = [
+    process.env.SUPER_ADMIN_EMAILS,
+    process.env.SUPER_ADMIN_EMAIL,
+    process.env.ADMIN_EMAIL,
+    process.env.PARTNER_ADMIN_EMAILS,
+  ];
+  for (const src of sources) {
+    const parsed = parseEmailList(src);
+    if (parsed.length > 0) return parsed;
+  }
+  return [];
+}
+
 export function getSupremeAdminEmail(): string | null {
-  const rawSuper = process.env.SUPER_ADMIN_EMAIL;
-  if (rawSuper !== undefined && rawSuper.trim() !== "") {
-    return parseSingleEmail(rawSuper);
-  }
-
-  const rawAdmin = process.env.ADMIN_EMAIL;
-  if (rawAdmin !== undefined && rawAdmin.trim() !== "") {
-    return parseSingleEmail(rawAdmin);
-  }
-
-  // Fallback legado: mesmo se houver múltiplos e-mails antigos, autoriza apenas o primeiro único
-  const rawLegacy = process.env.PARTNER_ADMIN_EMAILS?.trim() ?? "";
-  if (!rawLegacy) return null;
-  const firstEntry = rawLegacy.split(/[,;\s]+/).find(Boolean);
-  return parseSingleEmail(firstEntry);
+  return getSuperAdminEmails()[0] ?? null;
 }
 
 export function isSupremeAdminEmail(
   email: string | null | undefined
 ): boolean {
-  const normalized = parseSingleEmail(email ?? undefined);
-  const supreme = getSupremeAdminEmail();
-  if (!normalized || !supreme) return false;
+  const normalized = parseEmailToken(email ?? undefined);
+  const superAdmins = getSuperAdminEmails();
+  if (!normalized || superAdmins.length === 0) return false;
 
   const hashCandidate = crypto.createHash("sha256").update(normalized).digest();
-  const hashSupreme = crypto.createHash("sha256").update(supreme).digest();
-  return crypto.timingSafeEqual(hashCandidate, hashSupreme);
+  return superAdmins.some((allowed) => {
+    const hashAllowed = crypto.createHash("sha256").update(allowed).digest();
+    return crypto.timingSafeEqual(hashCandidate, hashAllowed);
+  });
 }
 
 export function getPartnerAdminEmails(): string[] {
-  const supreme = getSupremeAdminEmail();
-  return supreme ? [supreme] : [];
+  return getSuperAdminEmails();
 }
 
 export function isPartnerAdminEmail(email: string | null | undefined): boolean {

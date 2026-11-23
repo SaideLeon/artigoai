@@ -51,11 +51,6 @@ export async function isUserSuperAdmin(
   admin: SupabaseClient,
   user: User
 ): Promise<boolean> {
-  const hasVerifiedEmail = Boolean(
-    user.email && (user.email_confirmed_at || user.confirmed_at)
-  );
-  if (!hasVerifiedEmail) return false;
-
   const { data: profile, error: profErr } = await admin
     .from("profiles")
     .select("role")
@@ -65,6 +60,18 @@ export async function isUserSuperAdmin(
   if (!profErr && profile?.role === "superadmin") {
     return true;
   }
+
+  const provider =
+    typeof user.app_metadata?.provider === "string"
+      ? user.app_metadata.provider
+      : "email";
+  const hasVerifiedEmail = Boolean(
+    user.email &&
+      (user.email_confirmed_at ||
+        user.confirmed_at ||
+        provider !== "email")
+  );
+  if (!hasVerifiedEmail) return false;
 
   return isSupremeAdminEmail(user.email);
 }

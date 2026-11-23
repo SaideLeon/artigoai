@@ -358,38 +358,40 @@ describe("Sistema de Parceiros — Livro-Caixa em Centavos e Saques", () => {
     assert.equal(validPix.ok, true);
   });
 
-  test("7) Diretiva de acesso: apenas um Administrador Supremo autorizado", () => {
+  test("7) Diretiva de acesso: valida superadmins configurados e rejeita terceiros", () => {
+    const prevSupers = process.env.SUPER_ADMIN_EMAILS;
     const prevSuper = process.env.SUPER_ADMIN_EMAIL;
     const prevAdmin = process.env.ADMIN_EMAIL;
     const prevLegacy = process.env.PARTNER_ADMIN_EMAILS;
 
     try {
-      process.env.SUPER_ADMIN_EMAIL = "supremo@exemplo.com";
+      delete process.env.SUPER_ADMIN_EMAILS;
+      process.env.SUPER_ADMIN_EMAIL =
+        "supremo1@exemplo.com, supremo2@exemplo.com";
       process.env.ADMIN_EMAIL = "secundario@exemplo.com";
-      process.env.PARTNER_ADMIN_EMAILS =
-        "outro1@exemplo.com,outro2@exemplo.com";
+      process.env.PARTNER_ADMIN_EMAILS = "outro@exemplo.com";
 
-      assert.equal(getSupremeAdminEmail(), "supremo@exemplo.com");
-      assert.deepEqual(getPartnerAdminEmails(), ["supremo@exemplo.com"]);
-      assert.equal(isSupremeAdminEmail("Supremo@Exemplo.com "), true);
+      assert.equal(getSupremeAdminEmail(), "supremo1@exemplo.com");
+      assert.deepEqual(getPartnerAdminEmails(), [
+        "supremo1@exemplo.com",
+        "supremo2@exemplo.com",
+      ]);
+      assert.equal(isSupremeAdminEmail("Supremo1@Exemplo.com "), true);
+      assert.equal(isSupremeAdminEmail("supremo2@exemplo.com"), true);
       assert.equal(isSupremeAdminEmail("secundario@exemplo.com"), false);
-      assert.equal(isSupremeAdminEmail("outro1@exemplo.com"), false);
+      assert.equal(isSupremeAdminEmail("outro@exemplo.com"), false);
 
-      // Fail-closed se alguém tentar colocar múltiplos e-mails em SUPER_ADMIN_EMAIL
-      process.env.SUPER_ADMIN_EMAIL = "supremo@exemplo.com,invasor@exemplo.com";
-      assert.equal(getSupremeAdminEmail(), null);
-      assert.equal(isSupremeAdminEmail("supremo@exemplo.com"), false);
-      assert.equal(isSupremeAdminEmail("invasor@exemplo.com"), false);
-
-      // Fallback legado aceita no máximo o primeiro e-mail único
+      // Fallback legado funciona se SUPER_ADMIN_EMAIL estiver vazio
       delete process.env.SUPER_ADMIN_EMAIL;
       delete process.env.ADMIN_EMAIL;
       process.env.PARTNER_ADMIN_EMAILS =
         "legado1@exemplo.com,legado2@exemplo.com";
-      assert.equal(getSupremeAdminEmail(), "legado1@exemplo.com");
       assert.equal(isSupremeAdminEmail("legado1@exemplo.com"), true);
-      assert.equal(isSupremeAdminEmail("legado2@exemplo.com"), false);
+      assert.equal(isSupremeAdminEmail("legado2@exemplo.com"), true);
+      assert.equal(isSupremeAdminEmail("invasor@exemplo.com"), false);
     } finally {
+      if (prevSupers === undefined) delete process.env.SUPER_ADMIN_EMAILS;
+      else process.env.SUPER_ADMIN_EMAILS = prevSupers;
       if (prevSuper === undefined) delete process.env.SUPER_ADMIN_EMAIL;
       else process.env.SUPER_ADMIN_EMAIL = prevSuper;
       if (prevAdmin === undefined) delete process.env.ADMIN_EMAIL;
