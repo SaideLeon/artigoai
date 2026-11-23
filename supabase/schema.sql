@@ -17,4 +17,5 @@
 --   10. 10_partners_rpc_saque.sql           -> RPC atómica de solicitação de saque
 --   11. 11_partners_rpc_admin_saque.sql     -> RPC de análise/pagamento/recusa pelo admin supremo
 --   12. 12_partners_rpc_estorno.sql         -> RPC de estorno com compensação automática
+--   13. 13_superadmin_roles.sql             -> Papel superadmin protegido em public.profiles
 -- =============================================================================

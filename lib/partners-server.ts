@@ -47,6 +47,28 @@ export async function getAuthenticatedServerUser(): Promise<User | null> {
   }
 }
 
+export async function isUserSuperAdmin(
+  admin: SupabaseClient,
+  user: User
+): Promise<boolean> {
+  const hasVerifiedEmail = Boolean(
+    user.email && (user.email_confirmed_at || user.confirmed_at)
+  );
+  if (!hasVerifiedEmail) return false;
+
+  const { data: profile, error: profErr } = await admin
+    .from("profiles")
+    .select("role")
+    .eq("id", user.id)
+    .maybeSingle();
+
+  if (!profErr && profile?.role === "superadmin") {
+    return true;
+  }
+
+  return isSupremeAdminEmail(user.email);
+}
+
 export async function requireSupremeAdmin(): Promise<
   | { ok: true; user: User; admin: SupabaseClient }
   | { ok: false; status: number; error: string }
@@ -60,23 +82,21 @@ export async function requireSupremeAdmin(): Promise<
     };
   }
 
-  const hasVerifiedEmail = Boolean(
-    user.email && (user.email_confirmed_at || user.confirmed_at)
-  );
-  if (!hasVerifiedEmail || !isSupremeAdminEmail(user.email)) {
-    return {
-      ok: false,
-      status: 403,
-      error: "Acesso restrito exclusivamente ao administrador supremo.",
-    };
-  }
-
   const admin = getSupabaseAdminClient();
   if (!admin) {
     return {
       ok: false,
       status: 503,
       error: "Supabase service_role não configurado no servidor.",
+    };
+  }
+
+  const isSuperAdmin = await isUserSuperAdmin(admin, user);
+  if (!isSuperAdmin) {
+    return {
+      ok: false,
+      status: 403,
+      error: "Acesso restrito exclusivamente ao administrador supremo.",
     };
   }
 

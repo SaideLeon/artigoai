@@ -1,3 +1,4 @@
+import { getSupabaseAdminClient } from "@/lib/cakto-fulfillment";
 import { formatCentsBrl, getSupremeAdminEmail } from "@/lib/partners";
 import { SITE_NAME, SITE_URL } from "@/lib/seo";
 
@@ -176,12 +177,32 @@ export async function notifyAdminWithdrawalRequested(params: {
   metodo: string;
   dadosPagamento: string;
 }): Promise<NotificationResult> {
-  const supremeAdmin = getSupremeAdminEmail();
-  if (!supremeAdmin) {
+  const recipients = new Set<string>();
+  const envSupremeAdmin = getSupremeAdminEmail();
+  if (envSupremeAdmin) {
+    recipients.add(envSupremeAdmin);
+  }
+
+  const admin = getSupabaseAdminClient();
+  if (admin) {
+    const { data: superAdmins } = await admin
+      .from("profiles")
+      .select("email")
+      .eq("role", "superadmin");
+    for (const row of superAdmins ?? []) {
+      const email = String(row.email ?? "").trim().toLowerCase();
+      if (email.includes("@")) {
+        recipients.add(email);
+      }
+    }
+  }
+
+  const recipientList = Array.from(recipients);
+  if (recipientList.length === 0) {
     return {
       sent: false,
       provider: "unconfigured",
-      error: "SUPER_ADMIN_EMAIL não configurado.",
+      error: "Nenhum superadmin configurado.",
     };
   }
   const valor = formatCentsBrl(params.valorCentavos);
@@ -198,7 +219,7 @@ export async function notifyAdminWithdrawalRequested(params: {
   const text = `${SITE_NAME} Admin — Novo saque de ${valor} solicitado por ${params.partnerName} (${params.partnerCode}).`;
 
   return sendTransactionalEmail({
-    to: [supremeAdmin],
+    to: recipientList,
     subject,
     html: wrapEmailLayout("Novo pedido de saque para análise", bodyHtml),
     text,
