@@ -93,6 +93,15 @@ export default function PrivacidadePage() {
             mínimos de requisição estritamente necessários para segurança,
             prevenção a fraudes e validação de webhooks.
           </li>
+          <li>
+            <strong>Cookie de indicação de parceiros (<code>artigen_ref</code>):</strong>{" "}
+            quando você acessa o site por um link de parceiro (<code>?ref=CODIGO</code>),
+            armazenamos um cookie seguro (<code>HttpOnly</code>,{" "}
+            <code>SameSite=Lax</code>) válido por 60 dias para atribuir
+            exclusivamente novos cadastros ao parceiro indicador. A contagem de
+            cliques nos links é registrada apenas de forma agregada por dia, sem
+            armazenar dados pessoais do visitante.
+          </li>
         </ul>
       </section>
 

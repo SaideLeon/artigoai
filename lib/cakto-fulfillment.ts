@@ -13,6 +13,10 @@ import {
   type BillingCycle,
   type SubscriptionPlan,
 } from "@/lib/pricing";
+import {
+  recordPartnerCommissionForPayment,
+  reversePartnerCommissionForTransaction,
+} from "@/lib/partner-commissions";
 
 export type CaktoFulfillmentResult = {
   fulfilled: boolean;
@@ -539,6 +543,21 @@ export async function fulfillCaktoOrderOrEvent(params: {
     { onConflict: "user_id" }
   );
 
+  // Registra comissão automática para parceiro indicador (idempotente por id_da_transacao_cakto)
+  const commissionTxId =
+    extracted.orderId || extracted.refId || idempotencyKey || null;
+  if (!insertError && commissionTxId) {
+    await recordPartnerCommissionForPayment({
+      admin,
+      userId,
+      planId: plan.id,
+      billingCycle,
+      amountCents,
+      transactionId: commissionTxId,
+      eventType: params.eventType,
+    });
+  }
+
   return {
     fulfilled: true,
     alreadyProcessed: false,
@@ -582,7 +601,8 @@ export async function handleCaktoSubscriptionLate(
 }
 
 export async function handleCaktoSubscriptionCanceledOrRefunded(
-  rawData: Record<string, unknown>
+  rawData: Record<string, unknown>,
+  eventType?: string
 ): Promise<void> {
   const admin = getSupabaseAdminClient();
   if (!admin) return;
@@ -597,6 +617,24 @@ export async function handleCaktoSubscriptionCanceledOrRefunded(
     (extracted.customerEmail
       ? await findSupabaseUserIdByEmail(extracted.customerEmail)
       : null);
+
+  // Em reembolso ou chargeback, estorna a comissão correspondente na tabela commissions
+  if (eventType === "refund" || eventType === "chargeback") {
+    const parentOrder = readString(rawData.parent_order);
+    const txCandidates = [
+      extracted.orderId,
+      extracted.refId,
+      parentOrder,
+      extracted.orderId ? `cakto:${extracted.orderId}` : null,
+      extracted.refId ? `cakto_ref:${extracted.refId}` : null,
+    ].filter((v): v is string => Boolean(v));
+
+    await reversePartnerCommissionForTransaction({
+      admin,
+      transactionCandidates: txCandidates,
+      userId,
+    });
+  }
 
   if (!userId) return;
 

@@ -111,6 +111,17 @@ export default function PoliticaCookiesPage() {
               </tr>
               <tr>
                 <td className="px-4 py-3 font-semibold text-slate-900 dark:text-white">
+                  Indicação de Parceiro (<code>artigen_ref</code>)
+                </td>
+                <td className="px-4 py-3">
+                  Cookie <code>HttpOnly</code> que preserva o código do parceiro
+                  indicador (<code>?ref=CODIGO</code>) em modelo first-touch
+                  para associar apenas novas contas criadas dentro do período.
+                </td>
+                <td className="px-4 py-3 whitespace-nowrap">60 dias</td>
+              </tr>
+              <tr>
+                <td className="px-4 py-3 font-semibold text-slate-900 dark:text-white">
                   Pagamentos (Cakto)
                 </td>
                 <td className="px-4 py-3">

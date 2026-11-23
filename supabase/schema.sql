@@ -11,4 +11,5 @@
 --   4. 04_rls_policies.sql          -> Isolamento RLS e papéis (owner vs service_role)
 --   5. 05_auth_triggers.sql         -> Trigger on_auth_user_created (handle_new_user)
 --   6. 06_realtime_and_storage.sql  -> Publicação Realtime e bucket article-images
+--   7. 07_partners_system.sql       -> Parceiros, convites, cliques, indicações e comissões
 -- =============================================================================

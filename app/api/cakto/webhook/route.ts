@@ -73,7 +73,7 @@ export async function POST(req: NextRequest) {
       case "subscription_canceled":
       case "refund":
       case "chargeback": {
-        await handleCaktoSubscriptionCanceledOrRefunded(data);
+        await handleCaktoSubscriptionCanceledOrRefunded(data, eventType);
         break;
       }
       case "pix_gerado":

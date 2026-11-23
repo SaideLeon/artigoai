@@ -1505,6 +1505,12 @@ export default function LandingPage() {
               <Link href="/reembolso-e-cancelamento" className="hover:text-white transition-colors whitespace-nowrap">
                 Reembolso e Cancelamento
               </Link>
+              <Link href="/termos-parceiros" className="hover:text-white transition-colors whitespace-nowrap">
+                Termos de Parceiros
+              </Link>
+              <Link href="/parceiro" className="hover:text-white transition-colors whitespace-nowrap">
+                Painel Parceiro
+              </Link>
               <CookieSettingsButton />
             </nav>
             <span className="text-[11px] text-slate-500">

@@ -4,6 +4,18 @@ import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { getSupabaseClient } from "@/lib/supabase";
 
+function resolveSafeRedirect(rawNext: string | null): string {
+  if (
+    rawNext &&
+    rawNext.startsWith("/") &&
+    !rawNext.startsWith("//") &&
+    !rawNext.startsWith("/auth")
+  ) {
+    return rawNext;
+  }
+  return "/studio";
+}
+
 export default function SupabaseAuthCallbackPage() {
   const router = useRouter();
 
@@ -18,13 +30,34 @@ export default function SupabaseAuthCallbackPage() {
     const completeAuth = async () => {
       const params = new URLSearchParams(window.location.search);
       const code = params.get("code");
+      const queryNext = params.get("next");
+
+      let storedNext: string | null = null;
+      try {
+        storedNext = sessionStorage.getItem("artigoai:auth_next");
+        sessionStorage.removeItem("artigoai:auth_next");
+      } catch {
+        // Ignora
+      }
+
       if (code) {
         await supabase.auth.exchangeCodeForSession(code);
       } else {
         await supabase.auth.getSession();
       }
+
+      // Vincula indicação se houver cookie HttpOnly de parceiro e conta for nova
+      try {
+        await fetch("/api/referrals/attribute", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+        });
+      } catch {
+        // Falha silenciosa não bloqueia login
+      }
+
       if (!cancelled) {
-        router.replace("/studio");
+        router.replace(resolveSafeRedirect(queryNext || storedNext));
       }
     };
 

@@ -4,6 +4,7 @@ import {
   ChevronRight,
   Cookie,
   FileText,
+  Handshake,
   Info,
   Mail,
   RotateCcw,
@@ -38,6 +39,11 @@ export const LEGAL_DOC_LINKS: LegalDocNavItem[] = [
     label: "Reembolso e Cancelamento",
     shortLabel: "Reembolso",
   },
+  {
+    href: "/termos-parceiros",
+    label: "Termos de Parceiros",
+    shortLabel: "Parceiros",
+  },
 ];
 
 export type LegalSectionAnchor = {
@@ -67,6 +73,8 @@ function renderDocIcon(href: string) {
       return <Cookie className="h-4 w-4 shrink-0" />;
     case "/reembolso-e-cancelamento":
       return <RotateCcw className="h-4 w-4 shrink-0" />;
+    case "/termos-parceiros":
+      return <Handshake className="h-4 w-4 shrink-0" />;
     default:
       return <FileText className="h-4 w-4 shrink-0" />;
   }

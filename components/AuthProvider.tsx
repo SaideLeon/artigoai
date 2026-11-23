@@ -5,6 +5,7 @@ import {
   useCallback,
   useContext,
   useEffect,
+  useRef,
   useState,
 } from "react";
 import type { User as SupabaseUser } from "@supabase/supabase-js";
@@ -25,7 +26,7 @@ type AuthContextValue = {
   supabaseConfigured: boolean;
   authError: string | null;
   clearAuthError: () => void;
-  signInWithGoogle: () => Promise<void>;
+  signInWithGoogle: (nextPath?: string) => Promise<void>;
   signOutUser: () => Promise<void>;
 };
 
@@ -64,6 +65,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [profileReady, setProfileReady] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
 
+  const attributedUsersRef = useRef<Set<string>>(new Set());
+
   useEffect(() => {
     const supabase = getSupabaseClient();
     if (!supabase) {
@@ -78,6 +81,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setUser(mapSupabaseUser(supaUser));
         setProfileReady(false);
         await upsertUserProfile(supaUser);
+        if (!attributedUsersRef.current.has(supaUser.id)) {
+          attributedUsersRef.current.add(supaUser.id);
+          fetch("/api/referrals/attribute", { method: "POST" }).catch(() => {
+            // Atribuição silenciosa no servidor
+          });
+        }
         if (active) setProfileReady(true);
       } else {
         setUser(null);
@@ -110,7 +119,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const clearAuthError = useCallback(() => setAuthError(null), []);
 
-  const signInWithGoogle = useCallback(async () => {
+  const signInWithGoogle = useCallback(async (nextPath?: string) => {
     setAuthError(null);
     const supabase = getSupabaseClient();
     if (!supabase) {
@@ -120,7 +129,28 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return;
     }
 
-    const redirectTo = `${window.location.origin}/auth/callback`;
+    const safeNext =
+      typeof nextPath === "string" &&
+      nextPath.startsWith("/") &&
+      !nextPath.startsWith("//") &&
+      !nextPath.startsWith("/auth")
+        ? nextPath
+        : "";
+
+    try {
+      if (safeNext) {
+        sessionStorage.setItem("artigoai:auth_next", safeNext);
+      } else {
+        sessionStorage.removeItem("artigoai:auth_next");
+      }
+    } catch {
+      // Ignora falha de sessionStorage
+    }
+
+    const redirectTo = safeNext
+      ? `${window.location.origin}/auth/callback?next=${encodeURIComponent(safeNext)}`
+      : `${window.location.origin}/auth/callback`;
+
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
       options: {
