@@ -49,8 +49,20 @@ export const createClient = (request: NextRequest) => {
 async function validateAndTrackReferralCode(code: string): Promise<boolean> {
   if (!supabaseUrl) return false;
   const authKey =
-    process.env.SUPABASE_SERVICE_ROLE_KEY?.trim() || supabaseKey;
+    process.env.SUPABASE_SERVICE_ROLE_KEY?.trim() ||
+    process.env.SUPABASE_SECRET_KEY?.trim() ||
+    supabaseKey;
   if (!authKey) return false;
+
+  const isOpaqueSupabaseKey =
+    authKey.startsWith("sb_secret_") || authKey.startsWith("sb_publishable_");
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+    apikey: authKey,
+  };
+  if (!isOpaqueSupabaseKey) {
+    headers.Authorization = `Bearer ${authKey}`;
+  }
 
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), 1800);
@@ -60,11 +72,7 @@ async function validateAndTrackReferralCode(code: string): Promise<boolean> {
       `${supabaseUrl.replace(/\/+$/, "")}/rest/v1/rpc/track_referral_visit`,
       {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          apikey: authKey,
-          Authorization: `Bearer ${authKey}`,
-        },
+        headers,
         body: JSON.stringify({ p_codigo: code }),
         signal: controller.signal,
         cache: "no-store",

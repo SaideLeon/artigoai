@@ -38,6 +38,7 @@ function getSigningSecret(): string {
     process.env.CAKTO_CLIENT_SECRET?.trim() ||
     process.env.CAKTO_WEBHOOK_SECRET?.trim() ||
     process.env.SUPABASE_SERVICE_ROLE_KEY?.trim() ||
+    process.env.SUPABASE_SECRET_KEY?.trim() ||
     RUNTIME_FALLBACK_KEY
   );
 }
