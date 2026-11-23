@@ -127,26 +127,52 @@ export function maskEmail(email: string | null | undefined): string {
   return `${prefix}***@${domain}`;
 }
 
+function parseSingleEmail(raw: string | undefined): string | null {
+  const cleaned = (raw ?? "").trim().replace(/^["']|["']$/g, "").toLowerCase();
+  if (!cleaned) return null;
+  // Bloqueia listas separadas por vírgula, ponto-e-vírgula ou espaço: apenas 1 administrador supremo
+  if (/[,;\s]/.test(cleaned)) return null;
+  if (!/^[^\s,;]+@[^\s,;]+\.[^\s,;]+$/.test(cleaned)) return null;
+  return cleaned;
+}
+
+export function getSupremeAdminEmail(): string | null {
+  const rawSuper = process.env.SUPER_ADMIN_EMAIL;
+  if (rawSuper !== undefined && rawSuper.trim() !== "") {
+    return parseSingleEmail(rawSuper);
+  }
+
+  const rawAdmin = process.env.ADMIN_EMAIL;
+  if (rawAdmin !== undefined && rawAdmin.trim() !== "") {
+    return parseSingleEmail(rawAdmin);
+  }
+
+  // Fallback legado: mesmo se houver múltiplos e-mails antigos, autoriza apenas o primeiro único
+  const rawLegacy = process.env.PARTNER_ADMIN_EMAILS?.trim() ?? "";
+  if (!rawLegacy) return null;
+  const firstEntry = rawLegacy.split(/[,;\s]+/).find(Boolean);
+  return parseSingleEmail(firstEntry);
+}
+
+export function isSupremeAdminEmail(
+  email: string | null | undefined
+): boolean {
+  const normalized = parseSingleEmail(email ?? undefined);
+  const supreme = getSupremeAdminEmail();
+  if (!normalized || !supreme) return false;
+
+  const hashCandidate = crypto.createHash("sha256").update(normalized).digest();
+  const hashSupreme = crypto.createHash("sha256").update(supreme).digest();
+  return crypto.timingSafeEqual(hashCandidate, hashSupreme);
+}
+
 export function getPartnerAdminEmails(): string[] {
-  const rawList =
-    process.env.PARTNER_ADMIN_EMAILS?.trim() ||
-    process.env.ADMIN_EMAIL?.trim() ||
-    "";
-  if (!rawList) return [];
-  return Array.from(
-    new Set(
-      rawList
-        .split(/[,;\s]+/)
-        .map((item) => item.trim().toLowerCase())
-        .filter(Boolean)
-    )
-  );
+  const supreme = getSupremeAdminEmail();
+  return supreme ? [supreme] : [];
 }
 
 export function isPartnerAdminEmail(email: string | null | undefined): boolean {
-  const normalized = (email ?? "").trim().toLowerCase();
-  if (!normalized) return false;
-  return getPartnerAdminEmails().includes(normalized);
+  return isSupremeAdminEmail(email);
 }
 
 export function escapeCsvCell(value: unknown): string {

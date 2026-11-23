@@ -3,7 +3,7 @@ import type { SupabaseClient, User } from "@supabase/supabase-js";
 import { createClient as createSupabaseServerClient } from "@/utils/supabase/server";
 import { getSupabaseAdminClient } from "@/lib/cakto-fulfillment";
 import {
-  isPartnerAdminEmail,
+  isSupremeAdminEmail,
   RESERVED_REF_CODES,
   slugifyPartnerSeed,
 } from "@/lib/partners";
@@ -47,7 +47,7 @@ export async function getAuthenticatedServerUser(): Promise<User | null> {
   }
 }
 
-export async function requirePartnerAdmin(): Promise<
+export async function requireSupremeAdmin(): Promise<
   | { ok: true; user: User; admin: SupabaseClient }
   | { ok: false; status: number; error: string }
 > {
@@ -60,11 +60,14 @@ export async function requirePartnerAdmin(): Promise<
     };
   }
 
-  if (!isPartnerAdminEmail(user.email)) {
+  const hasVerifiedEmail = Boolean(
+    user.email && (user.email_confirmed_at || user.confirmed_at)
+  );
+  if (!hasVerifiedEmail || !isSupremeAdminEmail(user.email)) {
     return {
       ok: false,
       status: 403,
-      error: "Acesso restrito ao administrador do programa.",
+      error: "Acesso restrito exclusivamente ao administrador supremo.",
     };
   }
 
@@ -79,6 +82,8 @@ export async function requirePartnerAdmin(): Promise<
 
   return { ok: true, user, admin };
 }
+
+export const requirePartnerAdmin = requireSupremeAdmin;
 
 export function getPublicSiteOrigin(requestOrigin?: string): string {
   const envUrl = process.env.NEXT_PUBLIC_SITE_URL?.trim();

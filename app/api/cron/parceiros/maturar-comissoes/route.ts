@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { constantTimeCompare } from "@/lib/cakto";
 import { getSupabaseAdminClient } from "@/lib/cakto-fulfillment";
-import { isPartnerAdminEmail } from "@/lib/partners";
+import { isSupremeAdminEmail } from "@/lib/partners";
 import { getAuthenticatedServerUser } from "@/lib/partners-server";
 
 async function authorizeCronOrAdmin(req: NextRequest): Promise<{
@@ -28,11 +28,15 @@ async function authorizeCronOrAdmin(req: NextRequest): Promise<{
     return { ok: false, status: 401, error: "Autorização necessária." };
   }
 
-  if (!isPartnerAdminEmail(user.email)) {
+  const hasVerifiedEmail = Boolean(
+    user.email && (user.email_confirmed_at || user.confirmed_at)
+  );
+  if (!hasVerifiedEmail || !isSupremeAdminEmail(user.email)) {
     return {
       ok: false,
       status: 403,
-      error: "Acesso restrito ao cron autenticado ou administrador.",
+      error:
+        "Acesso restrito ao cron autenticado ou administrador supremo.",
     };
   }
 

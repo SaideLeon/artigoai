@@ -1,4 +1,4 @@
-import { formatCentsBrl, getPartnerAdminEmails } from "@/lib/partners";
+import { formatCentsBrl, getSupremeAdminEmail } from "@/lib/partners";
 import { SITE_NAME, SITE_URL } from "@/lib/seo";
 
 export type NotificationResult = {
@@ -176,12 +176,12 @@ export async function notifyAdminWithdrawalRequested(params: {
   metodo: string;
   dadosPagamento: string;
 }): Promise<NotificationResult> {
-  const admins = getPartnerAdminEmails();
-  if (admins.length === 0) {
+  const supremeAdmin = getSupremeAdminEmail();
+  if (!supremeAdmin) {
     return {
       sent: false,
       provider: "unconfigured",
-      error: "PARTNER_ADMIN_EMAILS vazio.",
+      error: "SUPER_ADMIN_EMAIL não configurado.",
     };
   }
   const valor = formatCentsBrl(params.valorCentavos);
@@ -198,7 +198,7 @@ export async function notifyAdminWithdrawalRequested(params: {
   const text = `${SITE_NAME} Admin — Novo saque de ${valor} solicitado por ${params.partnerName} (${params.partnerCode}).`;
 
   return sendTransactionalEmail({
-    to: admins,
+    to: [supremeAdmin],
     subject,
     html: wrapEmailLayout("Novo pedido de saque para análise", bodyHtml),
     text,
