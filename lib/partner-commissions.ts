@@ -6,6 +6,7 @@ import {
   COMISSAO_MAX_MESES,
   COMISSAO_RECORRENTE,
   GARANTIA_DIAS,
+  getOfficialCommissionPercentForPlan,
   type CommissionType,
 } from "@/lib/partners";
 import { notifyPartnerNewCommission } from "@/lib/partner-notifications";
@@ -107,7 +108,10 @@ export async function recordPartnerCommissionForPayment(params: {
       ? Math.round(netAmountCents)
       : Math.round(grossAmountCents);
 
-  const percentual = Number(partner.percentual_comissao);
+  const percentual = getOfficialCommissionPercentForPlan(
+    planId,
+    Number(partner.percentual_comissao)
+  );
   const commissionCents = calculateCommissionCents(baseAmountCents, percentual);
 
   const baseBrl = centsToBrlNumber(baseAmountCents);

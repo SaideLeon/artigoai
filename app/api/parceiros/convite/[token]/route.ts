@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdminClient } from "@/lib/cakto-fulfillment";
-import { hashInviteToken, isValidInviteTokenFormat } from "@/lib/partners";
+import {
+  hashInviteToken,
+  isValidInviteTokenFormat,
+  PLAN_COMMISSION_RATES,
+} from "@/lib/partners";
 import { getAuthenticatedServerUser } from "@/lib/partners-server";
 
 export async function GET(
@@ -76,5 +80,6 @@ export async function GET(
     expiraEm: invite.expira_em,
     alreadyPartner,
     existingPartnerCode,
+    planCommissionRates: PLAN_COMMISSION_RATES,
   });
 }

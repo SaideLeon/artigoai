@@ -544,16 +544,35 @@ export async function fulfillCaktoOrderOrEvent(params: {
     subError = retry.error;
   }
 
-  // Renova a cota mensal (artigos não acumulam para o mês seguinte)
-  const { error: usageError } = await admin.from("usage_limits").upsert(
+  // Renova a cota mensal de artigos e imagens (não acumulam para o mês seguinte)
+  let { error: usageError } = await admin.from("usage_limits").upsert(
     {
       user_id: userId,
       monthly_articles_limit: plan.artigosMes,
       monthly_articles_used: 0,
+      monthly_images_limit: plan.imagensMes,
+      monthly_images_used: 0,
       reset_at: periodEndIso,
     },
     { onConflict: "user_id" }
   );
+
+  if (
+    usageError &&
+    (usageError.message.includes("monthly_images_limit") ||
+      usageError.message.includes("monthly_images_used"))
+  ) {
+    const retryUsage = await admin.from("usage_limits").upsert(
+      {
+        user_id: userId,
+        monthly_articles_limit: plan.artigosMes,
+        monthly_articles_used: 0,
+        reset_at: periodEndIso,
+      },
+      { onConflict: "user_id" }
+    );
+    usageError = retryUsage.error;
+  }
 
   // Registra comissão automática para parceiro indicador (idempotente por id_da_transacao_cakto)
   const commissionTxId =
@@ -686,12 +705,29 @@ export async function handleCaktoSubscriptionCanceledOrRefunded(
     { onConflict: "user_id" }
   );
 
-  await admin.from("usage_limits").upsert(
+  const { error: revertUsageError } = await admin.from("usage_limits").upsert(
     {
       user_id: userId,
       monthly_articles_limit: FREE_PLAN.artigosMes,
       monthly_articles_used: 0,
+      monthly_images_limit: FREE_PLAN.imagensMes,
+      monthly_images_used: 0,
     },
     { onConflict: "user_id" }
   );
+
+  if (
+    revertUsageError &&
+    (revertUsageError.message.includes("monthly_images_limit") ||
+      revertUsageError.message.includes("monthly_images_used"))
+  ) {
+    await admin.from("usage_limits").upsert(
+      {
+        user_id: userId,
+        monthly_articles_limit: FREE_PLAN.artigosMes,
+        monthly_articles_used: 0,
+      },
+      { onConflict: "user_id" }
+    );
+  }
 }

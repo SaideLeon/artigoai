@@ -133,10 +133,12 @@ export default function ReembolsoECancelamentoPage() {
           4. Renovação e uso de cotas
         </h2>
         <p>
-          As cotas mensais (5 artigos no Starter, 16 artigos no Pro e 30 artigos
-          na Agência) são disponibilizadas por ciclo de 30 dias e não acumulam
-          para o mês subsequente. Os artigos já salvos na sua biblioteca e
-          exportados permanecem acessíveis mesmo se você voltar ao Plano Grátis.
+          As cotas mensais (14 artigos e 98 imagens no Starter, 33 artigos e 231
+          imagens no Pro, e 48 artigos e 336 imagens na Agência, com limite de 7
+          imagens incluídas por artigo) são disponibilizadas por ciclo de 30 dias
+          e não acumulam para o mês subsequente. Os artigos já salvos na sua
+          biblioteca e exportados permanecem acessíveis mesmo se você voltar ao
+          Plano Grátis.
         </p>
       </section>
 

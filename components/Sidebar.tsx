@@ -30,6 +30,9 @@ type SidebarProps = {
   planoGeracao?: PlanoGeracao;
   activePlanId?: string;
   monthlyLimit?: number;
+  monthlyUsed?: number;
+  monthlyImagesLimit?: number;
+  monthlyImagesUsed?: number;
 };
 
 const NAV_ITEMS: { id: NavTab; label: string; icon: typeof Home }[] = [
@@ -52,6 +55,9 @@ export default function Sidebar({
   planoGeracao = "free",
   activePlanId = "free",
   monthlyLimit = FREE_PLAN.artigosMes,
+  monthlyUsed = 0,
+  monthlyImagesLimit = FREE_PLAN.imagensMes,
+  monthlyImagesUsed = 0,
 }: SidebarProps) {
   const content = (
     <aside className="relative flex h-full min-h-0 w-[252px] shrink-0 flex-col overflow-hidden bg-gradient-to-b from-[#0E162E] via-[#121C3A] to-[#111936] px-4 py-5 text-slate-200 select-none dark:border-r dark:border-slate-800/80">
@@ -165,9 +171,15 @@ export default function Sidebar({
                 ? "Google Gemini · Cancele quando quiser"
                 : "Qualidade padrão"}
             </p>
-            <p className="mt-1.5 text-[11px] font-semibold text-amber-300 tabular-nums">
-              {monthlyLimit} artigos por mês · não acumula
-            </p>
+            <div className="mt-2 space-y-1 text-[11px] font-semibold text-amber-300 tabular-nums">
+              <p>
+                {monthlyUsed}/{monthlyLimit} artigos · {monthlyImagesUsed}/
+                {monthlyImagesLimit} imagens
+              </p>
+              <p className="text-[10px] font-normal text-slate-300">
+                Até 7 imagens por artigo · não acumula
+              </p>
+            </div>
             <button
               type="button"
               onClick={() => onOpenModal("upgrade")}

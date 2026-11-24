@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import {
   brlToCents,
   centsToBrlNumber,
+  PLAN_COMMISSION_RATES,
   type CommissionStatus,
   type WithdrawalStatus,
 } from "@/lib/partners";
@@ -375,6 +376,7 @@ export async function GET(req: NextRequest) {
 
   return NextResponse.json({
     adminEmail: auth.user.email ?? "",
+    planCommissionRates: PLAN_COMMISSION_RATES,
     summary: {
       totalParceiros: enrichedPartners.length,
       parceirosAtivos: enrichedPartners.filter((p) => p.ativo).length,

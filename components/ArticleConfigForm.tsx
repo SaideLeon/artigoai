@@ -53,6 +53,8 @@ type ArticleConfigFormProps = {
   onChangePesquisaWeb: (val: ModoPesquisa) => void;
   planoGeracao: PlanoGeracao;
   onChangePlanoGeracao: (val: PlanoGeracao) => void;
+  hasPaidSubscription?: boolean;
+  onOpenUpgrade?: () => void;
   sugerindo: boolean;
   erroSugestao?: string;
   descricaoSugerida?: boolean;
@@ -88,6 +90,8 @@ export default function ArticleConfigForm({
   onChangePesquisaWeb,
   planoGeracao,
   onChangePlanoGeracao,
+  hasPaidSubscription = false,
+  onOpenUpgrade,
   sugerindo,
   erroSugestao,
   descricaoSugerida,
@@ -243,6 +247,20 @@ export default function ArticleConfigForm({
               ? "Usa apenas modelos Google Gemini para artigo, pesquisa e imagens."
               : "Usa OpenRouter para texto, Groq para pesquisa web e NVIDIA para imagens."}
           </p>
+          {planoGeracao === "paid" && !hasPaidSubscription && (
+            <div className="mt-2 flex items-center justify-between gap-2 rounded-lg border border-amber-300/70 bg-amber-50/80 px-2.5 py-1.5 text-[11px] text-amber-900 dark:border-amber-700/60 dark:bg-amber-950/40 dark:text-amber-200">
+              <span>Motor Gemini exclusivo de planos pagos.</span>
+              {onOpenUpgrade && (
+                <button
+                  type="button"
+                  onClick={onOpenUpgrade}
+                  className="shrink-0 font-semibold text-indigo-700 underline underline-offset-2 dark:text-indigo-300"
+                >
+                  Ver planos
+                </button>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Narração por Voz com Microfone */}

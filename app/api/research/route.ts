@@ -12,6 +12,7 @@ import {
   scrapePrimaryLinks,
   type ScrapedPrimarySource,
 } from "@/lib/link-scraper";
+import { enforceGenerationQuota } from "@/lib/usage-enforcement";
 import type { FontePesquisa, ModoPesquisa } from "@/lib/types";
 
 type ResearchResultJson = {
@@ -327,6 +328,7 @@ export async function POST(req: Request) {
       plano: rawPlano,
       narracao = "",
       links = [],
+      sessionKey,
     }: {
       tema?: string;
       descricao?: string;
@@ -337,8 +339,29 @@ export async function POST(req: Request) {
       plano?: string;
       narracao?: string;
       links?: string[];
+      sessionKey?: string;
     } = await req.json();
 
+    const requestedPlano = normalizePlano(rawPlano);
+    const quotaDecision = await enforceGenerationQuota({
+      req,
+      requestedPlano,
+      action: "verify_plan",
+      sessionKey: typeof sessionKey === "string" ? sessionKey : undefined,
+    });
+
+    if (!quotaDecision.allowed) {
+      return NextResponse.json(
+        {
+          erro: quotaDecision.error,
+          code: quotaDecision.code,
+          quota: quotaDecision.snapshot,
+        },
+        { status: quotaDecision.status }
+      );
+    }
+
+    const plano = quotaDecision.effectivePlano;
     const narracaoLimpa =
       typeof narracao === "string" ? narracao.trim().slice(0, 10000) : "";
 
@@ -377,7 +400,6 @@ export async function POST(req: Request) {
       );
     }
 
-    const plano = normalizePlano(rawPlano);
     const ferramentaLabel =
       plano === "paid" ? "Google Search grounding" : "browser_search";
 

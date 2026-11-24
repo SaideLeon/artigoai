@@ -6,6 +6,7 @@ import {
   centsToBrlNumber,
   GARANTIA_DIAS,
   maskEmail,
+  PLAN_COMMISSION_RATES,
   SAQUE_MINIMO_CENTAVOS,
   type CommissionStatus,
 } from "@/lib/partners";
@@ -251,6 +252,7 @@ export async function GET(req: NextRequest) {
       garantiaDias: GARANTIA_DIAS,
       saqueMinimoCentavos: SAQUE_MINIMO_CENTAVOS,
       saqueMinimoBrl: centsToBrlNumber(SAQUE_MINIMO_CENTAVOS),
+      planCommissionRates: PLAN_COMMISSION_RATES,
     },
     partner: {
       id: partner.id,

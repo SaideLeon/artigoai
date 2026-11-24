@@ -36,6 +36,9 @@ type InfoModalProps = {
   onSelectPlanoGeracao?: (plano: PlanoGeracao) => void;
   activePlanId?: string;
   monthlyLimit?: number;
+  monthlyUsed?: number;
+  monthlyImagesLimit?: number;
+  monthlyImagesUsed?: number;
   hasSubscriptionPortal?: boolean;
   highlightPlanId?: string | null;
   initialBillingCycle?: BillingCycle;
@@ -52,6 +55,9 @@ export default function InfoModal({
   onSelectPlanoGeracao,
   activePlanId = "free",
   monthlyLimit = FREE_PLAN.artigosMes,
+  monthlyUsed = 0,
+  monthlyImagesLimit = FREE_PLAN.imagensMes,
+  monthlyImagesUsed = 0,
   hasSubscriptionPortal = false,
   highlightPlanId = null,
   initialBillingCycle = "monthly",
@@ -227,8 +233,9 @@ export default function InfoModal({
               </h2>
               {tipo === "upgrade" && (
                 <p className="text-[11px] font-medium text-slate-500 dark:text-slate-400 tabular-nums">
-                  Plano atual: {getPlanDisplayName(activePlanId)} ·{" "}
-                  {monthlyLimit} artigos por mês · Cancele quando quiser
+                  Plano atual: {getPlanDisplayName(activePlanId)} · {monthlyUsed}/
+                  {monthlyLimit} artigos · {monthlyImagesUsed}/
+                  {monthlyImagesLimit} imagens
                 </p>
               )}
             </div>
@@ -356,8 +363,9 @@ export default function InfoModal({
                     {FREE_PLAN.nome} · R$ 0 / mês
                   </p>
                   <p className="text-[11px] text-slate-500 dark:text-slate-400">
-                    {FREE_PLAN.artigosMes} artigos por mês · Pesquisa web, imagens
-                    e HTML · Sem cartão de crédito
+                    {FREE_PLAN.artigosMes} artigos por mês · Até{" "}
+                    {FREE_PLAN.imagensPorArtigo} imagens/artigo (
+                    {FREE_PLAN.imagensMes}/mês) · Sem cartão de crédito
                   </p>
                 </div>
                 {onSelectPlanoGeracao && (
@@ -456,7 +464,10 @@ export default function InfoModal({
                           </li>
                           <li className="flex items-start gap-1.5">
                             <Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-emerald-600 dark:text-emerald-400" />
-                            <span>Até 7 imagens 1K por artigo</span>
+                            <span>
+                              Até {plan.imagensPorArtigo} imagens 1K por artigo (
+                              <strong>{plan.imagensMes} imagens/mês</strong>)
+                            </span>
                           </li>
                           <li className="flex items-start gap-1.5">
                             <Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-emerald-600 dark:text-emerald-400" />
@@ -521,8 +532,9 @@ export default function InfoModal({
                   <ShieldCheck className="h-3.5 w-3.5 shrink-0 text-emerald-600 dark:text-emerald-400" />
                   <span>
                     Cancele quando quiser no Portal do Assinante Cakto. A cota
-                    mensal é renovada todo mês e os artigos não usados não
-                    acumulam.
+                    mensal é renovada todo mês (não acumula). Se um artigo
+                    precisar de mais de 7 imagens, 1 crédito de artigo ainda não
+                    gerado libera mais 7 imagens dentro do teto mensal.
                   </span>
                 </div>
               </div>

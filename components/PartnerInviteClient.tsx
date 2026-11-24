@@ -15,6 +15,7 @@ import {
   Sparkles,
 } from "lucide-react";
 import BrandLogo from "@/components/BrandLogo";
+import ThemeToggleButton from "@/components/ThemeToggleButton";
 import { useAuth } from "@/components/AuthProvider";
 
 type InviteInspection = {
@@ -24,6 +25,11 @@ type InviteInspection = {
   expiraEm: string;
   alreadyPartner: boolean;
   existingPartnerCode: string | null;
+  planCommissionRates?: {
+    starter: number;
+    pro: number;
+    agencia: number;
+  };
 };
 
 export default function PartnerInviteClient({ token }: { token: string }) {
@@ -116,10 +122,16 @@ export default function PartnerInviteClient({ token }: { token: string }) {
       }).format(new Date(invite.expiraEm))
     : "";
 
+  const rates = invite?.planCommissionRates ?? {
+    starter: 20,
+    pro: 35,
+    agencia: 35,
+  };
+
   return (
-    <div className="min-h-screen bg-[#070B16] text-slate-100 flex flex-col">
-      <header className="border-b border-slate-800/80 bg-[#0B1124]/90 backdrop-blur-md">
-        <div className="mx-auto flex max-w-[1040px] items-center justify-between px-4 py-4 sm:px-6">
+    <div className="min-h-screen bg-[#F4F6FB] text-slate-900 dark:bg-[#070B16] dark:text-slate-100 flex flex-col transition-colors duration-150">
+      <header className="border-b border-slate-200/90 bg-white/90 dark:border-slate-800/80 dark:bg-[#0B1124]/90 backdrop-blur-md">
+        <div className="mx-auto flex max-w-[1040px] items-center justify-between gap-4 px-4 py-4 sm:px-6">
           <Link
             href="/"
             className="flex items-center gap-2.5 whitespace-nowrap shrink-0"
@@ -127,40 +139,43 @@ export default function PartnerInviteClient({ token }: { token: string }) {
             <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-[#5B4AF4] to-[#2563EB] text-white">
               <BrandLogo className="size-5 text-white" />
             </span>
-            <span className="text-base font-bold tracking-tight text-white">
+            <span className="text-base font-bold tracking-tight text-slate-900 dark:text-white">
               Artigen Parceiros
             </span>
           </Link>
 
-          <Link
-            href="/termos-parceiros"
-            className="text-xs font-medium text-slate-300 hover:text-white hover:underline underline-offset-4 whitespace-nowrap"
-          >
-            Regras do Programa
-          </Link>
+          <div className="flex items-center gap-3 shrink-0">
+            <Link
+              href="/termos-parceiros"
+              className="text-xs font-medium text-slate-600 hover:text-slate-950 dark:text-slate-300 dark:hover:text-white hover:underline underline-offset-4 whitespace-nowrap"
+            >
+              Regras do Programa
+            </Link>
+            <ThemeToggleButton />
+          </div>
         </div>
       </header>
 
       <main className="mx-auto flex w-full max-w-[920px] flex-1 items-center justify-center px-4 py-10 sm:px-6">
         {loadingInvite || authLoading ? (
-          <div className="w-full max-w-lg rounded-2xl border border-slate-800 bg-[#0F172A] p-8 text-center">
-            <Loader2 className="mx-auto h-7 w-7 animate-spin text-indigo-400" />
-            <p className="mt-3 text-sm text-slate-300">
+          <div className="w-full max-w-lg rounded-2xl border border-slate-200 bg-white p-8 text-center shadow-xs dark:border-slate-800 dark:bg-[#0F172A] dark:shadow-none">
+            <Loader2 className="mx-auto h-7 w-7 animate-spin text-indigo-600 dark:text-indigo-400" />
+            <p className="mt-3 text-sm text-slate-600 dark:text-slate-300">
               A validar seu convite exclusivo de parceria…
             </p>
           </div>
         ) : fetchError || !invite ? (
-          <div className="w-full max-w-lg rounded-2xl border border-rose-900/60 bg-[#0F172A] p-8 text-center space-y-4">
-            <AlertCircle className="mx-auto h-9 w-9 text-rose-400" />
-            <h1 className="text-xl font-bold text-white">
+          <div className="w-full max-w-lg rounded-2xl border border-rose-200 bg-white p-8 text-center space-y-4 shadow-xs dark:border-rose-900/60 dark:bg-[#0F172A] dark:shadow-none">
+            <AlertCircle className="mx-auto h-9 w-9 text-rose-500 dark:text-rose-400" />
+            <h1 className="text-xl font-bold text-slate-900 dark:text-white">
               Convite indisponível
             </h1>
-            <p className="text-sm text-slate-300">
+            <p className="text-sm text-slate-600 dark:text-slate-300">
               {fetchError || "Este link de convite não é mais válido."}
             </p>
             <Link
               href="/"
-              className="inline-flex items-center gap-2 rounded-xl border border-slate-700 bg-slate-800 px-5 py-2.5 text-sm font-semibold text-white hover:bg-slate-700"
+              className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-100 px-5 py-2.5 text-sm font-semibold text-slate-900 hover:bg-slate-200 dark:border-slate-700 dark:bg-slate-800 dark:text-white dark:hover:bg-slate-700"
             >
               <span>Voltar para o Artigen</span>
               <ArrowRight className="h-4 w-4" />
@@ -169,19 +184,19 @@ export default function PartnerInviteClient({ token }: { token: string }) {
         ) : (
           <div className="w-full grid grid-cols-1 gap-6 lg:grid-cols-12">
             {/* Resumo dos benefícios do programa */}
-            <div className="lg:col-span-7 rounded-2xl border border-slate-800 bg-[#0F172A] p-6 sm:p-8 space-y-6">
-              <div className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-indigo-400">
+            <div className="lg:col-span-7 rounded-2xl border border-slate-200 bg-white p-6 sm:p-8 space-y-6 shadow-xs dark:border-slate-800 dark:bg-[#0F172A] dark:shadow-none">
+              <div className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-indigo-600 dark:text-indigo-400">
                 <Handshake className="h-4 w-4" />
                 <span>Convite Oficial de Parceria</span>
               </div>
 
               <div className="space-y-2">
-                <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-white text-balance">
+                <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900 dark:text-white text-balance">
                   {invite.nomeSugerido
                     ? `Olá, ${invite.nomeSugerido}! Bem-vindo ao Programa de Parceiros Artigen`
                     : "Você foi convidado para o Programa de Parceiros Artigen"}
                 </h1>
-                <p className="text-sm leading-relaxed text-slate-300">
+                <p className="text-sm leading-relaxed text-slate-600 dark:text-slate-300">
                   Indique criadores de conteúdo, redatores, blogs e agências
                   para o Artigen e receba comissão recorrente sobre cada
                   assinatura aprovada via Pix, Cartão ou Boleto.
@@ -189,52 +204,69 @@ export default function PartnerInviteClient({ token }: { token: string }) {
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
-                <div className="rounded-xl border border-slate-800 bg-[#0B1124] p-4">
-                  <span className="text-xs font-medium text-slate-400">
-                    Sua Comissão Definida
+                <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-800 dark:bg-[#0B1124]">
+                  <span className="text-xs font-medium text-slate-500 dark:text-slate-400">
+                    Comissões Oficiais por Plano
                   </span>
-                  <p className="mt-1 text-2xl font-bold text-emerald-400 tabular-nums">
-                    {invite.percentualComissao}%
-                  </p>
-                  <p className="mt-1 text-xs text-slate-400">
-                    Sobre o valor bruto da primeira assinatura e renovações.
+                  <div className="mt-1.5 space-y-1 text-sm font-bold tabular-nums">
+                    <p className="text-emerald-700 dark:text-emerald-400">
+                      Starter: {rates.starter}%{" "}
+                      <span className="text-xs font-normal text-slate-500 dark:text-slate-400">
+                        (R$ 6,98/mês)
+                      </span>
+                    </p>
+                    <p className="text-emerald-700 dark:text-emerald-400">
+                      Pro: {rates.pro}%{" "}
+                      <span className="text-xs font-normal text-slate-500 dark:text-slate-400">
+                        (R$ 33,22/mês)
+                      </span>
+                    </p>
+                    <p className="text-emerald-700 dark:text-emerald-400">
+                      Agência: {rates.agencia}%{" "}
+                      <span className="text-xs font-normal text-slate-500 dark:text-slate-400">
+                        (R$ 52,47/mês)
+                      </span>
+                    </p>
+                  </div>
+                  <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">
+                    Calculado sobre o valor bruto efetivamente recebido.
                   </p>
                 </div>
 
-                <div className="rounded-xl border border-slate-800 bg-[#0B1124] p-4">
-                  <span className="text-xs font-medium text-slate-400">
+                <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-800 dark:bg-[#0B1124]">
+                  <span className="text-xs font-medium text-slate-500 dark:text-slate-400">
                     Janela de Atribuição
                   </span>
-                  <p className="mt-1 text-2xl font-bold text-indigo-400 tabular-nums">
+                  <p className="mt-1 text-2xl font-bold text-indigo-600 dark:text-indigo-400 tabular-nums">
                     60 dias
                   </p>
-                  <p className="mt-1 text-xs text-slate-400">
+                  <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
                     Cookie seguro first-touch e vínculo permanente após cadastro.
                   </p>
                 </div>
               </div>
 
-              <ul className="space-y-2.5 border-t border-slate-800 pt-5 text-xs sm:text-sm text-slate-300">
+              <ul className="space-y-2.5 border-t border-slate-200 dark:border-slate-800 pt-5 text-xs sm:text-sm text-slate-600 dark:text-slate-300">
                 <li className="flex items-start gap-2.5">
-                  <Sparkles className="mt-0.5 h-4 w-4 shrink-0 text-indigo-400" />
+                  <Sparkles className="mt-0.5 h-4 w-4 shrink-0 text-indigo-600 dark:text-indigo-400" />
                   <span>
                     Link personalizado exclusivo (ex:{" "}
-                    <code className="text-indigo-300">
+                    <code className="text-indigo-600 dark:text-indigo-300">
                       criador.artificializar.site/?ref=seucodigo
                     </code>
                     ) + QR Code pronto.
                   </span>
                 </li>
                 <li className="flex items-start gap-2.5">
-                  <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-emerald-400" />
+                  <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
                   <span>
                     Painel em tempo real com cliques diários, cadastros,
                     assinantes ativos e extrato de comissões.
                   </span>
                 </li>
                 {invite.status === "pendente" && formattedExpiry ? (
-                  <li className="flex items-start gap-2.5 text-slate-400">
-                    <Clock className="mt-0.5 h-4 w-4 shrink-0 text-amber-400" />
+                  <li className="flex items-start gap-2.5 text-slate-500 dark:text-slate-400">
+                    <Clock className="mt-0.5 h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400" />
                     <span>Convite de uso único válido até {formattedExpiry}.</span>
                   </li>
                 ) : null}
@@ -242,20 +274,20 @@ export default function PartnerInviteClient({ token }: { token: string }) {
             </div>
 
             {/* Card de Ação / Login / Aceite */}
-            <div className="lg:col-span-5 rounded-2xl border border-slate-800 bg-[#0F172A] p-6 sm:p-7 flex flex-col justify-between space-y-6">
+            <div className="lg:col-span-5 rounded-2xl border border-slate-200 bg-white p-6 sm:p-7 flex flex-col justify-between space-y-6 shadow-xs dark:border-slate-800 dark:bg-[#0F172A] dark:shadow-none">
               {acceptedCode || invite.alreadyPartner ? (
                 <div className="space-y-4">
-                  <CheckCircle2 className="h-10 w-10 text-emerald-400" />
-                  <h2 className="text-xl font-bold text-white">
+                  <CheckCircle2 className="h-10 w-10 text-emerald-600 dark:text-emerald-400" />
+                  <h2 className="text-xl font-bold text-slate-900 dark:text-white">
                     Perfil de Parceiro Ativo!
                   </h2>
-                  <p className="text-sm text-slate-300">
+                  <p className="text-sm text-slate-600 dark:text-slate-300">
                     Sua conta já está habilitada no programa de parceiros
                     {acceptedCode || invite.existingPartnerCode ? (
                       <>
                         {" "}
                         com o código{" "}
-                        <code className="rounded bg-slate-800 px-1.5 py-0.5 font-mono text-indigo-300">
+                        <code className="rounded bg-slate-100 px-1.5 py-0.5 font-mono text-indigo-700 dark:bg-slate-800 dark:text-indigo-300">
                           {acceptedCode || invite.existingPartnerCode}
                         </code>
                       </>
@@ -272,23 +304,25 @@ export default function PartnerInviteClient({ token }: { token: string }) {
                 </div>
               ) : invite.status !== "pendente" ? (
                 <div className="space-y-4">
-                  <AlertCircle className="h-9 w-9 text-amber-400" />
-                  <h2 className="text-xl font-bold text-white">
+                  <AlertCircle className="h-9 w-9 text-amber-600 dark:text-amber-400" />
+                  <h2 className="text-xl font-bold text-slate-900 dark:text-white">
                     {invite.status === "aceito"
                       ? "Convite já utilizado"
                       : invite.status === "cancelado"
                       ? "Convite cancelado"
                       : "Convite expirado"}
                   </h2>
-                  <p className="text-sm text-slate-300">
+                  <p className="text-sm text-slate-600 dark:text-slate-300">
                     Este link de convite é de uso único e encontra-se no estado{" "}
-                    <strong className="text-white">{invite.status}</strong>.
-                    Caso precise de acesso, solicite um novo convite ao
+                    <strong className="text-slate-900 dark:text-white">
+                      {invite.status}
+                    </strong>
+                    . Caso precise de acesso, solicite um novo convite ao
                     administrador.
                   </p>
                   <Link
                     href="/"
-                    className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-slate-700 bg-slate-800 px-5 py-2.5 text-sm font-semibold text-white hover:bg-slate-700"
+                    className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-slate-200 bg-slate-100 px-5 py-2.5 text-sm font-semibold text-slate-900 hover:bg-slate-200 dark:border-slate-700 dark:bg-slate-800 dark:text-white dark:hover:bg-slate-700"
                   >
                     <span>Ir para o site</span>
                   </Link>
@@ -296,10 +330,10 @@ export default function PartnerInviteClient({ token }: { token: string }) {
               ) : !user ? (
                 <div className="space-y-5">
                   <div className="space-y-2">
-                    <h2 className="text-lg font-bold text-white">
+                    <h2 className="text-lg font-bold text-slate-900 dark:text-white">
                       1. Crie sua conta ou faça login
                     </h2>
-                    <p className="text-xs sm:text-sm leading-relaxed text-slate-300">
+                    <p className="text-xs sm:text-sm leading-relaxed text-slate-600 dark:text-slate-300">
                       Entre com sua conta Google para vincular sua parceria.
                       Após autenticar, você retornará automaticamente para
                       ativar este convite.
@@ -317,18 +351,18 @@ export default function PartnerInviteClient({ token }: { token: string }) {
                     <span>Entrar / Cadastrar com Google</span>
                   </button>
 
-                  <p className="text-[11px] leading-relaxed text-slate-400">
+                  <p className="text-[11px] leading-relaxed text-slate-500 dark:text-slate-400">
                     Ao entrar e aceitar, você concorda com os{" "}
                     <Link
                       href="/termos-parceiros"
-                      className="text-indigo-400 underline underline-offset-2"
+                      className="text-indigo-600 dark:text-indigo-400 underline underline-offset-2"
                     >
                       Termos do Programa de Parceiros
                     </Link>{" "}
                     e a{" "}
                     <Link
                       href="/privacidade"
-                      className="text-indigo-400 underline underline-offset-2"
+                      className="text-indigo-600 dark:text-indigo-400 underline underline-offset-2"
                     >
                       Política de Privacidade (LGPD)
                     </Link>
@@ -338,36 +372,40 @@ export default function PartnerInviteClient({ token }: { token: string }) {
               ) : (
                 <div className="space-y-5">
                   <div className="space-y-2">
-                    <h2 className="text-lg font-bold text-white">
+                    <h2 className="text-lg font-bold text-slate-900 dark:text-white">
                       2. Confirmar e ativar parceria
                     </h2>
-                    <p className="text-xs sm:text-sm text-slate-300">
+                    <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-300">
                       Conectado como{" "}
-                      <strong className="text-white">{user.email}</strong>.
+                      <strong className="text-slate-900 dark:text-white">
+                        {user.email}
+                      </strong>
+                      .
                     </p>
                   </div>
 
-                  <label className="flex items-start gap-2.5 rounded-xl border border-slate-800 bg-[#0B1124] p-3.5 text-xs text-slate-300 cursor-pointer">
+                  <label className="flex items-start gap-2.5 rounded-xl border border-slate-200 bg-slate-50 p-3.5 text-xs text-slate-700 dark:border-slate-800 dark:bg-[#0B1124] dark:text-slate-300 cursor-pointer">
                     <input
                       type="checkbox"
                       checked={agreedTerms}
                       onChange={(e) => setAgreedTerms(e.target.checked)}
-                      className="mt-0.5 h-4 w-4 rounded border-slate-600 bg-slate-900 text-indigo-600 focus:ring-indigo-500"
+                      className="mt-0.5 h-4 w-4 rounded border-slate-300 bg-white text-indigo-600 focus:ring-indigo-500 dark:border-slate-600 dark:bg-slate-900"
                     />
                     <span>
                       Li e concordo com os{" "}
                       <Link
                         href="/termos-parceiros"
-                        className="font-semibold text-indigo-400 underline"
+                        className="font-semibold text-indigo-600 dark:text-indigo-400 underline"
                       >
                         Termos do Programa de Parceiros
                       </Link>{" "}
-                      (taxa de {invite.percentualComissao}%, sem autoindicação).
+                      (Starter {rates.starter}%, Pro {rates.pro}% e Agência{" "}
+                      {rates.agencia}% sobre valor bruto, sem autoindicação).
                     </span>
                   </label>
 
                   {acceptError ? (
-                    <div className="rounded-xl border border-rose-800/70 bg-rose-950/50 p-3 text-xs text-rose-200">
+                    <div className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-xs text-rose-700 dark:border-rose-800/70 dark:bg-rose-950/50 dark:text-rose-200">
                       {acceptError}
                     </div>
                   ) : null}
@@ -395,7 +433,7 @@ export default function PartnerInviteClient({ token }: { token: string }) {
                     <button
                       type="button"
                       onClick={() => void signOutUser()}
-                      className="w-full py-2 text-xs font-medium text-slate-400 hover:text-white"
+                      className="w-full py-2 text-xs font-medium text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white"
                     >
                       Usar outra conta Google
                     </button>

@@ -780,6 +780,8 @@ export function subscribeUserPlan(
     planoGeracao: PlanoGeracao;
     monthlyLimit: number;
     monthlyUsed: number;
+    monthlyImagesLimit: number;
+    monthlyImagesUsed: number;
     hasSubscriptionPortal: boolean;
   }) => void
 ): () => void {
@@ -789,21 +791,37 @@ export function subscribeUserPlan(
   let active = true;
 
   const loadPlan = async () => {
-    const [{ data: subData, error: subErr }, { data: usageData }] =
-      await Promise.all([
-        supabase
-          .from("subscriptions")
-          .select(
-            "plan, status, billing_cycle, stripe_customer_id, stripe_subscription_id"
-          )
-          .eq("user_id", userId)
-          .maybeSingle(),
-        supabase
-          .from("usage_limits")
-          .select("monthly_articles_limit, monthly_articles_used")
-          .eq("user_id", userId)
-          .maybeSingle(),
-      ]);
+    const { data: subData, error: subErr } = await supabase
+      .from("subscriptions")
+      .select(
+        "plan, status, billing_cycle, stripe_customer_id, stripe_subscription_id"
+      )
+      .eq("user_id", userId)
+      .maybeSingle();
+
+    let usageData: Record<string, unknown> | null = null;
+    const primaryUsage = await supabase
+      .from("usage_limits")
+      .select(
+        "monthly_articles_limit, monthly_articles_used, monthly_images_limit, monthly_images_used"
+      )
+      .eq("user_id", userId)
+      .maybeSingle();
+
+    if (
+      primaryUsage.error &&
+      (primaryUsage.error.message.includes("monthly_images_limit") ||
+        primaryUsage.error.message.includes("monthly_images_used"))
+    ) {
+      const legacyUsage = await supabase
+        .from("usage_limits")
+        .select("monthly_articles_limit, monthly_articles_used")
+        .eq("user_id", userId)
+        .maybeSingle();
+      usageData = (legacyUsage.data as Record<string, unknown> | null) ?? null;
+    } else {
+      usageData = (primaryUsage.data as Record<string, unknown> | null) ?? null;
+    }
 
     if (!active || subErr) return;
     const planName =
@@ -815,13 +833,21 @@ export function subscribeUserPlan(
     const isActivePaid = planName !== "free" && status === "active";
 
     const matchedPlan = SUBSCRIPTION_PLANS.find((p) => p.id === planName);
-    const defaultLimit = matchedPlan
+    const defaultLimit = isActivePaid && matchedPlan
       ? matchedPlan.artigosMes
       : FREE_PLAN.artigosMes;
+    const defaultImagesLimit = isActivePaid && matchedPlan
+      ? matchedPlan.imagensMes
+      : FREE_PLAN.imagensMes;
+
     const monthlyLimit = Number(
       usageData?.monthly_articles_limit ?? defaultLimit
     );
     const monthlyUsed = Number(usageData?.monthly_articles_used ?? 0);
+    const monthlyImagesLimit = Number(
+      usageData?.monthly_images_limit ?? defaultImagesLimit
+    );
+    const monthlyImagesUsed = Number(usageData?.monthly_images_used ?? 0);
 
     onPlan({
       plan: planName,
@@ -830,6 +856,8 @@ export function subscribeUserPlan(
       planoGeracao: isActivePaid ? "paid" : "free",
       monthlyLimit: Math.max(1, monthlyLimit),
       monthlyUsed: Math.max(0, monthlyUsed),
+      monthlyImagesLimit: Math.max(1, monthlyImagesLimit),
+      monthlyImagesUsed: Math.max(0, monthlyImagesUsed),
       hasSubscriptionPortal:
         isActivePaid ||
         Boolean(subData?.stripe_subscription_id) ||

@@ -87,6 +87,8 @@ export async function GET(req: NextRequest) {
             planId: activePlan.id,
             billingCycle: cycle,
             articlesPerMonth: activePlan.artigosMes,
+            imagesPerArticle: activePlan.imagensPorArtigo,
+            imagesPerMonth: activePlan.imagensMes,
             alreadyProcessed: true,
             dbUpdated: true,
           });
@@ -154,11 +156,17 @@ export async function GET(req: NextRequest) {
       });
     }
 
+    const verifiedPlan = result.planId
+      ? findSubscriptionPlan(result.planId)
+      : undefined;
+
     return NextResponse.json({
       paid: true,
       planId: result.planId,
       billingCycle: result.billingCycle,
       articlesPerMonth: result.articlesPerMonth,
+      imagesPerArticle: verifiedPlan?.imagensPorArtigo ?? 7,
+      imagesPerMonth: verifiedPlan?.imagensMes,
       amountCents: result.amountCents,
       paymentMethod: result.paymentMethod,
       dbUpdated: result.dbUpdated,

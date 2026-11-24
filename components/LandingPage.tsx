@@ -1110,7 +1110,14 @@ export default function LandingPage() {
                         </li>
                         <li className="flex items-start gap-2.5">
                           <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
-                          <span>Até 7 imagens em qualidade 1K por artigo</span>
+                          <span>
+                            Até {plan.imagensPorArtigo} imagens em qualidade 1K
+                            por artigo (
+                            <strong className="font-semibold text-slate-900 dark:text-white">
+                              {plan.imagensMes} imagens/mês
+                            </strong>
+                            )
+                          </span>
                         </li>
                         <li className="flex items-start gap-2.5">
                           <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400" />

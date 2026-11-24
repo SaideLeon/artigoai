@@ -91,12 +91,12 @@ export default function RootLayout({
           dangerouslySetInnerHTML={{ __html: structuredDataJson }}
         />
         <BrandLogoDefs />
-        <ThemeProvider>
-          <AuthProvider>
+        <AuthProvider>
+          <ThemeProvider>
             {children}
             <CookieConsentBanner />
-          </AuthProvider>
-        </ThemeProvider>
+          </ThemeProvider>
+        </AuthProvider>
       </body>
     </html>
   );

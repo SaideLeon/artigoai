@@ -6,6 +6,10 @@ import {
   normalizePlano,
   NVIDIA_IMAGE_URL,
 } from "@/lib/ai-providers";
+import {
+  attachGuestQuotaCookie,
+  enforceGenerationQuota,
+} from "@/lib/usage-enforcement";
 
 // Estilo fixo no início de todos os prompts para as imagens parecerem do mesmo conjunto.
 const ESTILO =
@@ -195,25 +199,67 @@ async function gerarImagemGemini(prompt: string): Promise<string> {
 
 export async function POST(req: Request) {
   try {
-    const { prompt, plano: rawPlano } = await req.json();
-    const plano = normalizePlano(rawPlano);
+    const { prompt, plano: rawPlano, sessionKey, articleId } = await req.json();
+    const requestedPlano = normalizePlano(rawPlano);
+    const resolvedSessionKey =
+      typeof sessionKey === "string" && sessionKey.trim()
+        ? sessionKey
+        : typeof articleId === "string" && articleId.trim()
+        ? articleId
+        : undefined;
+
+    const quotaDecision = await enforceGenerationQuota({
+      req,
+      requestedPlano,
+      action: "image",
+      sessionKey: resolvedSessionKey,
+    });
+
+    if (!quotaDecision.allowed) {
+      return NextResponse.json(
+        {
+          erro: quotaDecision.error,
+          code: quotaDecision.code,
+          quota: quotaDecision.snapshot,
+        },
+        { status: quotaDecision.status }
+      );
+    }
+
+    const plano = quotaDecision.effectivePlano;
     const promptCompleto = ESTILO + String(prompt ?? "");
+    const quotaPayload = {
+      deductedArticleCredit: Boolean(quotaDecision.deductedArticleCreditForImage),
+      articleImagesUsed: quotaDecision.articleImagesUsed ?? 1,
+      articleImagesAllowance: quotaDecision.articleImagesAllowance ?? 7,
+      snapshot: quotaDecision.snapshot,
+    };
 
     if (plano === "paid") {
       const url = await gerarImagemGemini(promptCompleto);
-      return NextResponse.json({
+      const response = NextResponse.json({
         url,
         provedor: "gemini",
         modelo: GEMINI_IMAGE_MODEL,
+        quota: quotaPayload,
       });
+      return attachGuestQuotaCookie(
+        response,
+        quotaDecision.updatedGuestCookieValue
+      );
     }
 
     const url = await gerarImagemNvidia(promptCompleto);
-    return NextResponse.json({
+    const response = NextResponse.json({
       url,
       provedor: "nvidia",
       modelo: "black-forest-labs/flux.2-klein-4b",
+      quota: quotaPayload,
     });
+    return attachGuestQuotaCookie(
+      response,
+      quotaDecision.updatedGuestCookieValue
+    );
   } catch (e) {
     return NextResponse.json({ erro: (e as Error).message }, { status: 500 });
   }

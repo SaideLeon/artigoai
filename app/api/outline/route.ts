@@ -5,6 +5,10 @@ import {
   generatePaidGeminiText,
   normalizePlano,
 } from "@/lib/ai-providers";
+import {
+  attachGuestQuotaCookie,
+  enforceGenerationQuota,
+} from "@/lib/usage-enforcement";
 
 const OUTLINE_SCHEMA: Schema = {
   type: Type.OBJECT,
@@ -39,9 +43,29 @@ export async function POST(req: Request) {
       contextoPrimario = "",
       narracao = "",
       plano: rawPlano,
+      sessionKey,
     } = await req.json();
 
-    const plano = normalizePlano(rawPlano);
+    const requestedPlano = normalizePlano(rawPlano);
+    const quotaDecision = await enforceGenerationQuota({
+      req,
+      requestedPlano,
+      action: "article",
+      sessionKey: typeof sessionKey === "string" ? sessionKey : undefined,
+    });
+
+    if (!quotaDecision.allowed) {
+      return NextResponse.json(
+        {
+          erro: quotaDecision.error,
+          code: quotaDecision.code,
+          quota: quotaDecision.snapshot,
+        },
+        { status: quotaDecision.status }
+      );
+    }
+
+    const plano = quotaDecision.effectivePlano;
     const narracaoLimpa =
       typeof narracao === "string" ? narracao.trim().slice(0, 16000) : "";
     const primarioLimpo =
@@ -95,11 +119,16 @@ O artigo deve ter exactamente ${secoes} secções.`;
       throw new Error("Esboço incompleto. Tenta de novo.");
     }
 
-    return NextResponse.json({
+    const response = NextResponse.json({
       ...esboco,
       provedor: result.provedor,
       modelo: result.modelo,
+      quota: quotaDecision.snapshot,
     });
+    return attachGuestQuotaCookie(
+      response,
+      quotaDecision.updatedGuestCookieValue
+    );
   } catch (e) {
     return NextResponse.json({ erro: (e as Error).message }, { status: 500 });
   }

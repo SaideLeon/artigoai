@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useCallback, useState, useEffect, useRef } from "react";
 import Sidebar from "@/components/Sidebar";
 import TopBar from "@/components/TopBar";
 import HeroBanner from "@/components/HeroBanner";
@@ -63,20 +63,79 @@ const DEFAULT_CONFIG: ConfiguracoesPadrao = {
   pesquisaWebPadrao: "auto",
 };
 
-async function postJson(
+type QuotaErrorPayload = {
+  erro?: string;
+  code?: string;
+};
+
+class StudioApiError extends Error {
+  code?: string;
+  status: number;
+  constructor(message: string, status: number, code?: string) {
+    super(message);
+    this.name = "StudioApiError";
+    this.status = status;
+    this.code = code;
+  }
+}
+
+type SuggestApiResponse = {
+  temaSugerido?: string;
+  palavrasChave?: string[];
+  descricao?: string;
+  tom?: string;
+  faixaPalavras?: FaixaPalavrasId;
+  primeiraPessoa?: boolean;
+  pesquisaWeb?: ModoPesquisa;
+};
+
+type ResearchApiResponse = {
+  pesquisou?: boolean;
+  resumoPesquisa?: string;
+  contextoPrimario?: string;
+  fontes?: FontePesquisa[];
+};
+
+type OutlineApiResponse = {
+  titulo: string;
+  secoes: Secao[];
+  quota?: unknown;
+};
+
+type SectionApiResponse = {
+  texto: string;
+  prompt?: string;
+  quota?: unknown;
+};
+
+type ImageApiResponse = {
+  url: string;
+  quota?: {
+    snapshot?: unknown;
+    deductedArticleCredit?: boolean;
+  };
+};
+
+async function postJson<T extends Record<string, unknown>>(
   url: string,
   corpo: unknown,
   signal?: AbortSignal
-) {
+): Promise<T> {
   const r = await fetch(url, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(corpo),
     signal,
   });
-  const d = await r.json();
-  if (!r.ok) throw new Error(d.erro ?? "Erro desconhecido");
-  return d;
+  const d = (await r.json()) as Record<string, unknown> & QuotaErrorPayload;
+  if (!r.ok) {
+    throw new StudioApiError(
+      typeof d.erro === "string" ? d.erro : "Erro desconhecido",
+      r.status,
+      typeof d.code === "string" ? d.code : undefined
+    );
+  }
+  return d as unknown as T;
 }
 
 function escapeHtml(text: string) {
@@ -195,6 +254,11 @@ export default function ArticleStudioApp() {
   const [monthlyLimit, setMonthlyLimit] = useState<number>(
     FREE_PLAN.artigosMes
   );
+  const [monthlyUsed, setMonthlyUsed] = useState<number>(0);
+  const [monthlyImagesLimit, setMonthlyImagesLimit] = useState<number>(
+    FREE_PLAN.imagensMes
+  );
+  const [monthlyImagesUsed, setMonthlyImagesUsed] = useState<number>(0);
   const [hasSubscriptionPortal, setHasSubscriptionPortal] =
     useState<boolean>(false);
   const [highlightPlanId, setHighlightPlanId] = useState<string | null>(null);
@@ -228,11 +292,45 @@ export default function ArticleStudioApp() {
   const cloudSyncTimerRef = useRef<number | null>(null);
   const migratedUidsRef = useRef<Set<string>>(new Set());
   const artigoAtualIdRef = useRef<string | null>(null);
+  const activeSessionKeyRef = useRef<string | null>(null);
   const latestWorkspaceRef = useRef({
     titulo: "",
     descricao: "",
     secoes: [] as Secao[],
   });
+
+  const syncQuotaFromApi = useCallback((snapshot: unknown) => {
+    if (!snapshot || typeof snapshot !== "object") return;
+    const s = snapshot as {
+      monthlyArticlesUsed?: number;
+      monthlyArticlesLimit?: number;
+      monthlyImagesUsed?: number;
+      monthlyImagesLimit?: number;
+    };
+    if (typeof s.monthlyArticlesUsed === "number") {
+      setMonthlyUsed(s.monthlyArticlesUsed);
+    }
+    if (typeof s.monthlyArticlesLimit === "number") {
+      setMonthlyLimit(s.monthlyArticlesLimit);
+    }
+    if (typeof s.monthlyImagesUsed === "number") {
+      setMonthlyImagesUsed(s.monthlyImagesUsed);
+    }
+    if (typeof s.monthlyImagesLimit === "number") {
+      setMonthlyImagesLimit(s.monthlyImagesLimit);
+    }
+  }, []);
+
+  const refreshUsageSnapshot = useCallback(async () => {
+    try {
+      const res = await fetch("/api/usage", { cache: "no-store" });
+      if (!res.ok) return;
+      const data = await res.json();
+      syncQuotaFromApi(data);
+    } catch {
+      // Ignora erro de rede não-crítico
+    }
+  }, [syncQuotaFromApi]);
 
   useEffect(() => {
     artigoAtualIdRef.current = artigoAtualId;
@@ -320,6 +418,8 @@ export default function ArticleStudioApp() {
           setHasSubscriptionPortal(true);
           const limit = data.articlesPerMonth ?? FREE_PLAN.artigosMes;
           setMonthlyLimit(limit);
+          setMonthlyUsed(0);
+          void refreshUsageSnapshot();
           try {
             localStorage.setItem(STORAGE_PLAN, "paid");
           } catch {
@@ -355,7 +455,7 @@ export default function ArticleStudioApp() {
     return () => {
       mounted = false;
     };
-  }, [user]);
+  }, [user, refreshUsageSnapshot]);
 
   // Load persisted data after mount (localStorage fallback + Supabase real-time sync)
   useEffect(() => {
@@ -467,6 +567,9 @@ export default function ArticleStudioApp() {
       if (!mounted) return;
       setActivePlanId(info.plan);
       setMonthlyLimit(info.monthlyLimit);
+      setMonthlyUsed(info.monthlyUsed);
+      setMonthlyImagesLimit(info.monthlyImagesLimit);
+      setMonthlyImagesUsed(info.monthlyImagesUsed);
       setHasSubscriptionPortal(info.hasSubscriptionPortal);
       setPlanoGeracao(info.planoGeracao);
       try {
@@ -476,13 +579,27 @@ export default function ArticleStudioApp() {
       }
     });
 
+    Promise.resolve().then(() => {
+      if (mounted) void refreshUsageSnapshot();
+    });
+
     return () => {
       mounted = false;
       unsubSettings();
       unsubArticles();
       unsubPlan();
     };
-  }, [user, profileReady, setTheme]);
+  }, [user, profileReady, setTheme, refreshUsageSnapshot]);
+
+  useEffect(() => {
+    let active = true;
+    Promise.resolve().then(() => {
+      if (active) void refreshUsageSnapshot();
+    });
+    return () => {
+      active = false;
+    };
+  }, [user?.uid, refreshUsageSnapshot]);
 
   useEffect(() => {
     return () => {
@@ -599,15 +716,35 @@ export default function ArticleStudioApp() {
   async function gerarImagemSecao(
     index: number,
     prompt: string,
-    signal?: AbortSignal
+    signal?: AbortSignal,
+    explicitSessionKey?: string
   ): Promise<string | undefined> {
     atualizarSecao(index, { aGerarImagem: true, erro: undefined });
     try {
-      const { url } = await postJson(
+      const sessionKeyToSend =
+        explicitSessionKey ??
+        activeSessionKeyRef.current ??
+        artigoAtualIdRef.current ??
+        undefined;
+      const res = await postJson<ImageApiResponse>(
         "/api/image",
-        { prompt, plano: planoGeracao },
+        {
+          prompt,
+          plano: planoGeracao,
+          sessionKey: sessionKeyToSend,
+        },
         signal
       );
+      if (res.quota?.snapshot) {
+        syncQuotaFromApi(res.quota.snapshot);
+      }
+      if (res.quota?.deductedArticleCredit) {
+        registrarNotificacao(
+          "Imagem extra gerada",
+          "Este artigo ultrapassou 7 imagens; 1 crédito de artigo foi convertido em +7 slots de imagem."
+        );
+      }
+      const url = res.url as string;
       const finalUrl =
         typeof url === "string" && url.startsWith("data:image/") && !user
           ? await compressImageDataUrl(url)
@@ -619,10 +756,19 @@ export default function ArticleStudioApp() {
         atualizarSecao(index, { aGerarImagem: false });
         return undefined;
       }
+      const msg = (e as Error).message;
       atualizarSecao(index, {
-        erro: (e as Error).message,
+        erro: msg,
         aGerarImagem: false,
       });
+      if (
+        e instanceof StudioApiError &&
+        (e.code === "monthly_image_limit_reached" ||
+          e.code === "article_image_limit_reached" ||
+          e.code === "paid_plan_required")
+      ) {
+        setErroGeral(msg);
+      }
       return undefined;
     }
   }
@@ -641,7 +787,7 @@ export default function ArticleStudioApp() {
     setSugerindo(true);
     setErroSugestao("");
     try {
-      const sug = await postJson("/api/suggest", {
+      const sug = await postJson<SuggestApiResponse>("/api/suggest", {
         tema: tema.trim(),
         idioma,
         plano: planoGeracao,
@@ -686,6 +832,11 @@ export default function ArticleStudioApp() {
     setPesquisaUsada(false);
     setArtigoAtualId(null);
 
+    const generationSessionKey = `art_${Date.now()}_${Math.random()
+      .toString(36)
+      .slice(2, 6)}`;
+    activeSessionKeyRef.current = generationSessionKey;
+
     try {
       let descEfetiva = (overrides?.descricao ?? descricao).trim();
       let tagsEfetivas = overrides?.palavrasChave ?? palavrasChave;
@@ -707,7 +858,7 @@ export default function ArticleStudioApp() {
               ? "A ler os seus links primários e a sugerir configurações…"
               : "A sugerir descrição, palavras-chave e estilo com IA…"
           );
-          const sug = await postJson(
+          const sug = await postJson<SuggestApiResponse>(
             "/api/suggest",
             {
               tema: temaEfetivo,
@@ -753,6 +904,9 @@ export default function ArticleStudioApp() {
           }
         } catch (sugErr) {
           if ((sugErr as Error).name === "AbortError") throw sugErr;
+          if (sugErr instanceof StudioApiError && sugErr.status === 403) {
+            throw sugErr;
+          }
         }
       }
 
@@ -774,7 +928,7 @@ export default function ArticleStudioApp() {
             ? "A pesquisar fontes na web para conciliar com a sua narração…"
             : "A avaliar e pesquisar fontes atualizadas na web…"
         );
-        const resPesquisa = await postJson(
+        const resPesquisa = await postJson<ResearchApiResponse>(
           "/api/research",
           {
             tema: temaEfetivo,
@@ -786,6 +940,7 @@ export default function ArticleStudioApp() {
             narracao: narracaoEfetiva,
             links: linksEfetivos,
             plano: planoGeracao,
+            sessionKey: generationSessionKey,
           },
           controller.signal
         );
@@ -802,7 +957,7 @@ export default function ArticleStudioApp() {
           ? "A organizar a sua narração em secções estruturadas…"
           : "A criar o esboço estruturado…"
       );
-      const esb = await postJson(
+      const esb = await postJson<OutlineApiResponse>(
         "/api/outline",
         {
           tema: temaEfetivo,
@@ -816,9 +971,13 @@ export default function ArticleStudioApp() {
           contextoPrimario,
           narracao: narracaoEfetiva,
           plano: planoGeracao,
+          sessionKey: generationSessionKey,
         },
         controller.signal
       );
+      if (esb.quota) {
+        syncQuotaFromApi(esb.quota);
+      }
 
       let lista: Secao[] = esb.secoes;
       setTitulo(esb.titulo);
@@ -831,7 +990,7 @@ export default function ArticleStudioApp() {
         if (controller.signal.aborted) break;
         setEstado(`A escrever a secção ${i + 1} de ${lista.length}…`);
 
-        const { texto, prompt } = await postJson(
+        const { texto, prompt, quota: secQuota } = await postJson<SectionApiResponse>(
           "/api/section",
           {
             titulo: esb.titulo,
@@ -848,9 +1007,13 @@ export default function ArticleStudioApp() {
             contextoPrimario,
             narracao: narracaoEfetiva,
             plano: planoGeracao,
+            sessionKey: generationSessionKey,
           },
           controller.signal
         );
+        if (secQuota) {
+          syncQuotaFromApi(secQuota);
+        }
 
         lista = lista.map((s, j) => (j === i ? { ...s, texto, prompt } : s));
         atualizarSecao(i, { texto, prompt });
@@ -858,7 +1021,12 @@ export default function ArticleStudioApp() {
 
         if (incluirImagensEfetivo && !controller.signal.aborted) {
           setEstado(`A gerar a imagem da secção ${i + 1} de ${lista.length}…`);
-          const imgUrl = await gerarImagemSecao(i, prompt, controller.signal);
+          const imgUrl = await gerarImagemSecao(
+            i,
+            prompt ?? lista[i].titulo,
+            controller.signal,
+            generationSessionKey
+          );
           if (imgUrl) {
             lista = lista.map((s, j) =>
               j === i ? { ...s, img: imgUrl } : s
@@ -868,7 +1036,7 @@ export default function ArticleStudioApp() {
       }
 
       if (!controller.signal.aborted) {
-        const novoId = `art_${Date.now()}`;
+        const novoId = generationSessionKey;
         const secoesParaLocal = !user
           ? await Promise.all(
               lista.map(async (s) =>
@@ -938,6 +1106,7 @@ export default function ArticleStudioApp() {
           }
         }
 
+        void refreshUsageSnapshot();
         setEstado("Artigo concluído e guardado em Meus Artigos.");
         registrarNotificacao("Artigo concluído", esb.titulo);
       }
@@ -947,8 +1116,15 @@ export default function ArticleStudioApp() {
       } else {
         setErroGeral((e as Error).message);
         setEstado("");
+        if (
+          e instanceof StudioApiError &&
+          (e.code === "paid_plan_required" || e.code === "article_limit_reached")
+        ) {
+          setModalTipo("upgrade");
+        }
       }
     } finally {
+      activeSessionKeyRef.current = null;
       setOcupado(false);
       abortRef.current = null;
     }
@@ -1128,6 +1304,9 @@ export default function ArticleStudioApp() {
         planoGeracao={planoGeracao}
         activePlanId={activePlanId}
         monthlyLimit={monthlyLimit}
+        monthlyUsed={monthlyUsed}
+        monthlyImagesLimit={monthlyImagesLimit}
+        monthlyImagesUsed={monthlyImagesUsed}
       />
 
       <div className="flex min-w-0 min-h-0 flex-1 flex-col px-4 py-4 sm:px-6 lg:px-8 xl:overflow-hidden">
@@ -1174,6 +1353,8 @@ export default function ArticleStudioApp() {
                   onChangePesquisaWeb={setPesquisaWeb}
                   planoGeracao={planoGeracao}
                   onChangePlanoGeracao={handleChangePlanoGeracao}
+                  hasPaidSubscription={activePlanId !== "free"}
+                  onOpenUpgrade={() => setModalTipo("upgrade")}
                   sugerindo={sugerindo}
                   erroSugestao={erroSugestao}
                   descricaoSugerida={descricaoSugerida}
@@ -1291,6 +1472,9 @@ export default function ArticleStudioApp() {
         onSelectPlanoGeracao={handleChangePlanoGeracao}
         activePlanId={activePlanId}
         monthlyLimit={monthlyLimit}
+        monthlyUsed={monthlyUsed}
+        monthlyImagesLimit={monthlyImagesLimit}
+        monthlyImagesUsed={monthlyImagesUsed}
         hasSubscriptionPortal={hasSubscriptionPortal}
         highlightPlanId={highlightPlanId}
         initialBillingCycle={initialBillingCycle}
@@ -1298,6 +1482,8 @@ export default function ArticleStudioApp() {
           setPlanoGeracao("paid");
           setActivePlanId(planId);
           setMonthlyLimit(articlesPerMonth);
+          setMonthlyUsed(0);
+          void refreshUsageSnapshot();
           setHasSubscriptionPortal(true);
           setEstado(
             `Assinatura ${getPlanDisplayName(

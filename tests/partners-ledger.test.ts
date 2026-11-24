@@ -2,25 +2,36 @@ import assert from "node:assert/strict";
 import { describe, test } from "node:test";
 import {
   calculateCommissionCents,
+  getOfficialCommissionPercentForPlan,
   getPartnerAdminEmails,
   getSupremeAdminEmail,
   isSupremeAdminEmail,
+  PLAN_COMMISSION_RATES,
   validateWithdrawalPayload,
 } from "@/lib/partners";
 import { InMemoryPartnerLedgerEngine } from "@/lib/partners-ledger";
 
 describe("Sistema de Parceiros — Livro-Caixa em Centavos e Saques", () => {
-  test("1) Calcula centavos inteiros e registra comissão de renovação recorrente", async () => {
+  test("1) Aplica taxas oficiais (Starter 20%, Pro 35%, Agência 35%) e renovação recorrente", async () => {
     const engine = new InMemoryPartnerLedgerEngine();
     engine.seedPartner({
       id: "partner-1",
       userId: "user-partner-1",
-      percentualComissao: 45,
+      percentualComissao: 35,
       ativo: true,
     });
     engine.assignReferral("buyer-1", "partner-1");
 
-    // 1º pagamento: Pro Mensal R$ 94,90 (9490 centavos) * 45% = 4270.5 -> 4271 centavos
+    assert.equal(getOfficialCommissionPercentForPlan("starter"), 20);
+    assert.equal(getOfficialCommissionPercentForPlan("pro"), 35);
+    assert.equal(getOfficialCommissionPercentForPlan("agencia"), 35);
+    assert.deepEqual(PLAN_COMMISSION_RATES, {
+      starter: 20,
+      pro: 35,
+      agencia: 35,
+    });
+
+    // 1º pagamento: Pro Mensal R$ 94,90 (9490 centavos) * 35% = 3321.5 -> 3322 centavos (R$ 33,22)
     const first = await engine.processPaymentWebhook({
       userId: "buyer-1",
       transactionId: "cakto-tx-001",
@@ -34,7 +45,8 @@ describe("Sistema de Parceiros — Livro-Caixa em Centavos e Saques", () => {
 
     assert.equal(first.recorded, true);
     assert.equal(first.commission?.tipo, "primeiro_pagamento");
-    assert.equal(first.commission?.valorComissaoCentavos, 4271);
+    assert.equal(first.commission?.percentualAplicado, 35);
+    assert.equal(first.commission?.valorComissaoCentavos, 3322);
     assert.equal(first.commission?.status, "pendente");
 
     // Renovação mensal: gera nova comissão distinta com tipo "renovacao"
@@ -51,9 +63,9 @@ describe("Sistema de Parceiros — Livro-Caixa em Centavos e Saques", () => {
 
     assert.equal(renewal.recorded, true);
     assert.equal(renewal.commission?.tipo, "renovacao");
-    assert.equal(renewal.commission?.valorComissaoCentavos, 4271);
+    assert.equal(renewal.commission?.valorComissaoCentavos, 3322);
 
-    // Base líquida configurável
+    // Base líquida configurável (9000 * 35% = 3150)
     const netBased = await engine.processPaymentWebhook({
       userId: "buyer-1",
       transactionId: "cakto-tx-003",
@@ -67,9 +79,9 @@ describe("Sistema de Parceiros — Livro-Caixa em Centavos e Saques", () => {
     });
     assert.equal(
       netBased.commission?.valorComissaoCentavos,
-      calculateCommissionCents(9000, 45)
+      calculateCommissionCents(9000, 35)
     );
-    assert.equal(netBased.commission?.valorComissaoCentavos, 4050);
+    assert.equal(netBased.commission?.valorComissaoCentavos, 3150);
 
     // Após cancelamento, novas renovações não geram comissão
     engine.cancelUserSubscription("buyer-1");
@@ -86,16 +98,16 @@ describe("Sistema de Parceiros — Livro-Caixa em Centavos e Saques", () => {
     assert.equal(afterCancel.reason, "subscription_canceled");
 
     const bal = engine.getBalance("partner-1");
-    assert.equal(bal.saldoPendenteCentavos, 4271 + 4271 + 4050);
-    assert.equal(bal.totalGanhoCentavos, 12592);
+    assert.equal(bal.saldoPendenteCentavos, 3322 + 3322 + 3150);
+    assert.equal(bal.totalGanhoCentavos, 9794);
   });
 
-  test("2) Webhook duplicado não duplica comissão (idempotência)", async () => {
+  test("2) Webhook duplicado não duplica comissão (idempotência) e Agência gera R$ 52,47", async () => {
     const engine = new InMemoryPartnerLedgerEngine();
     engine.seedPartner({
       id: "partner-1",
       userId: "user-partner-1",
-      percentualComissao: 45,
+      percentualComissao: 35,
       ativo: true,
     });
     engine.assignReferral("buyer-1", "partner-1");
@@ -121,7 +133,8 @@ describe("Sistema de Parceiros — Livro-Caixa em Centavos e Saques", () => {
     assert.equal(duplicate.recorded, false);
     assert.equal(duplicate.alreadyExists, true);
     assert.equal(engine.getCommissions("partner-1").length, 1);
-    assert.equal(engine.getBalance("partner-1").saldoPendenteCentavos, 6746);
+    // 14990 * 35% = 5246.5 -> 5247 centavos (R$ 52,47)
+    assert.equal(engine.getBalance("partner-1").saldoPendenteCentavos, 5247);
   });
 
   test("3) Estorno antes e depois do pagamento (com compensação automática no saldo futuro)", async () => {
@@ -134,13 +147,14 @@ describe("Sistema de Parceiros — Livro-Caixa em Centavos e Saques", () => {
     });
     engine.assignReferral("buyer-1", "partner-1");
 
-    // Venda 1: R$ 100,00 -> comissão R$ 50,00 (5000 centavos)
+    // Venda 1 sintética: R$ 100,00 com override 50% -> comissão R$ 50,00 (5000 centavos)
     await engine.processPaymentWebhook({
       userId: "buyer-1",
       transactionId: "tx-paid-then-refunded",
       planId: "pro",
       billingCycle: "monthly",
       grossAmountCents: 10000,
+      percentOverride: 50,
       eventType: "purchase_approved",
       nowIso: "2026-11-01T10:00:00.000Z",
     });
@@ -181,13 +195,14 @@ describe("Sistema de Parceiros — Livro-Caixa em Centavos e Saques", () => {
     // Saldo disponível fica -5000 (-R$ 50,00) a compensar
     assert.equal(engine.getBalance("partner-1").saldoDisponivelCentavos, -5000);
 
-    // Nova venda R$ 160,00 -> comissão R$ 80,00 (8000 centavos)
+    // Nova venda R$ 160,00 com override 50% -> comissão R$ 80,00 (8000 centavos)
     await engine.processPaymentWebhook({
       userId: "buyer-1",
       transactionId: "tx-future-gain",
       planId: "agencia",
       billingCycle: "monthly",
       grossAmountCents: 16000,
+      percentOverride: 50,
       eventType: "subscription_renewed",
       nowIso: "2026-11-11T10:00:00.000Z",
     });
@@ -208,12 +223,12 @@ describe("Sistema de Parceiros — Livro-Caixa em Centavos e Saques", () => {
     engine.seedPartner({
       id: "partner-1",
       userId: "user-partner-1",
-      percentualComissao: 45,
+      percentualComissao: 35,
       ativo: true,
     });
     engine.assignReferral("buyer-1", "partner-1");
 
-    // Comissão Starter R$ 34,90 * 45% = R$ 15,71 (1571 centavos) -> abaixo de R$ 50,00
+    // Comissão Starter R$ 34,90 * 20% = R$ 6,98 (698 centavos) -> abaixo de R$ 50,00
     await engine.processPaymentWebhook({
       userId: "buyer-1",
       transactionId: "tx-low-1",
@@ -224,6 +239,8 @@ describe("Sistema de Parceiros — Livro-Caixa em Centavos e Saques", () => {
       nowIso: "2026-11-01T10:00:00.000Z",
     });
     engine.matureCommissions("2026-11-09T10:00:00.000Z");
+
+    assert.equal(engine.getBalance("partner-1").saldoDisponivelCentavos, 698);
 
     const lowAttempt = await engine.requestWithdrawal({
       partnerId: "partner-1",
@@ -236,7 +253,7 @@ describe("Sistema de Parceiros — Livro-Caixa em Centavos e Saques", () => {
       assert.equal(lowAttempt.code, "insufficient_balance");
     }
 
-    // Adiciona mais comissões para passar de R$ 50,00 (+ 6746 = 8317 centavos)
+    // Adiciona comissão Agência R$ 149,90 * 35% = R$ 52,47 (5247) -> total 5945 centavos
     await engine.processPaymentWebhook({
       userId: "buyer-1",
       transactionId: "tx-high-2",
@@ -248,7 +265,7 @@ describe("Sistema de Parceiros — Livro-Caixa em Centavos e Saques", () => {
     });
     engine.matureCommissions("2026-11-18T10:00:00.000Z");
 
-    // Tentativa solicitando valor acima do saldo disponível (10000 > 8317)
+    // Tentativa solicitando valor acima do saldo disponível (10000 > 5945)
     const overAttempt = await engine.requestWithdrawal({
       partnerId: "partner-1",
       metodo: "pix",
@@ -271,7 +288,7 @@ describe("Sistema de Parceiros — Livro-Caixa em Centavos e Saques", () => {
     assert.equal(validReq.ok, true);
     if (!validReq.ok) throw new Error("expected valid withdrawal");
     assert.equal(engine.getBalance("partner-1").saldoDisponivelCentavos, 0);
-    assert.equal(engine.getBalance("partner-1").saldoEmSaqueCentavos, 8317);
+    assert.equal(engine.getBalance("partner-1").saldoEmSaqueCentavos, 5945);
 
     const refuse = await engine.adminUpdateWithdrawal({
       withdrawalId: validReq.withdrawal.id,
@@ -279,7 +296,7 @@ describe("Sistema de Parceiros — Livro-Caixa em Centavos e Saques", () => {
       motivoRecusa: "Titularidade divergente.",
     });
     assert.equal(refuse.ok, true);
-    assert.equal(engine.getBalance("partner-1").saldoDisponivelCentavos, 8317);
+    assert.equal(engine.getBalance("partner-1").saldoDisponivelCentavos, 5945);
     assert.equal(engine.getBalance("partner-1").saldoEmSaqueCentavos, 0);
   });
 
@@ -288,7 +305,7 @@ describe("Sistema de Parceiros — Livro-Caixa em Centavos e Saques", () => {
     engine.seedPartner({
       id: "partner-race",
       userId: "user-partner-race",
-      percentualComissao: 45,
+      percentualComissao: 35,
       ativo: true,
     });
     engine.assignReferral("buyer-race", "partner-race");
@@ -330,11 +347,11 @@ describe("Sistema de Parceiros — Livro-Caixa em Centavos e Saques", () => {
 
     const withdrawals = engine.getWithdrawals("partner-race");
     assert.equal(withdrawals.length, 1);
-    assert.equal(engine.getBalance("partner-race").saldoEmSaqueCentavos, 6746);
+    assert.equal(engine.getBalance("partner-race").saldoEmSaqueCentavos, 5247);
     assert.equal(engine.getBalance("partner-race").saldoDisponivelCentavos, 0);
   });
 
-  test("Validação de entrada de saque no servidor bloqueia payload inválido", () => {
+  test("6) Validação de entrada de saque no servidor bloqueia payload inválido", () => {
     const invalidPix = validateWithdrawalPayload({
       metodo: "pix",
       pixTipoChave: "invalido",

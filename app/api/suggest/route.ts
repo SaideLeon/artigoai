@@ -9,6 +9,7 @@ import {
   normalizeAndDedupeLinks,
   scrapePrimaryLinks,
 } from "@/lib/link-scraper";
+import { enforceGenerationQuota } from "@/lib/usage-enforcement";
 import {
   FAIXAS_PALAVRAS,
   TONS_TEXTO,
@@ -58,6 +59,25 @@ export async function POST(req: Request) {
       links?: string[];
     } = await req.json();
 
+    const requestedPlano = normalizePlano(rawPlano);
+    const quotaDecision = await enforceGenerationQuota({
+      req,
+      requestedPlano,
+      action: "verify_plan",
+    });
+
+    if (!quotaDecision.allowed) {
+      return NextResponse.json(
+        {
+          erro: quotaDecision.error,
+          code: quotaDecision.code,
+          quota: quotaDecision.snapshot,
+        },
+        { status: quotaDecision.status }
+      );
+    }
+
+    const plano = quotaDecision.effectivePlano;
     const primaryLinks = normalizeAndDedupeLinks(links, tema);
 
     if ((!tema || !tema.trim()) && primaryLinks.length === 0) {
@@ -72,7 +92,6 @@ export async function POST(req: Request) {
         ? await scrapePrimaryLinks(primaryLinks)
         : { formattedContext: "" };
 
-    const plano = normalizePlano(rawPlano);
     const prompt = `Com base ${
       primaryContext
         ? `nos links de referência (fonte primária) fornecidos pelo utilizador${

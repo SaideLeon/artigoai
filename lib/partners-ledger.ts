@@ -4,6 +4,7 @@ import {
   COMISSAO_MAX_MESES,
   COMISSAO_RECORRENTE,
   GARANTIA_DIAS,
+  getOfficialCommissionPercentForPlan,
   SAQUE_MINIMO_CENTAVOS,
   type CommissionBaseMode,
   type CommissionStatus,
@@ -292,6 +293,7 @@ export class InMemoryPartnerLedgerEngine {
     recurringEnabled?: boolean;
     maxMonths?: number | null;
     warrantyDays?: number;
+    percentOverride?: number;
   }): Promise<{
     recorded: boolean;
     alreadyExists?: boolean;
@@ -351,9 +353,17 @@ export class InMemoryPartnerLedgerEngine {
           ? Math.max(0, Math.round(params.netAmountCents))
           : Math.max(0, Math.round(params.grossAmountCents));
 
+      const percentualAplicado =
+        typeof params.percentOverride === "number"
+          ? params.percentOverride
+          : getOfficialCommissionPercentForPlan(
+              params.planId,
+              partner.percentualComissao
+            );
+
       const valorComissaoCentavos = calculateCommissionCents(
         baseAmountCents,
-        partner.percentualComissao
+        percentualAplicado
       );
 
       const warrantyDays = params.warrantyDays ?? GARANTIA_DIAS;
@@ -371,7 +381,7 @@ export class InMemoryPartnerLedgerEngine {
         ciclo: params.billingCycle,
         tipo,
         valorBaseCentavos: baseAmountCents,
-        percentualAplicado: partner.percentualComissao,
+        percentualAplicado,
         valorComissaoCentavos,
         baseCalculo: baseMode,
         status: "pendente",

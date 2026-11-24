@@ -26,8 +26,32 @@ export const BASE_DE_CALCULO: CommissionBaseMode = "valor_bruto"; // "valor_brut
 export const GARANTIA_DIAS = 7; // Período em dias até comissão pendente virar disponível
 export const SAQUE_MINIMO_CENTAVOS = 5000; // R$ 50,00 em centavos inteiros
 
-export const DEFAULT_PARTNER_COMMISSION_PERCENT = 45;
+export const DEFAULT_PARTNER_COMMISSION_PERCENT = 35;
 export const DEFAULT_INVITE_VALIDITY_DAYS = 14;
+
+/**
+ * Taxas oficiais do Programa de Parceiros por plano assinado pelo indicado,
+ * incidindo sobre o valor bruto efetivamente recebido pelo Artigen.
+ */
+export const PLAN_COMMISSION_RATES: Record<"starter" | "pro" | "agencia", number> = {
+  starter: 20,
+  pro: 35,
+  agencia: 35,
+};
+
+export function getOfficialCommissionPercentForPlan(
+  planId: string | null | undefined,
+  fallbackPercent: number = DEFAULT_PARTNER_COMMISSION_PERCENT
+): number {
+  const normalized = (planId ?? "").trim().toLowerCase();
+  if (normalized === "starter") return PLAN_COMMISSION_RATES.starter;
+  if (normalized === "pro") return PLAN_COMMISSION_RATES.pro;
+  if (normalized === "agencia") return PLAN_COMMISSION_RATES.agencia;
+  const parsed = Number(fallbackPercent);
+  return Number.isFinite(parsed) && parsed >= 0 && parsed <= 100
+    ? parsed
+    : DEFAULT_PARTNER_COMMISSION_PERCENT;
+}
 
 export type InviteStatus = "pendente" | "aceito" | "expirado" | "cancelado";
 export type CommissionType = "primeiro_pagamento" | "renovacao";

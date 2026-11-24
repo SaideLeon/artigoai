@@ -99,11 +99,15 @@ export default function TermosParceirosPage() {
         </h2>
         <ul className="list-disc space-y-2 pl-5">
           <li>
-            <strong>Base de cálculo e recorrência:</strong> a comissão incide
-            sobre o valor configurado do programa (por padrão, o{" "}
-            <strong>valor bruto</strong>) de cada pagamento aprovado na Cakto
-            (Pix, Cartão de Crédito ou Boleto) pelo usuário indicado, incluindo
-            primeiro pagamento e renovações enquanto a assinatura estiver ativa.
+            <strong>Percentuais oficiais por plano (sobre valor bruto):</strong>{" "}
+            a comissão incide sobre o <strong>valor bruto</strong> efetivamente
+            recebido em cada pagamento aprovado na Cakto (Pix, Cartão de Crédito
+            ou Boleto) pelo usuário indicado, nas seguintes alíquotas oficiais:{" "}
+            <strong>20% no plano Starter</strong> (ex.: R$ 34,90 gera R$ 6,98),{" "}
+            <strong>35% no plano Pro</strong> (ex.: R$ 94,90 gera R$ 33,22) e{" "}
+            <strong>35% no plano Agência</strong> (ex.: R$ 149,90 gera R$ 52,47),
+            tanto no primeiro pagamento quanto nas renovações enquanto a
+            assinatura estiver ativa.
           </li>
           <li>
             <strong>Ciclo de estados (garantia de 7 dias):</strong> toda comissão

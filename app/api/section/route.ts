@@ -4,6 +4,10 @@ import {
   generatePaidGeminiText,
   normalizePlano,
 } from "@/lib/ai-providers";
+import {
+  attachGuestQuotaCookie,
+  enforceGenerationQuota,
+} from "@/lib/usage-enforcement";
 
 export async function POST(req: Request) {
   try {
@@ -22,9 +26,29 @@ export async function POST(req: Request) {
       contextoPrimario = "",
       narracao = "",
       plano: rawPlano,
+      sessionKey,
     } = await req.json();
 
-    const plano = normalizePlano(rawPlano);
+    const requestedPlano = normalizePlano(rawPlano);
+    const quotaDecision = await enforceGenerationQuota({
+      req,
+      requestedPlano,
+      action: "article",
+      sessionKey: typeof sessionKey === "string" ? sessionKey : undefined,
+    });
+
+    if (!quotaDecision.allowed) {
+      return NextResponse.json(
+        {
+          erro: quotaDecision.error,
+          code: quotaDecision.code,
+          quota: quotaDecision.snapshot,
+        },
+        { status: quotaDecision.status }
+      );
+    }
+
+    const plano = quotaDecision.effectivePlano;
     const narracaoLimpa =
       typeof narracao === "string" ? narracao.trim().slice(0, 16000) : "";
     const primarioLimpo =
@@ -67,12 +91,17 @@ Na última linha, depois do texto, escreve: IMAGEM: <descrição visual da secç
 
     const [texto, promptImg] = result.text.split(/\n\s*\**IMAGEM:?\**:?/i);
 
-    return NextResponse.json({
+    const response = NextResponse.json({
       texto: texto.trim(),
       prompt: (promptImg ?? `Illustration about ${secao.titulo}`).trim(),
       provedor: result.provedor,
       modelo: result.modelo,
+      quota: quotaDecision.snapshot,
     });
+    return attachGuestQuotaCookie(
+      response,
+      quotaDecision.updatedGuestCookieValue
+    );
   } catch (e) {
     return NextResponse.json({ erro: (e as Error).message }, { status: 500 });
   }
