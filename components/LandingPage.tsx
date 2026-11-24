@@ -12,6 +12,7 @@ import {
   FileText,
   Globe,
   Image as ImageIcon,
+  Loader2,
   Mail,
   Menu,
   Moon,
@@ -204,6 +205,7 @@ export default function LandingPage() {
   const [mensagem, setMensagem] = useState("");
   const [formErro, setFormErro] = useState("");
   const [formEnviado, setFormEnviado] = useState(false);
+  const [sendingContact, setSendingContact] = useState(false);
 
   const preset = PREVIEW_PRESETS[presetId];
   const isLaptopOpen = headerHovered || laptopHovered || laptopPinnedOpen;
@@ -224,8 +226,9 @@ export default function LandingPage() {
     el?.scrollIntoView({ behavior: "smooth" });
   }
 
-  function handleSubmitContact(e: React.FormEvent) {
+  async function handleSubmitContact(e: React.FormEvent) {
     e.preventDefault();
+    if (sendingContact) return;
     setFormErro("");
 
     if (!nome.trim() || nome.trim().length < 2) {
@@ -242,10 +245,36 @@ export default function LandingPage() {
       return;
     }
 
-    setFormEnviado(true);
-    setNome("");
-    setEmail("");
-    setMensagem("");
+    setSendingContact(true);
+    try {
+      const res = await fetch("/api/contact", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          nome: nome.trim(),
+          email: email.trim(),
+          assunto: assunto.trim(),
+          mensagem: mensagem.trim(),
+        }),
+      });
+      const data = (await res.json()) as { ok?: boolean; erro?: string };
+      if (!res.ok || !data.ok) {
+        setFormErro(
+          data.erro ||
+            "Não foi possível enviar sua mensagem agora. Tente novamente."
+        );
+        return;
+      }
+
+      setFormEnviado(true);
+      setNome("");
+      setEmail("");
+      setMensagem("");
+    } catch {
+      setFormErro("Erro de rede ao enviar mensagem. Tente novamente.");
+    } finally {
+      setSendingContact(false);
+    }
   }
 
   return (
@@ -1376,10 +1405,20 @@ export default function LandingPage() {
 
                   <button
                     type="submit"
-                    className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-[#5B4AF4] to-[#2563EB] px-5 py-2.5 text-sm font-semibold text-white transition-all hover:brightness-110"
+                    disabled={sendingContact}
+                    className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-[#5B4AF4] to-[#2563EB] px-5 py-2.5 text-sm font-semibold text-white transition-all hover:brightness-110 disabled:opacity-60"
                   >
-                    <span>Enviar Mensagem</span>
-                    <ArrowRight className="h-4 w-4" />
+                    {sendingContact ? (
+                      <>
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        <span>Enviando…</span>
+                      </>
+                    ) : (
+                      <>
+                        <span>Enviar Mensagem</span>
+                        <ArrowRight className="h-4 w-4" />
+                      </>
+                    )}
                   </button>
                 </form>
               )}

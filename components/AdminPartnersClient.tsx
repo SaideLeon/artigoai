@@ -15,6 +15,7 @@ import {
   Loader2,
   LogIn,
   LogOut,
+  Mail,
   MousePointerClick,
   Plus,
   RefreshCw,
@@ -125,6 +126,11 @@ type AdminAuditItem = {
 
 type AdminOverviewPayload = {
   adminEmail: string;
+  emailService?: {
+    configured: boolean;
+    domain: string;
+    from: string;
+  };
   planCommissionRates?: {
     starter: number;
     pro: number;
@@ -208,6 +214,10 @@ export default function AdminPartnersClient() {
   const [maturationMessage, setMaturationMessage] = useState<string | null>(
     null
   );
+  const [emailTestMessage, setEmailTestMessage] = useState<{
+    ok: boolean;
+    text: string;
+  } | null>(null);
 
   // Modal de ação de saque (pagar / recusar)
   const [withdrawalActionModal, setWithdrawalActionModal] = useState<{
@@ -411,6 +421,41 @@ export default function AdminPartnersClient() {
       } else {
         setMaturationMessage(json.erro || "Falha ao processar maturação.");
       }
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  const handleSendTestEmail = async () => {
+    setBusyId("email-test");
+    setEmailTestMessage(null);
+    try {
+      const res = await fetch("/api/admin/email-test", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({}),
+      });
+      const json = (await res.json()) as {
+        ok?: boolean;
+        to?: string;
+        erro?: string;
+      };
+      if (res.ok && json.ok) {
+        setEmailTestMessage({
+          ok: true,
+          text: `E-mail de teste enviado via Resend para ${json.to ?? data?.adminEmail}.`,
+        });
+      } else {
+        setEmailTestMessage({
+          ok: false,
+          text: json.erro || "Falha ao enviar e-mail de teste via Resend.",
+        });
+      }
+    } catch {
+      setEmailTestMessage({
+        ok: false,
+        text: "Erro de rede ao testar envio via Resend.",
+      });
     } finally {
       setBusyId(null);
     }
@@ -699,23 +744,54 @@ export default function AdminPartnersClient() {
                 </h1>
                 <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
                   Sessão verificada: {data.adminEmail}
+                  {data.emailService
+                    ? ` · Resend (${data.emailService.domain}: ${
+                        data.emailService.configured ? "ativo" : "chave ausente"
+                      })`
+                    : ""}
                   {maturationMessage ? ` · ${maturationMessage}` : ""}
                 </p>
+                {emailTestMessage ? (
+                  <p
+                    className={`mt-1 text-xs font-medium ${
+                      emailTestMessage.ok
+                        ? "text-emerald-700 dark:text-emerald-400"
+                        : "text-rose-600 dark:text-rose-400"
+                    }`}
+                  >
+                    {emailTestMessage.text}
+                  </p>
+                ) : null}
               </div>
 
-              <button
-                type="button"
-                disabled={busyId === "cron-maturar"}
-                onClick={() => void handleRunMaturationCron()}
-                className="inline-flex min-h-[40px] items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-xs font-semibold text-slate-700 shadow-xs hover:bg-slate-100 disabled:opacity-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800 whitespace-nowrap shrink-0"
-              >
-                <RefreshCw
-                  className={`h-3.5 w-3.5 ${
-                    busyId === "cron-maturar" ? "animate-spin" : ""
-                  }`}
-                />
-                <span>Liberar garantia vencida</span>
-              </button>
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  disabled={busyId === "email-test"}
+                  onClick={() => void handleSendTestEmail()}
+                  className="inline-flex min-h-[40px] items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-xs font-semibold text-slate-700 shadow-xs hover:bg-slate-100 disabled:opacity-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800 whitespace-nowrap shrink-0"
+                >
+                  {busyId === "email-test" ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <Mail className="h-3.5 w-3.5" />
+                  )}
+                  <span>Testar e-mail Resend</span>
+                </button>
+                <button
+                  type="button"
+                  disabled={busyId === "cron-maturar"}
+                  onClick={() => void handleRunMaturationCron()}
+                  className="inline-flex min-h-[40px] items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-xs font-semibold text-slate-700 shadow-xs hover:bg-slate-100 disabled:opacity-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800 whitespace-nowrap shrink-0"
+                >
+                  <RefreshCw
+                    className={`h-3.5 w-3.5 ${
+                      busyId === "cron-maturar" ? "animate-spin" : ""
+                    }`}
+                  />
+                  <span>Liberar garantia vencida</span>
+                </button>
+              </div>
             </div>
 
             {/* Tabela de Referência Oficial de Planos e Comissões */}

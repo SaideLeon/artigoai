@@ -17,6 +17,7 @@ import {
   recordPartnerCommissionForPayment,
   reversePartnerCommissionForTransaction,
 } from "@/lib/partner-commissions";
+import { notifySubscriptionConfirmed } from "@/lib/email";
 
 export type CaktoFulfillmentResult = {
   fulfilled: boolean;
@@ -610,6 +611,34 @@ export async function fulfillCaktoOrderOrEvent(params: {
       transactionId: commissionTxId,
       eventType: params.eventType,
     });
+  }
+
+  if (!insertError) {
+    try {
+      let recipientEmail = extracted.customerEmail ?? "";
+      if (!recipientEmail) {
+        const { data: userProf } = await admin
+          .from("profiles")
+          .select("email")
+          .eq("id", userId)
+          .maybeSingle();
+        recipientEmail = userProf?.email ? String(userProf.email) : "";
+      }
+      if (recipientEmail) {
+        await notifySubscriptionConfirmed({
+          userEmail: recipientEmail,
+          planName: plan.nome,
+          planId: plan.id,
+          billingCycle,
+          articlesPerMonth: plan.artigosMes,
+          imagesPerMonth: plan.imagensMes,
+          amountCents,
+          paymentMethod: extracted.paymentMethod,
+        });
+      }
+    } catch {
+      // Nunca bloqueia o fulfillment do webhook se o e-mail falhar
+    }
   }
 
   return {

@@ -12,6 +12,7 @@ import {
   type LedgerCommissionRecord,
   type LedgerWithdrawalRecord,
 } from "@/lib/partners-ledger";
+import { getEmailServiceSummary } from "@/lib/email";
 import { requirePartnerAdmin } from "@/lib/partners-server";
 
 const VALID_COMM_STATUSES = new Set<CommissionStatus>([
@@ -376,6 +377,7 @@ export async function GET(req: NextRequest) {
 
   return NextResponse.json({
     adminEmail: auth.user.email ?? "",
+    emailService: getEmailServiceSummary(),
     planCommissionRates: PLAN_COMMISSION_RATES,
     summary: {
       totalParceiros: enrichedPartners.length,

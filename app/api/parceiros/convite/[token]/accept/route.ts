@@ -5,6 +5,7 @@ import {
   generateUniquePartnerCode,
   getAuthenticatedServerUser,
 } from "@/lib/partners-server";
+import { notifyPartnerWelcome } from "@/lib/email";
 
 export async function POST(
   _req: NextRequest,
@@ -152,6 +153,20 @@ export async function POST(
       },
       { status: 500 }
     );
+  }
+
+  if (user.email) {
+    try {
+      await notifyPartnerWelcome({
+        partnerEmail: user.email,
+        partnerName:
+          (user.user_metadata?.full_name as string | undefined) ||
+          (user.user_metadata?.name as string | undefined),
+        partnerCode: String(createdPartner.codigo),
+      });
+    } catch {
+      // Falha de e-mail não bloqueia aceite do convite
+    }
   }
 
   return NextResponse.json({
