@@ -28,6 +28,7 @@ import {
   Tooltip,
 } from "recharts";
 import { useTheme } from "@/components/ThemeProvider";
+import PWAInstallButton from "@/components/PWAInstallButton";
 import {
   FAIXAS_PALAVRAS,
   TONS_TEXTO,
@@ -778,6 +779,8 @@ export function SettingsView({
           </button>
         </div>
       </div>
+
+      <PWAInstallButton variant="card" />
 
       <div className="grid gap-4 sm:grid-cols-2">
         <div>

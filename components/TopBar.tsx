@@ -18,6 +18,7 @@ import {
 import { useTheme } from "@/components/ThemeProvider";
 import { useAuth } from "@/components/AuthProvider";
 import BrandLogo from "@/components/BrandLogo";
+import PWAInstallButton from "@/components/PWAInstallButton";
 import type { NavTab, NotificacaoItem } from "@/lib/types";
 
 type TopBarProps = {
@@ -93,6 +94,7 @@ export default function TopBar({
         </div>
 
         <div className="flex items-center gap-2.5 sm:gap-3">
+          <PWAInstallButton variant="compact" />
           {/* Theme toggle */}
           <button
             type="button"

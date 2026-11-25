@@ -29,6 +29,7 @@ import {
 } from "lucide-react";
 import BrandLogo from "@/components/BrandLogo";
 import CookieSettingsButton from "@/components/CookieSettingsButton";
+import PWAInstallButton from "@/components/PWAInstallButton";
 import { useTheme } from "@/components/ThemeProvider";
 import { useAuth } from "@/components/AuthProvider";
 import RobotScene from "@/components/mascot/RobotScene";
@@ -317,6 +318,7 @@ export default function LandingPage() {
 
           {/* Zone 3: Account Sign-In + Primary CTA (+ mobile menu button on small screens) */}
           <div className="flex items-center gap-2.5 shrink-0">
+            <PWAInstallButton variant="compact" />
             {user ? (
               <Link
                 href="/studio"
@@ -400,6 +402,10 @@ export default function LandingPage() {
                   <span>{signingIn ? "A entrar..." : "Entrar com Google"}</span>
                 </button>
               )}
+              <PWAInstallButton
+                variant="menu"
+                onClickBeforeAction={() => setMobileNavOpen(false)}
+              />
             </div>
           </nav>
         )}

@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import {
   Plus_Jakarta_Sans,
   Source_Serif_4,
@@ -8,6 +8,7 @@ import { ThemeProvider } from "@/components/ThemeProvider";
 import { AuthProvider } from "@/components/AuthProvider";
 import { BrandLogoDefs } from "@/components/BrandLogo";
 import CookieConsentBanner from "@/components/CookieConsentBanner";
+import PWAShellHelper from "@/components/PWAShellHelper";
 import {
   DEFAULT_KEYWORDS,
   DEFAULT_OPEN_GRAPH,
@@ -41,6 +42,15 @@ const jetbrainsMono = JetBrains_Mono({
   display: "swap",
 });
 
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#5B4AF4" },
+    { media: "(prefers-color-scheme: dark)", color: "#0B1124" },
+  ],
+};
+
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
   title: {
@@ -70,6 +80,21 @@ export const metadata: Metadata = {
   openGraph: DEFAULT_OPEN_GRAPH,
   twitter: DEFAULT_TWITTER,
   manifest: "/manifest.webmanifest",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: SITE_NAME,
+  },
+  icons: {
+    icon: [
+      { url: "/icon.svg", type: "image/svg+xml" },
+      { url: "/pwa-192x192.png", sizes: "192x192", type: "image/png" },
+      { url: "/pwa-512x512.png", sizes: "512x512", type: "image/png" },
+    ],
+    apple: [
+      { url: "/apple-touch-icon.png", sizes: "180x180", type: "image/png" },
+    ],
+  },
 };
 
 const structuredDataJson = buildStructuredDataJsonLd();
@@ -94,6 +119,7 @@ export default function RootLayout({
         <AuthProvider>
           <ThemeProvider>
             {children}
+            <PWAShellHelper />
             <CookieConsentBanner />
           </ThemeProvider>
         </AuthProvider>
