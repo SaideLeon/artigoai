@@ -56,21 +56,15 @@ function writeStoredTheme(key: string, value: Theme) {
   }
 }
 
-function resolveDefaultTheme(): Theme {
+export const DEFAULT_THEME: Theme = "light";
+
+export function resolveDefaultTheme(storedTheme?: string | null): Theme {
+  if (storedTheme === "dark" || storedTheme === "light") {
+    return storedTheme;
+  }
   const guestStored = readStoredTheme(STORAGE_THEME_GUEST);
   if (guestStored) return guestStored;
-  try {
-    if (
-      typeof window !== "undefined" &&
-      window.matchMedia &&
-      window.matchMedia("(prefers-color-scheme: dark)").matches
-    ) {
-      return "dark";
-    }
-  } catch {
-    // Ignora indisponibilidade de matchMedia
-  }
-  return "light";
+  return DEFAULT_THEME;
 }
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
