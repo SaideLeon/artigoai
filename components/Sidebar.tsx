@@ -14,6 +14,9 @@ import {
   X,
   ArrowLeft,
   Bot,
+  Mail,
+  ShieldCheck,
+  ArrowUpRight,
 } from "lucide-react";
 import type { NavTab, PlanoGeracao } from "@/lib/types";
 import { FREE_PLAN, getPlanDisplayName } from "@/lib/pricing";
@@ -33,6 +36,8 @@ type SidebarProps = {
   monthlyUsed?: number;
   monthlyImagesLimit?: number;
   monthlyImagesUsed?: number;
+  isAdmin?: boolean;
+  unreadInboxCount?: number;
 };
 
 const NAV_ITEMS: { id: NavTab; label: string; icon: typeof Home }[] = [
@@ -58,6 +63,8 @@ export default function Sidebar({
   monthlyUsed = 0,
   monthlyImagesLimit = FREE_PLAN.imagensMes,
   monthlyImagesUsed = 0,
+  isAdmin = false,
+  unreadInboxCount = 0,
 }: SidebarProps) {
   const content = (
     <aside className="relative flex h-full min-h-0 w-[252px] shrink-0 flex-col overflow-hidden bg-gradient-to-b from-[#0E162E] via-[#121C3A] to-[#111936] px-4 py-5 text-slate-200 select-none dark:border-r dark:border-slate-800/80">
@@ -153,6 +160,55 @@ export default function Sidebar({
               </button>
             );
           })}
+
+          {isAdmin && (
+            <div className="mt-3 border-t border-white/10 pt-3 space-y-1.5">
+              <p className="px-3.5 text-[10px] font-bold uppercase tracking-wider text-indigo-300/80">
+                Administração
+              </p>
+
+              <button
+                type="button"
+                onClick={() => {
+                  onSelectTab("emails");
+                  onCloseMobile();
+                }}
+                className={`group flex w-full items-center justify-between rounded-xl px-3.5 py-2.5 text-left text-sm font-medium transition-all duration-150 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-400 ${
+                  activeTab === "emails"
+                    ? "bg-gradient-to-r from-[#5B4AF4] to-[#3B82F6] text-white shadow-md shadow-indigo-950/40"
+                    : "text-slate-200 hover:bg-white/8 hover:text-white"
+                }`}
+              >
+                <span className="flex items-center gap-3 whitespace-nowrap">
+                  <Mail
+                    className={`h-[18px] w-[18px] shrink-0 ${
+                      activeTab === "emails"
+                        ? "text-white"
+                        : "text-indigo-300 group-hover:text-white"
+                    }`}
+                  />
+                  <span>Caixa de E-mail</span>
+                </span>
+                {unreadInboxCount > 0 && (
+                  <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-rose-500 px-1.5 text-[10px] font-bold text-white tabular-nums">
+                    {unreadInboxCount}
+                  </span>
+                )}
+              </button>
+
+              <Link
+                href="/admin/parceiros"
+                onClick={onCloseMobile}
+                className="group flex w-full items-center justify-between rounded-xl border border-indigo-400/25 bg-indigo-500/12 px-3.5 py-2.5 text-left text-sm font-semibold text-indigo-100 transition-all duration-150 hover:bg-indigo-500/25 hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-400"
+              >
+                <span className="flex items-center gap-3 whitespace-nowrap">
+                  <ShieldCheck className="h-[18px] w-[18px] shrink-0 text-amber-300" />
+                  <span>Área Administrativa</span>
+                </span>
+                <ArrowUpRight className="h-3.5 w-3.5 text-indigo-300 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
+              </Link>
+            </div>
+          )}
         </nav>
 
         {/* Bottom Plan Card + Support Links */}

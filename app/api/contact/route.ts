@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
+import { recordContactFormMessage } from "@/lib/admin-inbox";
+import { getSupabaseAdminClient } from "@/lib/cakto-fulfillment";
 import {
   DEFAULT_CONTACT_TO_EMAIL,
   isValidEmailAddress,
@@ -71,7 +73,16 @@ export async function POST(req: NextRequest) {
     mensagem,
   });
 
-  if (result.provider === "unconfigured") {
+  const adminSupabase = getSupabaseAdminClient();
+  const inboxRecord = await recordContactFormMessage(adminSupabase, {
+    nome,
+    email,
+    assunto,
+    mensagem,
+    resendEmailId: result.id ?? null,
+  });
+
+  if (result.provider === "unconfigured" && !inboxRecord.saved) {
     return NextResponse.json(
       {
         erro: `O envio automático de e-mails está pendente de configuração (RESEND_API_KEY). Enquanto isso, escreva para ${DEFAULT_CONTACT_TO_EMAIL}.`,
@@ -80,7 +91,7 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  if (!result.sent) {
+  if (!result.sent && !inboxRecord.saved) {
     return NextResponse.json(
       {
         erro: `Não foi possível enviar sua mensagem agora (${result.error || "falha no serviço de e-mail"}). Tente novamente ou escreva para ${DEFAULT_CONTACT_TO_EMAIL}.`,
@@ -92,6 +103,7 @@ export async function POST(req: NextRequest) {
   return NextResponse.json({
     ok: true,
     id: result.id ?? null,
+    inboxThreadId: inboxRecord.threadId ?? null,
     mensagem: "Mensagem enviada com sucesso! Responderemos em breve.",
   });
 }

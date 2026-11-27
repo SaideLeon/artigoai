@@ -14,6 +14,7 @@ import {
   LogIn,
   LogOut,
   Cloud,
+  Mail,
 } from "lucide-react";
 import { useTheme } from "@/components/ThemeProvider";
 import { useAuth } from "@/components/AuthProvider";
@@ -26,6 +27,8 @@ type TopBarProps = {
   notificacoes: NotificacaoItem[];
   onMarcarLidas: () => void;
   onNavigate: (tab: NavTab) => void;
+  isAdmin?: boolean;
+  unreadInboxCount?: number;
 };
 
 export default function TopBar({
@@ -33,6 +36,8 @@ export default function TopBar({
   notificacoes,
   onMarcarLidas,
   onNavigate,
+  isAdmin = false,
+  unreadInboxCount = 0,
 }: TopBarProps) {
   const { theme, toggleTheme } = useTheme();
   const { user, loading, authError, clearAuthError, signInWithGoogle, signOutUser } =
@@ -115,6 +120,27 @@ export default function TopBar({
               <Moon className="h-[18px] w-[18px]" />
             )}
           </button>
+
+          {isAdmin && (
+            <button
+              type="button"
+              onClick={() => onNavigate("emails")}
+              title={
+                unreadInboxCount > 0
+                  ? `${unreadInboxCount} e-mail(s) não lido(s) na Caixa Artigen`
+                  : "Abrir Caixa de E-mail Artigen"
+              }
+              aria-label="Caixa de E-mail Artigen"
+              className="relative flex h-9 w-9 items-center justify-center rounded-full border border-slate-200/80 bg-white text-slate-600 transition-colors hover:bg-slate-50 hover:text-slate-900 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white focus-visible:outline-2 focus-visible:outline-indigo-600"
+            >
+              <Mail className="h-[18px] w-[18px]" />
+              {unreadInboxCount > 0 && (
+                <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-rose-500 px-1 text-[10px] font-bold text-white tabular-nums">
+                  {unreadInboxCount}
+                </span>
+              )}
+            </button>
+          )}
 
           {/* Notifications dropdown */}
           <div className="relative" ref={notifRef}>

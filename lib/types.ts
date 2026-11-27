@@ -103,7 +103,8 @@ export type NavTab =
   | "artigos"
   | "favoritos"
   | "estatisticas"
-  | "configuracoes";
+  | "configuracoes"
+  | "emails";
 
 export type WorkspaceTab = "previa" | "editor" | "seo";
 

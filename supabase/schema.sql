@@ -18,4 +18,6 @@
 --   11. 11_partners_rpc_admin_saque.sql     -> RPC de análise/pagamento/recusa pelo admin supremo
 --   12. 12_partners_rpc_estorno.sql         -> RPC de estorno com compensação automática
 --   13. 13_superadmin_roles.sql             -> Papel superadmin protegido em public.profiles
+--   14. 14_plans_and_partner_rates.sql     -> Planos atualizados, limites de imagens e taxas 20%/35%/35%
+--   15. 15_admin_email_inbox.sql           -> Caixa de e-mail administrativa (threads e respostas)
 -- =============================================================================

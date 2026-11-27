@@ -11,6 +11,7 @@ import {
   StatisticsView,
   SettingsView,
 } from "@/components/LibraryViews";
+import AdminEmailInbox from "@/components/AdminEmailInbox";
 import InfoModal from "@/components/InfoModal";
 import VoiceNarrationModal, {
   type VoiceNarrationApplyPayload,
@@ -287,10 +288,13 @@ export default function ArticleStudioApp() {
   const [configPadrao, setConfigPadrao] =
     useState<ConfiguracoesPadrao>(DEFAULT_CONFIG);
   const [notificacoes, setNotificacoes] = useState<NotificacaoItem[]>([]);
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [unreadInboxCount, setUnreadInboxCount] = useState(0);
 
   const abortRef = useRef<AbortController | null>(null);
   const cloudSyncTimerRef = useRef<number | null>(null);
   const migratedUidsRef = useRef<Set<string>>(new Set());
+  const notifiedEmailIdsRef = useRef<Set<string>>(new Set());
   const artigoAtualIdRef = useRef<string | null>(null);
   const activeSessionKeyRef = useRef<string | null>(null);
   const latestWorkspaceRef = useRef({
@@ -600,6 +604,86 @@ export default function ArticleStudioApp() {
       active = false;
     };
   }, [user?.uid, refreshUsageSnapshot]);
+
+  useEffect(() => {
+    if (!user?.uid) {
+      Promise.resolve().then(() => {
+        setIsAdmin(false);
+        setUnreadInboxCount(0);
+      });
+      return;
+    }
+
+    let active = true;
+    const checkAdminInbox = async () => {
+      try {
+        const res = await fetch("/api/admin/session", { cache: "no-store" });
+        if (!res.ok || !active) return;
+        const payload = (await res.json()) as {
+          isAdmin?: boolean;
+          unreadInboxCount?: number;
+          recentUnread?: Array<{
+            id: string;
+            subject: string;
+            participantName: string;
+            participantEmail: string;
+            snippet: string;
+            lastMessageAt: string;
+          }>;
+        };
+
+        if (!active) return;
+        const adminOk = Boolean(payload.isAdmin);
+        setIsAdmin(adminOk);
+        if (!adminOk) {
+          setUnreadInboxCount(0);
+          return;
+        }
+
+        const unreadTotal = Number(payload.unreadInboxCount ?? 0);
+        setUnreadInboxCount(unreadTotal);
+
+        const freshUnread = (payload.recentUnread ?? []).filter(
+          (item) => !notifiedEmailIdsRef.current.has(item.id)
+        );
+        if (freshUnread.length > 0) {
+          for (const item of freshUnread) {
+            notifiedEmailIdsRef.current.add(item.id);
+          }
+          setNotificacoes((prev) => [
+            ...freshUnread.slice(0, 3).map((item) => ({
+              id: `inbox-${item.id}`,
+              titulo: `Novo e-mail de ${item.participantName || item.participantEmail}`,
+              detalhe: `${item.subject} — ${item.snippet}`,
+              hora: new Date(item.lastMessageAt).toLocaleTimeString("pt-BR", {
+                hour: "2-digit",
+                minute: "2-digit",
+              }),
+              lida: false,
+            })),
+            ...prev,
+          ].slice(0, 12));
+        }
+      } catch {
+        // Ignora erro de rede não-crítico
+      }
+    };
+
+    Promise.resolve().then(() => {
+      if (active) void checkAdminInbox();
+    });
+
+    const intervalId = window.setInterval(() => {
+      if (document.visibilityState === "visible") {
+        void checkAdminInbox();
+      }
+    }, 45_000);
+
+    return () => {
+      active = false;
+      window.clearInterval(intervalId);
+    };
+  }, [user?.uid]);
 
   useEffect(() => {
     return () => {
@@ -1307,6 +1391,8 @@ export default function ArticleStudioApp() {
         monthlyUsed={monthlyUsed}
         monthlyImagesLimit={monthlyImagesLimit}
         monthlyImagesUsed={monthlyImagesUsed}
+        isAdmin={isAdmin}
+        unreadInboxCount={unreadInboxCount}
       />
 
       <div className="flex min-w-0 min-h-0 flex-1 flex-col px-4 py-4 sm:px-6 lg:px-8 xl:overflow-hidden">
@@ -1318,6 +1404,8 @@ export default function ArticleStudioApp() {
               setNotificacoes((prev) => prev.map((n) => ({ ...n, lida: true })))
             }
             onNavigate={setActiveTab}
+            isAdmin={isAdmin}
+            unreadInboxCount={unreadInboxCount}
           />
         </div>
 
@@ -1455,6 +1543,15 @@ export default function ArticleStudioApp() {
                   }
                 }}
                 totalArtigos={artigosSalvos.length}
+              />
+            </div>
+          )}
+
+          {activeTab === "emails" && isAdmin && (
+            <div className="min-h-0 flex-1">
+              <AdminEmailInbox
+                embeddedInStudio
+                onUnreadCountChange={setUnreadInboxCount}
               />
             </div>
           )}
