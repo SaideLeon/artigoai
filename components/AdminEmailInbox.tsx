@@ -196,7 +196,7 @@ export default function AdminEmailInbox({
   const [replyText, setReplyText] = useState("");
   const [sendingReply, setSendingReply] = useState(false);
   const [actionNotice, setActionNotice] = useState<{
-    type: "ok" | "erro";
+    type: "ok" | "aviso" | "erro";
     text: string;
   } | null>(null);
 
@@ -217,7 +217,7 @@ export default function AdminEmailInbox({
   );
 
   const loadThreads = useCallback(
-    async (opts?: { sync?: boolean; silent?: boolean }) => {
+    async (opts?: { sync?: boolean; silent?: boolean; manual?: boolean }) => {
       if (!opts?.silent) setLoadingList(true);
       setListError(null);
 
@@ -238,7 +238,11 @@ export default function AdminEmailInbox({
           counts?: InboxCounts;
           migrationPending?: boolean;
           emailService?: { configured: boolean; domain: string; from: string };
-          syncStats?: { syncedCount: number; error?: string };
+          syncStats?: {
+            syncedCount: number;
+            receivingSupported?: boolean;
+            error?: string;
+          };
         };
 
         if (!res.ok || !data.ok) {
@@ -257,12 +261,16 @@ export default function AdminEmailInbox({
               type: "ok",
               text: `${data.syncStats.syncedCount} novo(s) e-mail(s) sincronizado(s) da Resend.`,
             });
-          } else if (data.syncStats.error && data.syncStats.error !== "table_missing") {
+          } else if (
+            data.syncStats.error &&
+            data.syncStats.error !== "table_missing"
+          ) {
             setActionNotice({
-              type: "erro",
+              type:
+                data.syncStats.receivingSupported === false ? "aviso" : "erro",
               text: data.syncStats.error,
             });
-          } else {
+          } else if (opts.manual) {
             setActionNotice({
               type: "ok",
               text: "Caixa atualizada com os e-mails mais recentes.",
@@ -629,7 +637,7 @@ export default function AdminEmailInbox({
             type="button"
             onClick={() => {
               setSyncing(true);
-              void loadThreads({ sync: true, silent: true });
+              void loadThreads({ sync: true, silent: true, manual: true });
             }}
             disabled={syncing || loadingList}
             className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-60 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
@@ -676,6 +684,8 @@ export default function AdminEmailInbox({
           className={`flex items-center justify-between gap-2 border-b px-5 py-2 text-xs font-medium ${
             actionNotice.type === "ok"
               ? "border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-900/60 dark:bg-emerald-950/40 dark:text-emerald-200"
+              : actionNotice.type === "aviso"
+              ? "border-amber-200 bg-amber-50 text-amber-900 dark:border-amber-800/60 dark:bg-amber-950/40 dark:text-amber-200"
               : "border-rose-200 bg-rose-50 text-rose-800 dark:border-rose-900/60 dark:bg-rose-950/40 dark:text-rose-200"
           }`}
         >

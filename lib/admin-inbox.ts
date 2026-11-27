@@ -581,7 +581,8 @@ export async function ingestInboundResendEmail(
 export async function syncResendReceivingEmails(
   admin: SupabaseClient
 ): Promise<ResendSyncStats> {
-  const apiKey = getResendApiKey();
+  const apiKey =
+    process.env.RESEND_RECEIVING_API_KEY?.trim() || getResendApiKey();
   if (!apiKey) {
     return {
       syncedCount: 0,
@@ -596,14 +597,21 @@ export async function syncResendReceivingEmails(
     const listRes = await resend.emails.receiving.list({ limit: 40 });
 
     if (listRes.error || !listRes.data) {
-      const msg = listRes.error?.message || "Erro ao consultar Resend Receiving.";
+      const rawMsg =
+        listRes.error?.message || "Erro ao consultar Resend Receiving.";
+      const isSendOnlyRestricted =
+        /restricted to only send|only send emails/i.test(rawMsg);
       const unsupported =
-        /not enabled|permission|restricted|unauthorized|domain/i.test(msg);
+        isSendOnlyRestricted ||
+        /not enabled|permission|restricted|unauthorized|domain/i.test(rawMsg);
+
       return {
         syncedCount: 0,
         totalChecked: 0,
         receivingSupported: !unsupported,
-        error: msg,
+        error: isSendOnlyRestricted
+          ? "Sua chave RESEND_API_KEY atual tem permissão apenas de envio (Sending access). Para ler e sincronizar e-mails recebidos na Resend, gere uma chave com permissão Full access e atualize a variável na Vercel."
+          : rawMsg,
       };
     }
 
