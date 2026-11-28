@@ -2,13 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import {
   DEFAULT_INVITE_VALIDITY_DAYS,
   DEFAULT_PARTNER_COMMISSION_PERCENT,
-  generateInviteToken,
-  hashInviteToken,
 } from "@/lib/partners";
 import {
+  createPartnerInviteRecord,
   getPublicSiteOrigin,
   requirePartnerAdmin,
-  type PartnerInviteRow,
 } from "@/lib/partners-server";
 
 export async function GET() {
@@ -64,53 +62,25 @@ export async function POST(req: NextRequest) {
   const rawPercent = Number(
     body.percentualComissao ?? DEFAULT_PARTNER_COMMISSION_PERCENT
   );
-  if (!Number.isFinite(rawPercent) || rawPercent < 0 || rawPercent > 100) {
-    return NextResponse.json(
-      { erro: "Percentual de comissão inválido (0 a 100%)." },
-      { status: 400 }
-    );
-  }
-  const percentualComissao = Math.round(rawPercent * 100) / 100;
-
   const rawDays = Number(body.validadeDias ?? DEFAULT_INVITE_VALIDITY_DAYS);
-  const validadeDias =
-    Number.isFinite(rawDays) && rawDays >= 1 && rawDays <= 365
-      ? Math.round(rawDays)
-      : DEFAULT_INVITE_VALIDITY_DAYS;
 
-  const rawToken = generateInviteToken();
-  const tokenHash = hashInviteToken(rawToken);
-  const expiraEm = new Date(
-    Date.now() + validadeDias * 24 * 60 * 60 * 1000
-  ).toISOString();
+  const created = await createPartnerInviteRecord(auth.admin, {
+    origin: getPublicSiteOrigin(req.nextUrl.origin),
+    adminEmail: auth.user.email ?? "",
+    nomeSugerido,
+    percentualComissao: rawPercent,
+    validadeDias: rawDays,
+  });
 
-  const { data, error } = await auth.admin
-    .from("partner_invites")
-    .insert({
-      token_hash: tokenHash,
-      nome_sugerido: nomeSugerido,
-      percentual_comissao: percentualComissao,
-      expira_em: expiraEm,
-      status: "pendente",
-      criado_por_email: (auth.user.email ?? "").trim().toLowerCase(),
-    })
-    .select(
-      "id, nome_sugerido, percentual_comissao, expira_em, status, criado_em, aceito_em, aceito_por_user_id, criado_por_email"
-    )
-    .single<Omit<PartnerInviteRow, "token_hash">>();
-
-  if (error || !data) {
+  if (!created.ok) {
     return NextResponse.json(
-      { erro: error?.message || "Falha ao criar convite de parceiro." },
-      { status: 500 }
+      { erro: created.error },
+      { status: created.status }
     );
   }
-
-  const origin = getPublicSiteOrigin(req.nextUrl.origin);
-  const inviteUrl = `${origin}/parceiro/convite/${rawToken}`;
 
   return NextResponse.json({
-    invite: data,
-    inviteUrl,
+    invite: created.invite,
+    inviteUrl: created.inviteUrl,
   });
 }

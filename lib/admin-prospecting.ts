@@ -1419,3 +1419,244 @@ export async function sendProspectInviteLead(
     threadId: sendResult.thread.id,
   };
 }
+
+export type InfluencerTone = "amigavel" | "direto" | "consultivo";
+
+export type InfluencerOutreachDraft = {
+  nomeCanal: string;
+  plataforma: string;
+  handle: string;
+  nicho: string;
+  inscritosOuAlcance: string;
+  emailVisivel: string | null;
+  ganchoPersonalizado: string;
+  mensagemCurta: string;
+  assuntoEmail: string;
+  mensagemEmailCurta: string;
+};
+
+const ALLOWED_SCREENSHOT_MIME_TYPES = new Set([
+  "image/png",
+  "image/jpeg",
+  "image/jpg",
+  "image/webp",
+]);
+
+export function normalizeBase64ImageInput(
+  rawImage: string,
+  rawMimeType?: string
+): { mimeType: string; data: string } | null {
+  const trimmed = (rawImage || "").trim();
+  if (!trimmed) return null;
+
+  const dataUrlMatch = /^data:(image\/[a-z0-9.+-]+);base64,([A-Za-z0-9+/=\s]+)$/i.exec(
+    trimmed
+  );
+  if (dataUrlMatch) {
+    const detectedMime = dataUrlMatch[1].toLowerCase();
+    const mimeType = detectedMime === "image/jpg" ? "image/jpeg" : detectedMime;
+    if (!ALLOWED_SCREENSHOT_MIME_TYPES.has(mimeType)) return null;
+    const data = dataUrlMatch[2].replace(/\s+/g, "");
+    return data.length >= 64 ? { mimeType, data } : null;
+  }
+
+  const normalizedMime = (rawMimeType || "image/png").trim().toLowerCase();
+  const mimeType = normalizedMime === "image/jpg" ? "image/jpeg" : normalizedMime;
+  if (!ALLOWED_SCREENSHOT_MIME_TYPES.has(mimeType)) return null;
+  const data = trimmed.replace(/\s+/g, "");
+  if (!/^[A-Za-z0-9+/=]+$/.test(data) || data.length < 64) return null;
+  return { mimeType, data };
+}
+
+export function embedInviteLinkInMessage(
+  rawMessage: string,
+  inviteUrl: string
+): string {
+  const cleanUrl = inviteUrl.trim();
+  const cleanText = (rawMessage || "").trim();
+  if (!cleanUrl) return cleanText;
+
+  const placeholderRe = /\{\{\s*link_convite\s*\}\}/gi;
+  if (placeholderRe.test(cleanText)) {
+    return cleanText.replace(placeholderRe, cleanUrl);
+  }
+  if (cleanText.includes(cleanUrl)) {
+    return cleanText;
+  }
+  return cleanText ? `${cleanText}\n\nLink de convite: ${cleanUrl}` : cleanUrl;
+}
+
+const INFLUENCER_OUTREACH_SCHEMA: Schema = {
+  type: Type.OBJECT,
+  properties: {
+    nome_canal: {
+      type: Type.STRING,
+      description:
+        "Nome exato do canal ou criador identificado no print ou nas observações.",
+    },
+    plataforma: {
+      type: Type.STRING,
+      description:
+        "Plataforma identificada (ex.: YouTube, Instagram, TikTok, Blog, X).",
+    },
+    handle: {
+      type: Type.STRING,
+      description:
+        "Arroba (@usuario) ou identificador curto do canal, ou vazio se não visível.",
+    },
+    nicho: {
+      type: Type.STRING,
+      description:
+        "Tema principal do conteúdo do influenciador em até 10 palavras.",
+    },
+    inscritos_ou_alcance: {
+      type: Type.STRING,
+      description:
+        "Quantidade de inscritos/seguidores ou resumo de alcance visível no print (ou 'Não visível').",
+    },
+    email_visivel: {
+      type: Type.STRING,
+      description:
+        "E-mail público comercial visível no print, ou string vazia se não houver.",
+    },
+    gancho_personalizado: {
+      type: Type.STRING,
+      description:
+        "1 frase curta destacando um detalhe real observado no print (título de vídeo, série ou estilo do canal).",
+    },
+    mensagem_curta: {
+      type: Type.STRING,
+      description:
+        "Mensagem curta de prospecção em português (320 a 580 caracteres) para DM/WhatsApp/comentário, contendo exatamente o marcador {{LINK_CONVITE}}.",
+    },
+    assunto_email: {
+      type: Type.STRING,
+      description: "Assunto curto e humano de até 75 caracteres para envio por e-mail.",
+    },
+    mensagem_email_curta: {
+      type: Type.STRING,
+      description:
+        "Versão curta para e-mail (2 a 3 parágrafos breves) contendo exatamente o marcador {{LINK_CONVITE}}.",
+    },
+  },
+  required: [
+    "nome_canal",
+    "plataforma",
+    "nicho",
+    "gancho_personalizado",
+    "mensagem_curta",
+    "assunto_email",
+    "mensagem_email_curta",
+  ],
+};
+
+export async function generateInfluencerInviteFromScreenshot(params: {
+  imageBase64?: string;
+  imageMimeType?: string;
+  canalUrl?: string;
+  nomeManual?: string;
+  notasAdmin?: string;
+  tom?: InfluencerTone;
+  percentualComissao?: number;
+}): Promise<{
+  draft: InfluencerOutreachDraft;
+  modelo: string;
+}> {
+  const normalizedImage = params.imageBase64
+    ? normalizeBase64ImageInput(params.imageBase64, params.imageMimeType)
+    : null;
+
+  if (!normalizedImage && !params.nomeManual?.trim() && !params.canalUrl?.trim()) {
+    throw new Error(
+      "Envie o print do canal do influenciador ou informe o nome/URL do canal."
+    );
+  }
+
+  const tomLabel =
+    params.tom === "direto"
+      ? "Direto e objetivo (vai direto ao ponto com simpatia)"
+      : params.tom === "consultivo"
+        ? "Consultivo e focado em parceria estratégica"
+        : "Amigável, próximo e natural de criador para criador";
+
+  const comissaoTexto = Number.isFinite(params.percentualComissao)
+    ? `${Math.round(Number(params.percentualComissao))}%`
+    : "35%";
+
+  const prompt = `Você é o responsável por parcerias do Artigen (https://criador.artificializar.site), uma plataforma brasileira de criação de artigos completos com IA, pesquisa web em tempo real, SEO e geração de imagens editoriais.
+
+Sua tarefa é analisar ${
+    normalizedImage
+      ? "o print (captura de tela) anexado do canal/perfil do influenciador"
+      : "as informações informadas do influenciador"
+  } e redigir uma MENSAGEM CURTA e altamente personalizada de prospecção convidando o criador para:
+1) Experimentar o Artigen gratuitamente na prática;
+2) Se gostar, falar/mostrar o Artigen em seu canal ou conteúdos;
+3) Entrar pelo link exclusivo {{LINK_CONVITE}} para ativar sua conta de parceiro e ganhar comissão recorrente por cada usuário que assinar usando a indicação (planos pagos pagam 20% no Starter e até ${comissaoTexto} recorrente no Pro e Agência).
+
+CONTEXTO COMPLEMENTAR INFORMADO PELO ADMIN:
+- Nome informado manualmente: ${params.nomeManual?.trim() || "Extrair do print"}
+- URL do canal: ${params.canalUrl?.trim() || "Extrair do print se visível"}
+- Observações extras: ${params.notasAdmin?.trim() || "Nenhuma"}
+- Tom desejado: ${tomLabel}
+
+REGRAS OBRIGATÓRIAS:
+1. Leia com atenção o print para identificar o nome real do canal, @handle, tema/nicho, vídeos ou pautas visíveis e eventual e-mail público.
+2. Em "mensagem_curta": escreva um texto curto e humano (entre 320 e 580 caracteres, ideal para DM no Instagram/WhatsApp/YouTube), citando algo concreto do canal logo na primeira frase para provar que não é spam, convidando-o a testar a plataforma, falar sobre ela se curtir e ganhar comissão recorrente por cada assinatura gerada, incluindo obrigatoriamente o marcador literal {{LINK_CONVITE}}.
+3. Em "mensagem_email_curta": escreva uma versão curta para e-mail (2 ou 3 parágrafos breves, assinatura "Equipe Artigen"), também incluindo {{LINK_CONVITE}}.
+4. Nunca substitua {{LINK_CONVITE}} por outro link nem invente métricas falsas de ganhos.
+5. Escreva em português do Brasil natural, sem exageros nem caixa alta.`;
+
+  const result = await generateArticleText(prompt, {
+    responseSchema: INFLUENCER_OUTREACH_SCHEMA,
+    ...(normalizedImage ? { inlineImages: [normalizedImage] } : {}),
+  });
+
+  const parsed = JSON.parse(result.text) as {
+    nome_canal?: string;
+    plataforma?: string;
+    handle?: string;
+    nicho?: string;
+    inscritos_ou_alcance?: string;
+    email_visivel?: string;
+    gancho_personalizado?: string;
+    mensagem_curta?: string;
+    assunto_email?: string;
+    mensagem_email_curta?: string;
+  };
+
+  const nomeCanal =
+    (parsed.nome_canal || "").trim() ||
+    params.nomeManual?.trim() ||
+    "Criador Parceiro";
+  const plataforma = (parsed.plataforma || "").trim() || "YouTube";
+  const rawEmail = (parsed.email_visivel || "").trim().toLowerCase();
+  const emailVisivel = isValidPublicContactEmail(rawEmail) ? rawEmail : null;
+
+  const fallbackCurta = `Olá! Acompanhei o conteúdo do ${nomeCanal} e achei muito alinhado com nosso público. Quero te convidar para testar o Artigen na prática e, se curtir, apresentar a ferramenta para sua audiência ganhando comissão recorrente (até ${comissaoTexto}) por cada usuário que assinar: {{LINK_CONVITE}}`;
+  const fallbackEmail = `Olá, ${nomeCanal},\n\nAcompanhamos o trabalho do seu canal e gostaríamos de te convidar para testar o Artigen gratuitamente e conhecer nosso programa de parceiros — você pode mostrar a plataforma para a sua audiência e receber comissão recorrente (20% no Starter e ${comissaoTexto} no Pro/Agência) por cada assinante indicado.\n\nSeu link exclusivo para ativar o teste e o painel de parceiro está aqui:\n{{LINK_CONVITE}}\n\nUm abraço,\nEquipe Artigen`;
+
+  return {
+    modelo: result.modelo,
+    draft: {
+      nomeCanal: nomeCanal.slice(0, 120),
+      plataforma: plataforma.slice(0, 40),
+      handle: (parsed.handle || "").trim().slice(0, 80),
+      nicho: (parsed.nicho || "").trim().slice(0, 140) || "Conteúdo digital",
+      inscritosOuAlcance:
+        (parsed.inscritos_ou_alcance || "").trim().slice(0, 80) ||
+        "Não visível",
+      emailVisivel,
+      ganchoPersonalizado:
+        (parsed.gancho_personalizado || "").trim().slice(0, 260) ||
+        `Canal ${nomeCanal} com forte aderência para criação de artigos e conteúdo digital.`,
+      mensagemCurta: (parsed.mensagem_curta || "").trim() || fallbackCurta,
+      assuntoEmail:
+        (parsed.assunto_email || "").trim().slice(0, 120) ||
+        `Convite de parceria Artigen · ${nomeCanal}`,
+      mensagemEmailCurta:
+        (parsed.mensagem_email_curta || "").trim() || fallbackEmail,
+    },
+  };
+}
+

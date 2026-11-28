@@ -2,10 +2,13 @@ import assert from "node:assert/strict";
 import { describe, test } from "node:test";
 import {
   computeProspectCounts,
+  embedInviteLinkInMessage,
   extractContactPageCandidates,
   extractPublicEmailsFromHtml,
   extractSocialLinksFromHtml,
+  generateInfluencerInviteFromScreenshot,
   isValidPublicContactEmail,
+  normalizeBase64ImageInput,
   normalizeProspectIdentity,
   parseGeminiDiscoveryJson,
   type AdminProspectLeadRow,
@@ -152,5 +155,53 @@ describe("Prospecção Inteligente Artigen (lib/admin-prospecting)", () => {
       ignorados: 1,
       erros: 0,
     });
+  });
+
+  test("normaliza data URL e base64 de print do canal do influenciador", () => {
+    const fakePayload = "A".repeat(120);
+    const fromDataUrl = normalizeBase64ImageInput(
+      `data:image/jpg;base64,${fakePayload}`
+    );
+    assert.deepEqual(fromDataUrl, {
+      mimeType: "image/jpeg",
+      data: fakePayload,
+    });
+
+    const fromRaw = normalizeBase64ImageInput(fakePayload, "image/webp");
+    assert.deepEqual(fromRaw, {
+      mimeType: "image/webp",
+      data: fakePayload,
+    });
+
+    assert.equal(normalizeBase64ImageInput("data:image/svg+xml;base64,AAAA"), null);
+    assert.equal(normalizeBase64ImageInput("curto"), null);
+  });
+
+  test("insere o link gerado de parceiro na mensagem curta de prospecção", () => {
+    const inviteUrl = "https://criador.artificializar.site/parceiro/convite/abc123";
+    const withPlaceholder = embedInviteLinkInMessage(
+      "Olá! Venha testar o Artigen e ganhe comissão: {{LINK_CONVITE}}",
+      inviteUrl
+    );
+    assert.equal(
+      withPlaceholder,
+      `Olá! Venha testar o Artigen e ganhe comissão: ${inviteUrl}`
+    );
+
+    const withoutPlaceholder = embedInviteLinkInMessage(
+      "Olá! Queremos te convidar para testar nossa plataforma.",
+      inviteUrl
+    );
+    assert.equal(
+      withoutPlaceholder,
+      `Olá! Queremos te convidar para testar nossa plataforma.\n\nLink de convite: ${inviteUrl}`
+    );
+  });
+
+  test("exige print ou identificação do canal na prospecção de influenciador", async () => {
+    await assert.rejects(
+      () => generateInfluencerInviteFromScreenshot({}),
+      /Envie o print do canal/
+    );
   });
 });

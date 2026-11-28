@@ -141,6 +141,7 @@ export async function generateArticleText(
     responseSchema?: Schema;
     systemInstruction?: string;
     tentativas?: number;
+    inlineImages?: Array<{ mimeType: string; data: string }>;
   }
 ): Promise<ArticleTextGenerationResult> {
   const ai = getGeminiClient();
@@ -155,13 +156,28 @@ export async function generateArticleText(
     config.responseSchema = options.responseSchema;
   }
 
+  const contents =
+    options?.inlineImages && options.inlineImages.length > 0
+      ? {
+          parts: [
+            ...options.inlineImages.map((img) => ({
+              inlineData: {
+                mimeType: img.mimeType,
+                data: img.data,
+              },
+            })),
+            { text: prompt },
+          ],
+        }
+      : prompt;
+
   let lastError: unknown = null;
 
   for (const modelName of candidateModels) {
     try {
       const response = await ai.models.generateContent({
         model: modelName,
-        contents: prompt,
+        contents,
         ...(Object.keys(config).length > 0 ? { config } : {}),
       });
 

@@ -480,6 +480,12 @@ export default function ArticleWorkspace({
                   referrerPolicy="no-referrer"
                   className="h-56 w-full object-cover opacity-85 sm:h-64"
                 />
+                {secoes[0]?.aGerarImagem && (
+                  <div className="absolute inset-0 z-10 flex items-center justify-center gap-2 bg-slate-950/65 text-xs font-semibold text-white backdrop-blur-[2px]">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    <span>A regenerar imagem de capa…</span>
+                  </div>
+                )}
                 <div className="absolute inset-0 bg-gradient-to-t from-slate-950/85 via-slate-950/35 to-transparent" />
                 <div className="absolute inset-x-0 bottom-0 p-6 text-white">
                   <h1 className="text-2xl font-bold leading-tight sm:text-3xl text-balance">
@@ -556,13 +562,19 @@ export default function ArticleWorkspace({
 
                   {/* Section illustration */}
                   {sec.img && i > 0 ? (
-                    <figure className="overflow-hidden rounded-xl border border-slate-200/80 bg-slate-50 dark:border-slate-800 dark:bg-slate-800">
+                    <figure className="relative overflow-hidden rounded-xl border border-slate-200/80 bg-slate-50 dark:border-slate-800 dark:bg-slate-800">
                       <img
                         src={sec.img}
                         alt={sec.titulo}
                         referrerPolicy="no-referrer"
                         className="w-full max-h-80 object-cover"
                       />
+                      {sec.aGerarImagem && (
+                        <div className="absolute inset-0 flex items-center justify-center gap-2 bg-slate-950/60 text-xs font-semibold text-white backdrop-blur-[2px]">
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                          <span>A regenerar imagem…</span>
+                        </div>
+                      )}
                     </figure>
                   ) : sec.texto && (i > 0 || !primeiraImagem) ? (
                     sec.aGerarImagem ? (
@@ -747,64 +759,197 @@ export default function ArticleWorkspace({
             </div>
 
             <div className="space-y-5">
-              {secoes.map((sec, idx) => (
-                <div
-                  key={idx}
-                  className="space-y-3 rounded-xl border border-slate-200 bg-slate-50/40 p-4 dark:border-slate-800 dark:bg-slate-800/40"
-                >
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="text-xs font-semibold text-indigo-700 dark:text-indigo-400 tabular-nums">
-                      Secção {idx + 1} · {contarPalavrasTexto(sec.texto)} palavras
-                    </span>
-                    <div className="flex items-center gap-2">
-                      {sec.prompt && (
-                        <button
-                          type="button"
-                          disabled={sec.aGerarImagem}
-                          onClick={() => onRegenerarImagem(idx, sec.prompt!)}
-                          className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-xs font-medium text-slate-700 hover:bg-slate-100 disabled:opacity-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
-                        >
-                          <RefreshCw
-                            className={`h-3 w-3 ${
-                              sec.aGerarImagem ? "animate-spin" : ""
-                            }`}
-                          />
-                          <span>{sec.img ? "Nova imagem" : "Gerar imagem"}</span>
-                        </button>
-                      )}
-                      {secoes.length > 1 && (
-                        <button
-                          type="button"
-                          onClick={() => onRemoveSecao(idx)}
-                          aria-label={`Remover secção ${idx + 1}`}
-                          className="rounded-lg p-1.5 text-slate-400 hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-950/60 dark:hover:text-rose-400"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </button>
-                      )}
+              {secoes.map((sec, idx) => {
+                const promptImagem = (sec.prompt ?? sec.titulo ?? "").trim();
+                const mostrarPainelImagem = Boolean(
+                  sec.img || sec.aGerarImagem || sec.erro || sec.prompt !== undefined
+                );
+
+                return (
+                  <div
+                    key={idx}
+                    className="space-y-3 rounded-xl border border-slate-200 bg-slate-50/40 p-4 dark:border-slate-800 dark:bg-slate-800/40"
+                  >
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <span className="text-xs font-semibold text-indigo-700 dark:text-indigo-400 tabular-nums">
+                        Secção {idx + 1} · {contarPalavrasTexto(sec.texto)} palavras
+                      </span>
+                      <div className="flex items-center gap-2">
+                        {promptImagem && (
+                          <button
+                            type="button"
+                            disabled={sec.aGerarImagem}
+                            onClick={() => onRegenerarImagem(idx, promptImagem)}
+                            className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-xs font-medium text-slate-700 hover:bg-slate-100 disabled:opacity-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
+                          >
+                            <RefreshCw
+                              className={`h-3 w-3 ${
+                                sec.aGerarImagem ? "animate-spin" : ""
+                              }`}
+                            />
+                            <span>{sec.img ? "Nova imagem" : "Gerar imagem"}</span>
+                          </button>
+                        )}
+                        {secoes.length > 1 && (
+                          <button
+                            type="button"
+                            onClick={() => onRemoveSecao(idx)}
+                            aria-label={`Remover secção ${idx + 1}`}
+                            className="rounded-lg p-1.5 text-slate-400 hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-950/60 dark:hover:text-rose-400"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        )}
+                      </div>
                     </div>
+
+                    <input
+                      type="text"
+                      value={sec.titulo}
+                      onChange={(e) =>
+                        onUpdateSecao(idx, { titulo: e.target.value })
+                      }
+                      className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-bold text-slate-900 focus:border-indigo-500 focus:outline-none dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
+                    />
+
+                    {/* Pré-visualização da imagem diretamente na área de edição */}
+                    {mostrarPainelImagem && (
+                      <div className="overflow-hidden rounded-xl border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-900">
+                        {sec.img ? (
+                          <div className="relative bg-slate-100 dark:bg-slate-950">
+                            <img
+                              src={sec.img}
+                              alt={sec.titulo || `Ilustração da secção ${idx + 1}`}
+                              referrerPolicy="no-referrer"
+                              className="h-52 w-full object-cover sm:h-64"
+                            />
+                            {sec.aGerarImagem && (
+                              <div className="absolute inset-0 flex items-center justify-center gap-2 bg-slate-950/65 text-xs font-semibold text-white backdrop-blur-[2px]">
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                                <span>A regenerar imagem desta secção…</span>
+                              </div>
+                            )}
+                            <div className="flex flex-wrap items-center justify-between gap-2 border-t border-slate-200 bg-white/95 px-3 py-2 text-[11px] dark:border-slate-800 dark:bg-slate-900/95">
+                              <span className="inline-flex items-center gap-1.5 font-medium text-slate-600 dark:text-slate-300">
+                                <ImageIcon className="h-3.5 w-3.5 text-indigo-600 dark:text-indigo-400" />
+                                <span>
+                                  {sec.aGerarImagem
+                                    ? "A atualizar imagem…"
+                                    : idx === 0
+                                      ? "Pré-visualização (imagem de capa)"
+                                      : `Pré-visualização (secção ${idx + 1})`}
+                                </span>
+                              </span>
+                              <div className="flex items-center gap-2">
+                                {promptImagem && (
+                                  <button
+                                    type="button"
+                                    disabled={sec.aGerarImagem}
+                                    onClick={() =>
+                                      onRegenerarImagem(idx, promptImagem)
+                                    }
+                                    className="inline-flex items-center gap-1 rounded-md border border-slate-200 bg-slate-50 px-2 py-1 font-semibold text-slate-700 hover:bg-slate-100 disabled:opacity-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
+                                  >
+                                    <RefreshCw
+                                      className={`h-3 w-3 ${
+                                        sec.aGerarImagem ? "animate-spin" : ""
+                                      }`}
+                                    />
+                                    <span>Regenerar</span>
+                                  </button>
+                                )}
+                                <button
+                                  type="button"
+                                  disabled={sec.aGerarImagem}
+                                  onClick={() =>
+                                    onUpdateSecao(idx, {
+                                      img: undefined,
+                                      erro: undefined,
+                                    })
+                                  }
+                                  className="inline-flex items-center gap-1 rounded-md px-2 py-1 font-semibold text-slate-500 hover:bg-rose-50 hover:text-rose-600 disabled:opacity-50 dark:text-slate-400 dark:hover:bg-rose-950/50 dark:hover:text-rose-400"
+                                >
+                                  <Trash2 className="h-3 w-3" />
+                                  <span>Remover</span>
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        ) : sec.aGerarImagem ? (
+                          <div className="flex h-36 flex-col items-center justify-center gap-2 bg-indigo-50/40 px-4 text-center text-xs font-medium text-indigo-700 dark:bg-indigo-950/25 dark:text-indigo-300">
+                            <Loader2 className="h-5 w-5 animate-spin" />
+                            <span>A gerar nova imagem para a secção {idx + 1}…</span>
+                          </div>
+                        ) : sec.erro ? (
+                          <div className="flex flex-wrap items-center justify-between gap-3 bg-rose-50/60 px-3.5 py-3 text-xs text-rose-700 dark:bg-rose-950/30 dark:text-rose-300">
+                            <span>{sec.erro}</span>
+                            {promptImagem && (
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  onRegenerarImagem(idx, promptImagem)
+                                }
+                                className="inline-flex items-center gap-1.5 rounded-lg border border-rose-200 bg-white px-2.5 py-1 font-semibold text-rose-700 hover:bg-rose-50 dark:border-rose-800 dark:bg-slate-900 dark:text-rose-300"
+                              >
+                                <RefreshCw className="h-3 w-3" />
+                                <span>Tentar novamente</span>
+                              </button>
+                            )}
+                          </div>
+                        ) : (
+                          <div className="flex flex-wrap items-center justify-between gap-2 px-3.5 py-2.5 text-xs text-slate-500 dark:text-slate-400">
+                            <span className="inline-flex items-center gap-2">
+                              <ImageIcon className="h-4 w-4 text-slate-400" />
+                              <span>Sem imagem gerada nesta secção</span>
+                            </span>
+                            {promptImagem && (
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  onRegenerarImagem(idx, promptImagem)
+                                }
+                                className="inline-flex items-center gap-1 rounded-md border border-slate-200 bg-slate-50 px-2.5 py-1 font-semibold text-slate-700 hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
+                              >
+                                <Sparkles className="h-3 w-3 text-indigo-600 dark:text-indigo-400" />
+                                <span>Gerar imagem</span>
+                              </button>
+                            )}
+                          </div>
+                        )}
+
+                        <div className="border-t border-slate-100 bg-slate-50/70 px-3 py-2 dark:border-slate-800 dark:bg-slate-900/70">
+                          <label
+                            htmlFor={`editor-prompt-${idx}`}
+                            className="mb-1 block text-[11px] font-semibold text-slate-500 dark:text-slate-400"
+                          >
+                            Prompt visual da imagem
+                          </label>
+                          <input
+                            id={`editor-prompt-${idx}`}
+                            type="text"
+                            value={sec.prompt ?? ""}
+                            onChange={(e) =>
+                              onUpdateSecao(idx, { prompt: e.target.value })
+                            }
+                            placeholder="Descreva a cena desejada para regenerar a imagem…"
+                            className="w-full rounded-md border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-700 focus:border-indigo-500 focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
+                          />
+                        </div>
+                      </div>
+                    )}
+
+                    <textarea
+                      rows={6}
+                      value={sec.texto ?? ""}
+                      onChange={(e) =>
+                        onUpdateSecao(idx, { texto: e.target.value })
+                      }
+                      placeholder="Conteúdo da secção..."
+                      className="w-full rounded-lg border border-slate-200 bg-white p-3 text-sm leading-relaxed text-slate-800 focus:border-indigo-500 focus:outline-none dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"
+                    />
                   </div>
-
-                  <input
-                    type="text"
-                    value={sec.titulo}
-                    onChange={(e) =>
-                      onUpdateSecao(idx, { titulo: e.target.value })
-                    }
-                    className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-bold text-slate-900 focus:border-indigo-500 focus:outline-none dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
-                  />
-
-                  <textarea
-                    rows={6}
-                    value={sec.texto ?? ""}
-                    onChange={(e) =>
-                      onUpdateSecao(idx, { texto: e.target.value })
-                    }
-                    placeholder="Conteúdo da secção..."
-                    className="w-full rounded-lg border border-slate-200 bg-white p-3 text-sm leading-relaxed text-slate-800 focus:border-indigo-500 focus:outline-none dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"
-                  />
-                </div>
-              ))}
+                );
+              })}
             </div>
 
             <button

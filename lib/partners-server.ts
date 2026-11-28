@@ -3,7 +3,11 @@ import type { SupabaseClient, User } from "@supabase/supabase-js";
 import { createClient as createSupabaseServerClient } from "@/utils/supabase/server";
 import { getSupabaseAdminClient } from "@/lib/cakto-fulfillment";
 import {
+  DEFAULT_INVITE_VALIDITY_DAYS,
+  DEFAULT_PARTNER_COMMISSION_PERCENT,
+  generateInviteToken,
   getSuperAdminEmails,
+  hashInviteToken,
   isSupremeAdminEmail,
   RESERVED_REF_CODES,
   slugifyPartnerSeed,
@@ -246,4 +250,77 @@ export async function generateUniquePartnerCode(
 
   const fallbackSuffix = Math.floor(1000 + Math.random() * 9000);
   return `${base.slice(0, 20)}-${fallbackSuffix}`;
+}
+
+export async function createPartnerInviteRecord(
+  admin: SupabaseClient,
+  params: {
+    origin: string;
+    adminEmail: string;
+    nomeSugerido?: string;
+    percentualComissao?: number;
+    validadeDias?: number;
+  }
+): Promise<
+  | {
+      ok: true;
+      invite: Omit<PartnerInviteRow, "token_hash">;
+      inviteUrl: string;
+    }
+  | { ok: false; status: number; error: string }
+> {
+  const nomeSugerido = (params.nomeSugerido ?? "").trim().slice(0, 100);
+  const rawPercent = Number(
+    params.percentualComissao ?? DEFAULT_PARTNER_COMMISSION_PERCENT
+  );
+  if (!Number.isFinite(rawPercent) || rawPercent < 0 || rawPercent > 100) {
+    return {
+      ok: false,
+      status: 400,
+      error: "Percentual de comissão inválido (0 a 100%).",
+    };
+  }
+  const percentualComissao = Math.round(rawPercent * 100) / 100;
+
+  const rawDays = Number(params.validadeDias ?? DEFAULT_INVITE_VALIDITY_DAYS);
+  const validadeDias =
+    Number.isFinite(rawDays) && rawDays >= 1 && rawDays <= 365
+      ? Math.round(rawDays)
+      : DEFAULT_INVITE_VALIDITY_DAYS;
+
+  const rawToken = generateInviteToken();
+  const tokenHash = hashInviteToken(rawToken);
+  const expiraEm = new Date(
+    Date.now() + validadeDias * 24 * 60 * 60 * 1000
+  ).toISOString();
+
+  const { data, error } = await admin
+    .from("partner_invites")
+    .insert({
+      token_hash: tokenHash,
+      nome_sugerido: nomeSugerido,
+      percentual_comissao: percentualComissao,
+      expira_em: expiraEm,
+      status: "pendente",
+      criado_por_email: (params.adminEmail ?? "").trim().toLowerCase(),
+    })
+    .select(
+      "id, nome_sugerido, percentual_comissao, expira_em, status, criado_em, aceito_em, aceito_por_user_id, criado_por_email"
+    )
+    .single<Omit<PartnerInviteRow, "token_hash">>();
+
+  if (error || !data) {
+    return {
+      ok: false,
+      status: 500,
+      error: error?.message || "Falha ao criar convite de parceiro.",
+    };
+  }
+
+  const origin = getPublicSiteOrigin(params.origin);
+  return {
+    ok: true,
+    invite: data,
+    inviteUrl: `${origin}/parceiro/convite/${rawToken}`,
+  };
 }

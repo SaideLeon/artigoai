@@ -4,10 +4,14 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import {
   AlertCircle,
+  Camera,
   Check,
   CheckCircle2,
+  Copy,
   ExternalLink,
   Globe,
+  Handshake,
+  Link2,
   Loader2,
   Mail,
   Plus,
@@ -17,6 +21,8 @@ import {
   Sparkles,
   SquareCheck,
   Square,
+  Trash2,
+  Upload,
   XCircle,
 } from "lucide-react";
 
@@ -95,6 +101,67 @@ type FilterTab =
   | "sem_email"
   | "enviado"
   | "ignorado";
+
+type InfluencerTone = "amigavel" | "direto" | "consultivo";
+
+type InfluencerGeneratedDraft = {
+  nomeCanal: string;
+  plataforma: string;
+  handle: string;
+  nicho: string;
+  inscritosOuAlcance: string;
+  emailVisivel: string | null;
+  ganchoPersonalizado: string;
+  mensagemCurta: string;
+  assuntoEmail: string;
+  mensagemEmailCurta: string;
+};
+
+async function readAndCompressScreenshotFile(file: File): Promise<{
+  dataUrl: string;
+  mimeType: string;
+}> {
+  const rawDataUrl = await new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (typeof reader.result === "string") resolve(reader.result);
+      else reject(new Error("Não foi possível ler a imagem."));
+    };
+    reader.onerror = () => reject(new Error("Falha ao ler arquivo de imagem."));
+    reader.readAsDataURL(file);
+  });
+
+  if (typeof document === "undefined" || rawDataUrl.length < 700_000) {
+    return {
+      dataUrl: rawDataUrl,
+      mimeType: file.type || "image/png",
+    };
+  }
+
+  return await new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => {
+      const maxWidth = 1600;
+      const scale = img.width > maxWidth ? maxWidth / img.width : 1;
+      const width = Math.max(1, Math.round(img.width * scale));
+      const height = Math.max(1, Math.round(img.height * scale));
+      const canvas = document.createElement("canvas");
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) {
+        resolve({ dataUrl: rawDataUrl, mimeType: file.type || "image/png" });
+        return;
+      }
+      ctx.drawImage(img, 0, 0, width, height);
+      const compressed = canvas.toDataURL("image/jpeg", 0.88);
+      resolve({ dataUrl: compressed, mimeType: "image/jpeg" });
+    };
+    img.onerror = () =>
+      resolve({ dataUrl: rawDataUrl, mimeType: file.type || "image/png" });
+    img.src = rawDataUrl;
+  });
+}
 
 const PROFILE_OPTIONS: Array<{
   id: ProspectProfileType;
@@ -259,6 +326,35 @@ export default function AdminProspectingWorkspace() {
   const [regeneratingLead, setRegeneratingLead] = useState(false);
   const [sendingLeadId, setSendingLeadId] = useState<string | null>(null);
   const [sendingBatch, setSendingBatch] = useState(false);
+
+  // Influencer screenshot prospecting state
+  const [influencerPanelOpen, setInfluencerPanelOpen] = useState(false);
+  const [infImageDataUrl, setInfImageDataUrl] = useState<string | null>(null);
+  const [infImageMimeType, setInfImageMimeType] = useState<string>("image/png");
+  const [infCanalUrl, setInfCanalUrl] = useState("");
+  const [infNomeManual, setInfNomeManual] = useState("");
+  const [infNotas, setInfNotas] = useState("");
+  const [infTom, setInfTom] = useState<InfluencerTone>("amigavel");
+  const [infCriarLink, setInfCriarLink] = useState(true);
+  const [infComissao, setInfComissao] = useState(35);
+  const [infValidadeDias, setInfValidadeDias] = useState(30);
+  const [infGenerating, setInfGenerating] = useState(false);
+  const [infMeta, setInfMeta] = useState<{
+    modelo: string;
+    inviteUrl: string;
+    percentualComissao: number;
+    linkCriadoAutomaticamente: boolean;
+    avisoLink: string | null;
+    draft: InfluencerGeneratedDraft;
+  } | null>(null);
+  const [infMensagemCurta, setInfMensagemCurta] = useState("");
+  const [infEmailDestino, setInfEmailDestino] = useState("");
+  const [infEmailAssunto, setInfEmailAssunto] = useState("");
+  const [infEmailCorpo, setInfEmailCorpo] = useState("");
+  const [infCopiedKind, setInfCopiedKind] = useState<
+    "short" | "link" | "email" | null
+  >(null);
+  const [infSendingEmail, setInfSendingEmail] = useState(false);
 
   const [notice, setNotice] = useState<{
     type: "ok" | "aviso" | "erro";
@@ -713,6 +809,193 @@ export default function AdminProspectingWorkspace() {
     );
   };
 
+  async function handleSelectInfluencerFile(file: File | null | undefined) {
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      setNotice({
+        type: "aviso",
+        text: "Selecione um arquivo de imagem válido (PNG, JPG ou WebP) do print do canal.",
+      });
+      return;
+    }
+    try {
+      const processed = await readAndCompressScreenshotFile(file);
+      setInfImageDataUrl(processed.dataUrl);
+      setInfImageMimeType(processed.mimeType);
+      setNotice(null);
+    } catch (err) {
+      setNotice({
+        type: "erro",
+        text:
+          err instanceof Error
+            ? err.message
+            : "Não foi possível carregar o print.",
+      });
+    }
+  }
+
+  function handlePasteInfluencerPrint(e: React.ClipboardEvent) {
+    const items = e.clipboardData?.items;
+    if (!items) return;
+    for (const item of Array.from(items)) {
+      if (item.type.startsWith("image/")) {
+        const file = item.getAsFile();
+        if (file) {
+          e.preventDefault();
+          void handleSelectInfluencerFile(file);
+          return;
+        }
+      }
+    }
+  }
+
+  async function handleGenerateInfluencerInvite(options?: {
+    keepExistingLink?: boolean;
+    forceNewLink?: boolean;
+  }) {
+    if (!infImageDataUrl && !infCanalUrl.trim() && !infNomeManual.trim()) {
+      setNotice({
+        type: "aviso",
+        text: "Envie ou cole (Ctrl+V) o print do canal do influenciador, ou informe o nome/URL.",
+      });
+      return;
+    }
+
+    setInfGenerating(true);
+    setNotice(null);
+    try {
+      const existingUrl =
+        options?.keepExistingLink && !options?.forceNewLink
+          ? infMeta?.inviteUrl
+          : undefined;
+
+      const res = await fetch("/api/admin/prospecting/influencer-invite", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          imageBase64: infImageDataUrl ?? undefined,
+          imageMimeType: infImageMimeType,
+          canalUrl: infCanalUrl.trim() || undefined,
+          nomeManual: infNomeManual.trim() || undefined,
+          notasAdmin: infNotas.trim() || undefined,
+          tom: infTom,
+          criarLinkParceiro: infCriarLink,
+          inviteUrlExistente: existingUrl,
+          percentualComissao: infComissao,
+          validadeDias: infValidadeDias,
+        }),
+      });
+
+      const data = (await res.json()) as {
+        ok?: boolean;
+        erro?: string;
+        modelo?: string;
+        inviteUrl?: string;
+        percentualComissao?: number;
+        linkCriadoAutomaticamente?: boolean;
+        avisoLink?: string | null;
+        draft?: InfluencerGeneratedDraft;
+      };
+
+      if (!res.ok || !data.ok || !data.draft || !data.inviteUrl) {
+        setNotice({
+          type: "erro",
+          text:
+            data.erro ||
+            "Não foi possível analisar o print e gerar o convite.",
+        });
+        return;
+      }
+
+      setInfMeta({
+        modelo: data.modelo ?? "Gemini",
+        inviteUrl: data.inviteUrl,
+        percentualComissao: data.percentualComissao ?? infComissao,
+        linkCriadoAutomaticamente: Boolean(data.linkCriadoAutomaticamente),
+        avisoLink: data.avisoLink ?? null,
+        draft: data.draft,
+      });
+      setInfMensagemCurta(data.draft.mensagemCurta);
+      setInfEmailAssunto(data.draft.assuntoEmail);
+      setInfEmailCorpo(data.draft.mensagemEmailCurta);
+      if (data.draft.emailVisivel) {
+        setInfEmailDestino(data.draft.emailVisivel);
+      }
+
+      setNotice({
+        type: data.avisoLink ? "aviso" : "ok",
+        text:
+          data.avisoLink ||
+          `Convite curto + link de comissão criados para ${data.draft.nomeCanal} (${data.modelo ?? "Gemini"}).`,
+      });
+    } catch {
+      setNotice({
+        type: "erro",
+        text: "Erro de rede ao analisar o print do canal.",
+      });
+    } finally {
+      setInfGenerating(false);
+    }
+  }
+
+  async function handleCopyInfluencerText(
+    kind: "short" | "link" | "email",
+    text: string
+  ) {
+    if (!text.trim()) return;
+    try {
+      await navigator.clipboard.writeText(text);
+      setInfCopiedKind(kind);
+      setTimeout(() => setInfCopiedKind(null), 2200);
+    } catch {
+      // Clipboard indisponível
+    }
+  }
+
+  async function handleSendInfluencerEmail() {
+    if (!infEmailDestino.trim() || !infEmailAssunto.trim() || !infEmailCorpo.trim()) {
+      setNotice({
+        type: "aviso",
+        text: "Preencha o e-mail de destino, assunto e mensagem antes de enviar.",
+      });
+      return;
+    }
+
+    setInfSendingEmail(true);
+    setNotice(null);
+    try {
+      const res = await fetch("/api/admin/emails/compose", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          toEmail: infEmailDestino.trim(),
+          toName: infMeta?.draft.nomeCanal || infNomeManual.trim() || "",
+          subject: infEmailAssunto.trim(),
+          bodyText: infEmailCorpo.trim(),
+        }),
+      });
+      const data = (await res.json()) as { ok?: boolean; erro?: string };
+      if (!res.ok || !data.ok) {
+        setNotice({
+          type: "erro",
+          text: data.erro || "Falha ao enviar e-mail para o influenciador.",
+        });
+        return;
+      }
+      setNotice({
+        type: "ok",
+        text: `Convite enviado por e-mail para ${infEmailDestino.trim()} e registrado na Caixa de E-mail.`,
+      });
+    } catch {
+      setNotice({
+        type: "erro",
+        text: "Erro de rede ao enviar e-mail.",
+      });
+    } finally {
+      setInfSendingEmail(false);
+    }
+  }
+
   return (
     <div className="space-y-6">
       {/* Top Workspace Control Bar */}
@@ -750,7 +1033,30 @@ export default function AdminProspectingWorkspace() {
 
           <button
             type="button"
-            onClick={() => setBuilderOpen((v) => !v)}
+            onClick={() => {
+              setInfluencerPanelOpen((v) => !v);
+              setBuilderOpen(false);
+            }}
+            className={`inline-flex items-center gap-1.5 rounded-lg border px-3.5 py-2 text-xs font-semibold transition-colors whitespace-nowrap shrink-0 ${
+              influencerPanelOpen
+                ? "border-indigo-600 bg-indigo-50 text-indigo-700 dark:border-indigo-500 dark:bg-indigo-950/60 dark:text-indigo-300"
+                : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
+            }`}
+          >
+            <Camera className="h-3.5 w-3.5 text-indigo-600 dark:text-indigo-400" />
+            <span>
+              {influencerPanelOpen
+                ? "Fechar Convite por Print"
+                : "Convite por Print (YouTube/Redes)"}
+            </span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => {
+              setBuilderOpen((v) => !v);
+              setInfluencerPanelOpen(false);
+            }}
             className="inline-flex items-center gap-1.5 rounded-lg bg-gradient-to-r from-[#5B4AF4] to-[#2563EB] px-4 py-2 text-xs font-semibold text-white hover:brightness-110 whitespace-nowrap shrink-0"
           >
             <Plus className="h-3.5 w-3.5" />
@@ -822,6 +1128,476 @@ export default function AdminProspectingWorkspace() {
           </div>
         ))}
       </div>
+
+      {/* Influencer Screenshot Outreach Builder */}
+      {influencerPanelOpen && (
+        <section
+          aria-label="Convite rápido para influenciador a partir de print"
+          onPaste={handlePasteInfluencerPrint}
+          className="rounded-xl border border-indigo-200/80 bg-white p-5 space-y-5 dark:border-indigo-900/60 dark:bg-[#0F172A]"
+        >
+          <div className="flex flex-wrap items-start justify-between gap-3 border-b border-slate-100 pb-3 dark:border-slate-800">
+            <div>
+              <h2 className="text-sm font-bold text-slate-900 dark:text-white">
+                Prospecção por Print de Canal (YouTube, Instagram, TikTok)
+              </h2>
+              <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
+                Envie ou cole (<kbd className="rounded border border-slate-300 px-1 text-[10px] dark:border-slate-700">Ctrl+V</kbd>) o print do canal do influenciador. A IA lê o perfil, cria um link de parceiro com comissão recorrente e redige a mensagem curta pronta para enviar.
+              </p>
+            </div>
+            <Link
+              href="/admin/parceiros"
+              className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50 px-3 py-1.5 text-[11px] font-semibold text-slate-700 hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
+            >
+              <Handshake className="h-3.5 w-3.5 text-indigo-600 dark:text-indigo-400" />
+              <span>Ver Convites de Parceiros</span>
+            </Link>
+          </div>
+
+          <div className="grid grid-cols-1 gap-5 lg:grid-cols-12">
+            {/* Left Column: Print upload & options */}
+            <div className="lg:col-span-5 space-y-4">
+              <div
+                onDragOver={(e) => e.preventDefault()}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  void handleSelectInfluencerFile(e.dataTransfer.files?.[0]);
+                }}
+                className="rounded-xl border-2 border-dashed border-slate-200 bg-slate-50/70 p-4 text-center transition-colors hover:border-indigo-300 dark:border-slate-700 dark:bg-slate-900/60"
+              >
+                {infImageDataUrl ? (
+                  <div className="space-y-3">
+                    <div className="overflow-hidden rounded-lg border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-950">
+                      <img
+                        src={infImageDataUrl}
+                        alt="Print do canal do influenciador"
+                        className="max-h-56 w-full object-contain"
+                      />
+                    </div>
+                    <div className="flex flex-wrap items-center justify-center gap-2">
+                      <label className="cursor-pointer inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200">
+                        <Upload className="h-3.5 w-3.5" />
+                        <span>Trocar print</span>
+                        <input
+                          type="file"
+                          accept="image/png,image/jpeg,image/webp"
+                          className="sr-only"
+                          onChange={(e) =>
+                            void handleSelectInfluencerFile(e.target.files?.[0])
+                          }
+                        />
+                      </label>
+                      <button
+                        type="button"
+                        onClick={() => setInfImageDataUrl(null)}
+                        className="inline-flex items-center gap-1 rounded-lg border border-rose-200 bg-rose-50 px-3 py-1.5 text-xs font-semibold text-rose-700 hover:bg-rose-100 dark:border-rose-900/60 dark:bg-rose-950/40 dark:text-rose-300"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                        <span>Remover</span>
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <label className="flex cursor-pointer flex-col items-center justify-center gap-2 py-6">
+                    <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600 dark:bg-indigo-950/60 dark:text-indigo-400">
+                      <Camera className="h-5 w-5" />
+                    </div>
+                    <p className="text-xs font-semibold text-slate-800 dark:text-slate-200">
+                      Arraste ou clique para enviar o print do canal
+                    </p>
+                    <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                      Também pode colar direto com Ctrl+V (PNG, JPG ou WebP)
+                    </p>
+                    <input
+                      type="file"
+                      accept="image/png,image/jpeg,image/webp"
+                      className="sr-only"
+                      onChange={(e) =>
+                        void handleSelectInfluencerFile(e.target.files?.[0])
+                      }
+                    />
+                  </label>
+                )}
+              </div>
+
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <div className="space-y-1">
+                  <label
+                    htmlFor="inf-canal-url"
+                    className="block text-[11px] font-semibold text-slate-700 dark:text-slate-200"
+                  >
+                    URL do canal (opcional)
+                  </label>
+                  <input
+                    id="inf-canal-url"
+                    type="url"
+                    value={infCanalUrl}
+                    onChange={(e) => setInfCanalUrl(e.target.value)}
+                    placeholder="https://youtube.com/@canal"
+                    className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-900 focus:border-indigo-500 focus:bg-white focus:outline-none dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label
+                    htmlFor="inf-nome-manual"
+                    className="block text-[11px] font-semibold text-slate-700 dark:text-slate-200"
+                  >
+                    Nome do criador (opcional)
+                  </label>
+                  <input
+                    id="inf-nome-manual"
+                    type="text"
+                    value={infNomeManual}
+                    onChange={(e) => setInfNomeManual(e.target.value)}
+                    placeholder="Lido do print automaticamente"
+                    className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-900 focus:border-indigo-500 focus:bg-white focus:outline-none dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                <div className="space-y-1">
+                  <label
+                    htmlFor="inf-tom"
+                    className="block text-[11px] font-semibold text-slate-700 dark:text-slate-200"
+                  >
+                    Tom da mensagem
+                  </label>
+                  <select
+                    id="inf-tom"
+                    value={infTom}
+                    onChange={(e) => setInfTom(e.target.value as InfluencerTone)}
+                    className="w-full rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-2 text-xs text-slate-900 focus:border-indigo-500 focus:bg-white focus:outline-none dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
+                  >
+                    <option value="amigavel">Amigável / Criador</option>
+                    <option value="direto">Direto e objetivo</option>
+                    <option value="consultivo">Consultivo / Parceria</option>
+                  </select>
+                </div>
+
+                <div className="space-y-1">
+                  <label
+                    htmlFor="inf-comissao"
+                    className="block text-[11px] font-semibold text-slate-700 dark:text-slate-200"
+                  >
+                    Comissão Pro/Agência
+                  </label>
+                  <select
+                    id="inf-comissao"
+                    value={infComissao}
+                    onChange={(e) => setInfComissao(Number(e.target.value))}
+                    className="w-full rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-2 font-mono text-xs text-slate-900 focus:border-indigo-500 focus:bg-white focus:outline-none dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
+                  >
+                    <option value={25}>25%</option>
+                    <option value={30}>30%</option>
+                    <option value={35}>35% (Padrão)</option>
+                    <option value={40}>40%</option>
+                  </select>
+                </div>
+
+                <div className="space-y-1">
+                  <label
+                    htmlFor="inf-validade"
+                    className="block text-[11px] font-semibold text-slate-700 dark:text-slate-200"
+                  >
+                    Validade do link
+                  </label>
+                  <select
+                    id="inf-validade"
+                    value={infValidadeDias}
+                    onChange={(e) => setInfValidadeDias(Number(e.target.value))}
+                    className="w-full rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-2 font-mono text-xs text-slate-900 focus:border-indigo-500 focus:bg-white focus:outline-none dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
+                  >
+                    <option value={14}>14 dias</option>
+                    <option value={30}>30 dias</option>
+                    <option value={60}>60 dias</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="space-y-1">
+                <label
+                  htmlFor="inf-notas"
+                  className="block text-[11px] font-semibold text-slate-700 dark:text-slate-200"
+                >
+                  Observação extra para personalizar (opcional)
+                </label>
+                <input
+                  id="inf-notas"
+                  type="text"
+                  value={infNotas}
+                  onChange={(e) => setInfNotas(e.target.value)}
+                  placeholder="Ex.: Mencionar vídeo recente sobre ferramentas de IA ou foco em renda extra"
+                  className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-900 focus:border-indigo-500 focus:bg-white focus:outline-none dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
+                />
+              </div>
+
+              <label className="flex items-center gap-2 text-xs text-slate-700 dark:text-slate-300">
+                <input
+                  type="checkbox"
+                  checked={infCriarLink}
+                  onChange={(e) => setInfCriarLink(e.target.checked)}
+                  className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                />
+                <span>
+                  Gerar link exclusivo de parceiro (<code className="font-mono text-[11px]">/parceiro/convite/...</code>) junto com o texto
+                </span>
+              </label>
+
+              <button
+                type="button"
+                disabled={infGenerating}
+                onClick={() => void handleGenerateInfluencerInvite()}
+                className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-[#5B4AF4] to-[#2563EB] px-4 py-2.5 text-xs font-semibold text-white hover:brightness-110 disabled:opacity-60"
+              >
+                {infGenerating ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Sparkles className="h-4 w-4" />
+                )}
+                <span>
+                  {infGenerating
+                    ? "Lendo print e redigindo convite…"
+                    : "Analisar Print & Gerar Mensagem + Link"}
+                </span>
+              </button>
+            </div>
+
+            {/* Right Column: Generated Link + Short Message + Optional Email */}
+            <div className="lg:col-span-7">
+              {!infMeta ? (
+                <div className="flex h-full min-h-[280px] flex-col items-center justify-center rounded-xl border border-dashed border-slate-200 bg-slate-50/50 px-6 py-10 text-center dark:border-slate-800 dark:bg-slate-900/40">
+                  <Handshake className="h-8 w-8 text-indigo-500" />
+                  <p className="mt-3 text-sm font-semibold text-slate-900 dark:text-white">
+                    Pronto para gerar o convite personalizado
+                  </p>
+                  <p className="mt-1 max-w-md text-xs text-slate-500 dark:text-slate-400">
+                    Envie o print do canal do influenciador ao lado. Vamos identificar o estilo do canal, gerar um link oficial de parceiro com comissão por assinatura e escrever um texto curto pronto para DM, WhatsApp ou e-mail.
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-4 rounded-xl border border-slate-200 bg-slate-50/40 p-4 dark:border-slate-800 dark:bg-slate-900/50">
+                  {/* Extracted channel summary */}
+                  <div className="flex flex-wrap items-start justify-between gap-2 border-b border-slate-200 pb-3 dark:border-slate-800">
+                    <div>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <h3 className="text-sm font-bold text-slate-900 dark:text-white">
+                          {infMeta.draft.nomeCanal}
+                        </h3>
+                        <span className="rounded bg-indigo-50 px-2 py-0.5 text-[11px] font-semibold text-indigo-700 dark:bg-indigo-950/60 dark:text-indigo-300">
+                          {infMeta.draft.plataforma}
+                        </span>
+                        {infMeta.draft.handle && (
+                          <span className="font-mono text-[11px] text-slate-500 dark:text-slate-400">
+                            {infMeta.draft.handle}
+                          </span>
+                        )}
+                      </div>
+                      <p className="mt-0.5 text-[11px] text-slate-600 dark:text-slate-300">
+                        {infMeta.draft.nicho} · Alcance: {infMeta.draft.inscritosOuAlcance}
+                      </p>
+                      <p className="mt-1 text-[11px] text-slate-600 dark:text-slate-400">
+                        <span className="font-semibold text-slate-800 dark:text-slate-200">
+                          Gancho observado:{" "}
+                        </span>
+                        {infMeta.draft.ganchoPersonalizado}
+                      </p>
+                    </div>
+                    <span className="font-mono text-[10px] text-slate-400">
+                      {infMeta.modelo}
+                    </span>
+                  </div>
+
+                  {/* Generated Invite Link */}
+                  <div className="space-y-1.5">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-700 dark:text-slate-200">
+                        <Link2 className="h-3.5 w-3.5 text-indigo-600 dark:text-indigo-400" />
+                        <span>
+                          {infMeta.linkCriadoAutomaticamente
+                            ? `Link de Convite de Parceiro (${infMeta.percentualComissao}% comissão)`
+                            : "Link de Convite"}
+                        </span>
+                      </span>
+                      <div className="flex items-center gap-2">
+                        {infCriarLink && (
+                          <button
+                            type="button"
+                            disabled={infGenerating}
+                            onClick={() =>
+                              void handleGenerateInfluencerInvite({
+                                forceNewLink: true,
+                              })
+                            }
+                            className="text-[11px] font-semibold text-indigo-600 hover:underline disabled:opacity-50 dark:text-indigo-400"
+                          >
+                            Gerar novo link
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="text"
+                        readOnly
+                        value={infMeta.inviteUrl}
+                        className="flex-1 rounded-lg border border-slate-200 bg-white px-3 py-1.5 font-mono text-[11px] text-slate-800 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"
+                      />
+                      <button
+                        type="button"
+                        onClick={() =>
+                          void handleCopyInfluencerText("link", infMeta.inviteUrl)
+                        }
+                        className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 shrink-0"
+                      >
+                        {infCopiedKind === "link" ? (
+                          <>
+                            <Check className="h-3.5 w-3.5 text-emerald-600" />
+                            <span>Copiado</span>
+                          </>
+                        ) : (
+                          <>
+                            <Copy className="h-3.5 w-3.5" />
+                            <span>Copiar Link</span>
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Short Message (DM / WhatsApp) */}
+                  <div className="space-y-1.5">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <label
+                        htmlFor="inf-msg-curta"
+                        className="text-xs font-semibold text-slate-700 dark:text-slate-200"
+                      >
+                        Mensagem curta pronta (DM / WhatsApp / Comentário)
+                      </label>
+                      <span className="font-mono text-[11px] text-slate-400 tabular-nums">
+                        {infMensagemCurta.length} caracteres
+                      </span>
+                    </div>
+                    <textarea
+                      id="inf-msg-curta"
+                      rows={5}
+                      value={infMensagemCurta}
+                      onChange={(e) => setInfMensagemCurta(e.target.value)}
+                      className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-xs leading-relaxed text-slate-900 focus:border-indigo-500 focus:outline-none dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
+                    />
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <button
+                        type="button"
+                        disabled={infGenerating}
+                        onClick={() =>
+                          void handleGenerateInfluencerInvite({
+                            keepExistingLink: true,
+                          })
+                        }
+                        className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-100 disabled:opacity-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
+                      >
+                        <RefreshCw
+                          className={`h-3.5 w-3.5 ${
+                            infGenerating ? "animate-spin" : ""
+                          }`}
+                        />
+                        <span>Regenerar Texto (mesmo link)</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() =>
+                          void handleCopyInfluencerText("short", infMensagemCurta)
+                        }
+                        className="inline-flex items-center gap-1.5 rounded-lg bg-gradient-to-r from-[#5B4AF4] to-[#2563EB] px-4 py-1.5 text-xs font-semibold text-white hover:brightness-110"
+                      >
+                        {infCopiedKind === "short" ? (
+                          <>
+                            <Check className="h-3.5 w-3.5" />
+                            <span>Mensagem + Link Copiados!</span>
+                          </>
+                        ) : (
+                          <>
+                            <Copy className="h-3.5 w-3.5" />
+                            <span>Copiar Mensagem + Link</span>
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Optional Email Version */}
+                  <details className="rounded-lg border border-slate-200 bg-white p-3 dark:border-slate-800 dark:bg-slate-900">
+                    <summary className="cursor-pointer text-xs font-semibold text-slate-700 dark:text-slate-200">
+                      Versão para E-mail {infEmailDestino ? `(${infEmailDestino})` : "(opcional)"}
+                    </summary>
+                    <div className="mt-3 space-y-2.5">
+                      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                        <input
+                          type="email"
+                          value={infEmailDestino}
+                          onChange={(e) => setInfEmailDestino(e.target.value)}
+                          placeholder="E-mail comercial do influenciador"
+                          className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-1.5 font-mono text-xs text-slate-900 focus:border-indigo-500 focus:bg-white focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+                        />
+                        <input
+                          type="text"
+                          value={infEmailAssunto}
+                          onChange={(e) => setInfEmailAssunto(e.target.value)}
+                          placeholder="Assunto do e-mail"
+                          className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs text-slate-900 focus:border-indigo-500 focus:bg-white focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+                        />
+                      </div>
+                      <textarea
+                        rows={4}
+                        value={infEmailCorpo}
+                        onChange={(e) => setInfEmailCorpo(e.target.value)}
+                        className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs leading-relaxed text-slate-900 focus:border-indigo-500 focus:bg-white focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+                      />
+                      <div className="flex flex-wrap items-center justify-end gap-2">
+                        <button
+                          type="button"
+                          onClick={() =>
+                            void handleCopyInfluencerText(
+                              "email",
+                              `Assunto: ${infEmailAssunto}\n\n${infEmailCorpo}`
+                            )
+                          }
+                          className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
+                        >
+                          {infCopiedKind === "email" ? (
+                            <Check className="h-3.5 w-3.5 text-emerald-600" />
+                          ) : (
+                            <Copy className="h-3.5 w-3.5" />
+                          )}
+                          <span>
+                            {infCopiedKind === "email"
+                              ? "E-mail copiado"
+                              : "Copiar E-mail"}
+                          </span>
+                        </button>
+                        <button
+                          type="button"
+                          disabled={infSendingEmail || !infEmailDestino.trim()}
+                          onClick={() => void handleSendInfluencerEmail()}
+                          className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 px-3.5 py-1.5 text-xs font-semibold text-white hover:bg-emerald-700 disabled:opacity-50"
+                        >
+                          {infSendingEmail ? (
+                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                          ) : (
+                            <Send className="h-3.5 w-3.5" />
+                          )}
+                          <span>Enviar por E-mail</span>
+                        </button>
+                      </div>
+                    </div>
+                  </details>
+                </div>
+              )}
+            </div>
+          </div>
+        </section>
+      )}
 
       {/* Collapsible Discriminated Search Builder */}
       {builderOpen && (
