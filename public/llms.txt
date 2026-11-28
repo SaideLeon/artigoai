@@ -1,20 +1,390 @@
 # Artigen
 
-> Gerador de artigos para blogs com Inteligência Artificial, pesquisa web em tempo real, ilustrações geradas por seção e exportação em HTML limpo.
+> Plataforma web completa (Next.js + Supabase + Google Gemini + NVIDIA FLUX.3 Klein + Groq Whisper + Cakto + Resend) para criação, pesquisa web em tempo real, ilustração automática, auditoria SEO, edição ao vivo, gestão de biblioteca e exportação de artigos longos para blogs em HTML limpo — com estúdio interativo, narração por voz, leitura de links primários, mascote 3D oficial (Mulébi), programa de parceiros com comissões recorrentes e painel administrativo de prospecção inteligente e e-mails.
 
-## Rotas Principais
-- `/` — Página inicial com visão geral dos recursos, exemplos interativos do estúdio, fluxo de criação em 3 etapas, planos mensais/anuais em Real (R$) e perguntas frequentes.
-- `/studio` — Estúdio interativo de geração de artigos para blogs, pesquisa web, edição ao vivo, biblioteca pessoal, estatísticas de produção e exportação em HTML.
-- `/mascote` — Demonstração interativa do mascote 3D oficial do Artigen modelado em Three.js.
+Site oficial: https://criador.artificializar.site
+Contato oficial: contato@artificializar.site
+Idioma principal da interface: Português (com geração de artigos em 5 idiomas)
+Documentação espelho acessível em: `/llms.txt` e `/LLM.txt`
 
-## Recursos do Estúdio
-- Pesquisa web em tempo real (modos Automático, Sempre pesquisar e Desativada) com referências exibidas ao final do artigo.
-- Sugestão automática de descrição, palavras-chave, tom e extensão a partir do título.
-- Escrita seção a seção mantendo coerência editorial em primeira ou terceira pessoa.
-- Ilustrações automáticas por seção e exportação em arquivo HTML pronto para publicação.
+---
 
-## Planos (BRL via Stripe)
-- **Grátis**: 2 artigos por mês, pesquisa na web, imagens por seção e exportação em HTML.
-- **Starter**: 5 artigos por mês — R$ 34,90/mês ou R$ 349,00/ano.
-- **Pro**: 16 artigos por mês — R$ 94,90/mês ou R$ 949,00/ano.
-- **Agência**: 30 artigos por mês — R$ 149,90/mês ou R$ 1.499,00/ano.
+## 1. Visão Geral do Sistema e Público-Alvo
+
+O **Artigen** é um estúdio de produção editorial para blogs e sites de conteúdo que automatiza todo o ciclo entre a ideia inicial (por texto, links ou áudio falado) e o arquivo HTML pronto para publicação. O sistema atende desde visitantes sem cadastro (com cota gratuita imediata), criadores individuais, blogs em crescimento, agências de SEO e equipes editoriais, até parceiros afiliados que divulgam a plataforma mediante comissão recorrente vitalícia.
+
+Diferenciais estruturais do sistema:
+- **Zero bloqueio para testar**: visitantes anônimos podem gerar até 2 artigos gratuitos por mês com até 7 imagens por artigo diretamente em `/studio`, com persistência local no navegador e cota protegida por cookie assinado em servidor (`artigen_guest_quota`).
+- **Priorização de Fontes Primárias**: quando o usuário informa até 5 URLs próprias ou publica links de referência, o sistema faz raspagem segura no servidor (com proteção contra SSRF) e trata essas páginas como **Fonte Primária** obrigatória no esboço e em todas as seções; a pesquisa web complementar entra apenas como **Apoio Secundário**.
+- **Narração por Voz com Organização Automática**: o usuário pode gravar sua própria explicação no microfone do navegador ou enviar um arquivo de áudio de até 24 MB; a fala é transcrita via Groq Whisper e estruturada por IA em título SEO, meta descrição, palavras-chave, tom e roteiro organizado preservando os fatos e exemplos do autor.
+- **Pipeline Transparente Seção a Seção**: o usuário acompanha em tempo real a pesquisa, o esboço completo, a escrita progressiva de cada seção (com resumo cumulativo anti-repetição) e a geração de uma ilustração 1024×1024 dedicada por seção em qualquer um dos **6 estilos visuais** configuráveis para todos os planos.
+- **Edição ao Vivo + Pré-visualização de Imagem + Auditoria SEO**: após ou durante a geração, é possível alternar instantaneamente entre **Prévia**, **Editor** (com pré-visualização ao vivo de imagem, prompt visual editável, regeneração por seção, adição/remoção de seções) e **SEO** (auditoria de 5 critérios + cobertura de palavras-chave no título, subtítulos e corpo).
+- **Mascote 3D Interativo (Mulébi)**: personagem 3D em Three.js presente na página dedicada `/mascote` e em cenas contextuais do estúdio (estado de espera, fila de escrita e gravação de voz).
+
+---
+
+## 2. Arquitetura Tecnológica e Motores de IA
+
+### 2.1 Pilha de Aplicação
+- **Frontend e Backend**: Next.js 16+ (App Router), React 19, TypeScript, Tailwind CSS v4, Lucide Icons, Motion (`motion/react`), Recharts (gráficos de produtividade), Three.js (`@react-three/fiber` / Three.js para o mascote Mulébi) e `qrcode` (QR Code do link de parceiro).
+- **Autenticação e Banco de Dados**: Supabase (PostgreSQL + Row Level Security + Google OAuth via `/auth/callback`).
+- **Pagamentos e Assinaturas**: **Cakto** (checkout em Real brasileiro — Pix com aprovação imediata, Cartão de Crédito e Boleto, além de webhook em `/api/cakto/webhook` e portal do assinante em `https://assinatura.cakto.com.br`).
+- **E-mail Transacional e Caixa de Entrada Admin**: **Resend** (envio e recebimento com domínio `artificializar.site`, threads em `/admin/emails` e disparo de convites em `/admin/prospeccao`).
+- **PWA (Progressive Web App)**: instalável via `/manifest.webmanifest` e Service Worker `/sw.js`, com atalhos diretos para `/studio` e `/` e botão de instalação na aba Configurações do estúdio.
+
+### 2.2 Motores de IA em Produção (Sem Modelos Pagos Gemini Série 4)
+1. **Geração de Texto Editorial, Esboços, Sugestões, Organização de Narração e Visão Multimodal**:
+   - **Google Gemini (Série 3 gratuita)**: ordem de tentativa/fallback configurada no servidor:
+     1. `gemini-3.5-flash-lite` (padrão principal; sobrescrevível via `GEMINI_TEXT_MODEL`)
+     2. `gemini-3.1-flash-lite`
+     3. `gemini-3.5-flash`
+   - Limpeza automática de tags `<think>...</think>` e suporte a Schema JSON estruturado (`responseSchema`) para `/api/outline`, `/api/suggest` e `/api/narrate-organize`.
+   - Utiliza exclusivamente modelos gratuitos da série 3 do Gemini (sem uso de modelos pagos da série 4 nem modelos legados descontinuados).
+2. **Pesquisa Web em Tempo Real (Grounding) e Prospecção Web**:
+   - **Google Gemini gratuito com ferramenta nativa `googleSearch`**: ordem de tentativa:
+     1. `gemini-3.5-flash-lite` (padrão; sobrescrevível via `GEMINI_RESEARCH_MODEL`)
+     2. `gemini-3.5-flash`
+     3. `gemini-3.1-flash-lite`
+   - Retorna resumo factual, pontos-chave verificados e lista de fontes com título e URL clicáveis (marcadas como `primaria` quando vieram de links do usuário ou `secundaria` quando descobertas via Google Search).
+3. **Geração de Imagens por Seção**:
+   - **NVIDIA NIM — Black Forest Labs `black-forest-labs/flux-3-image-klein`** (`https://ai.api.nvidia.com/v1/genai/black-forest-labs/flux-3-image-klein`).
+   - Parâmetros padrão: resolução **1024×1024 px**, **50 steps** (`NVIDIA_IMAGE_STEPS`), prompt em inglês composto pelo prefixo do estilo visual escolhido + descrição cênica específica gerada na última linha de cada seção (`IMAGEM: ...`), sempre reforçando ausência absoluta de texto, letras, números ou marcas d'água na imagem.
+4. **Transcrição de Áudio (Narração por Voz)**:
+   - **Groq Whisper** (`whisper-large-v3-turbo` via `GROQ_API_KEY` em `/api/transcribe`), aceitando áudios gravados ao vivo ou enviados nos formatos `flac`, `mp3`, `mp4`, `mpeg`, `mpga`, `m4a`, `ogg`, `wav`, `webm` até **24 MB**.
+
+---
+
+## 3. Mapa Completo de Rotas e Páginas da Aplicação
+
+### 3.1 Páginas Públicas e Legais
+- `/` — **Página Inicial (Landing Page)**: apresentação do produto, exemplos interativos do fluxo do estúdio, explicação das etapas de criação, seção de planos mensais e anuais em Real (`#planos`), perguntas frequentes (`#faq`), formulário de contato conectado a `/api/contact` (`#contato`), atalhos de acesso ao estúdio e links institucionais/legais.
+- `/studio` — **Estúdio de Criação e Gestão de Artigos**: aplicação principal de workspace com barra lateral, barra superior, formulário de configuração, área de trabalho em 3 abas (`Prévia`, `Editor`, `SEO`), biblioteca, favoritos, estatísticas e configurações.
+- `/mascote` — **Mulébi — Mascote 3D Interativo**: página interativa em Three.js onde o usuário pode girar o personagem, ajustar tamanho/zoom e testar expressões e animações procedurais do mascote oficial do Artigen.
+- `/sobre` — **Sobre o Artigen**: página editorial explicando princípios de publicação, transparência sobre uso de IA, fontes consultadas e propósito da ferramenta.
+- `/termos-de-uso` — **Termos de Uso** da plataforma.
+- `/privacidade` — **Política de Privacidade e LGPD**.
+- `/politica-de-cookies` — **Política de Cookies** (incluindo cookie de sessão, cota anônima e cookie de afiliado `artigen_ref` de 60 dias).
+- `/reembolso-e-cancelamento` — **Política de Reembolso e Cancelamento** via Cakto.
+- `/termos-parceiros` — **Termos do Programa de Parceiros**.
+- `/llms.txt` e `/LLM.txt` — **Documentação técnica e funcional completa para LLMs** (este arquivo).
+- `/robots.txt`, `/sitemap.xml`, `/manifest.webmanifest` — indexação SEO e manifesto PWA.
+
+### 3.2 Autenticação e Atribuição de Indicação
+- `/auth/callback` — Callback OAuth do Supabase (Login com Google). Ao autenticar um usuário que chegou com o cookie `artigen_ref`, o sistema registra automaticamente o vínculo permanente de indicação com o parceiro correspondente.
+- Parâmetro `?ref=<codigo>` em qualquer rota — Captura o código do parceiro (3 a 30 caracteres alfanuméricos minúsculos com hífen simples), valida no servidor e grava o cookie `artigen_ref` válido por **60 dias** (`5.184.000` segundos).
+
+### 3.3 Área de Parceiros
+- `/parceiro/convite/[token]` — **Página de Aceite de Convite de Parceiro**: valida o token secreto enviado pelo administrador (armazenado apenas como hash SHA-256 no banco), exige autenticação com conta Google para vincular a conta e cria o registro oficial de parceiro com código único de indicação.
+- `/parceiro` — **Painel do Parceiro**: dashboard completo para acompanhar links, QR Code, cliques/indicados, comissões, extratos e pedidos de saque via Pix ou outro método.
+
+### 3.4 Área Administrativa (Acesso Restrito a Superadmins)
+O acesso é verificado no servidor comparando o e-mail autenticado (timing-safe SHA-256) contra `SUPER_ADMIN_EMAILS` / `SUPER_ADMIN_EMAIL` / `ADMIN_EMAIL` / `PARTNER_ADMIN_EMAILS`:
+- `/admin/emails` — **Caixa de E-mail Oficial**: inbox/outbox completo em threads via Resend, leitura de HTML sanitizado em sandbox, histórico de respostas e envio de novos e-mails usando o remetente oficial `Artigen <contato@artificializar.site>`.
+- `/admin/parceiros` — **Gestão do Programa de Parceiros**: criação e revogação de convites (com link único, percentual de comissão e prazo de validade), visualização de parceiros ativos, auditoria de comissões e aprovação/pagamento/recusa de solicitações de saque (com comprovante e data).
+- `/admin/prospeccao` — **Prospecção Inteligente e Convite por Print**: dois módulos integrados de aquisição: (1) Busca Discriminada na Web por nicho/perfis + raspagem de contatos e envio personalizado individual/lote via Resend; (2) Convite por Print de tela de canais/perfis de influenciadores (YouTube, Instagram, TikTok, LinkedIn, Substack, etc.) com leitura multimodal via Gemini, criação automática de link de convite `/parceiro/convite/<token>` e geração instantânea de DM curta e e-mail personalizado.
+
+---
+
+## 4. Guia Detalhado de Todas as Funcionalidades do Estúdio (`/studio`)
+
+### 4.1 Estrutura Visual, Navegação e Temas
+- **Tema Claro / Escuro (`ThemeProvider`)**: o estúdio inicia no tema claro (`light`) por padrão e permite alternar entre Modo Claro e Modo Escuro pelo botão na barra superior ou em **Configurações**.
+- **Barra Superior (`TopBar`)**:
+  - Menu responsivo mobile.
+  - Botão **Notificações**: registra eventos locais do estúdio (artigo concluído, erros, aviso de limite, regeneração de imagem) com contador de não lidas e opção de marcar todas como lidas.
+  - Botão de **Alternar Tema** (Sol/Lua).
+  - **Conta Google / Perfil**: login com um clique via Supabase Google OAuth; quando autenticado, exibe avatar, nome, plano atual, atalhos para `/parceiro` (se parceiro) e rotas `/admin/*` (se superadmin), além de botão Sair.
+- **Barra Lateral (`Sidebar`)**:
+  - **Início**: abre o formulário de configuração à esquerda e a área de trabalho do artigo à direita.
+  - **Meus Artigos**: abre a biblioteca completa com busca por título ou tema.
+  - **Favoritos**: filtra apenas artigos marcados com coração.
+  - **Estatísticas**: painel analítico completo da produção do usuário.
+  - **Configurações**: preferências padrão do formulário, estilo de imagem padrão, instalação PWA e limpeza de histórico.
+  - **Cartão de Uso e Plano**: exibe artigos usados vs limite mensal, imagens usadas vs limite mensal, barra de progresso, nome do plano ativo e botão de upgrade/gerenciamento de assinatura.
+  - Links rápidos para **Ajuda**, **Sobre**, **Mulébi 3D (`/mascote`)** e **Página Inicial (`/`)**.
+
+### 4.2 Painel de Configuração de Artigos (`ArticleConfigForm`)
+Cada campo e controle disponível no painel esquerdo:
+1. **Motor / Modo de Geração (`PlanoGeracao`)**:
+   - Alternador entre `Gratuito` e `Pago (Gemini)`. (O servidor valida a assinatura real do usuário para o modo pago e utiliza os modelos Gemini série 3 gratuitos com fallback automático.)
+2. **Explicar Tema por Voz (`VoiceNarrationModal`)**:
+   - Botão destacado no topo do formulário que abre o modal interativo com o mascote Mulébi animado (`MicMascotScene`) reativo ao volume do microfone.
+   - **Duas entradas de áudio**:
+     - **Gravação ao vivo** no navegador via `MediaRecorder` (`audio/webm;codecs=opus`, `audio/webm`, `audio/mp4`, `audio/ogg;codecs=opus`), com cronômetro `MM:SS`, medidor visual de nível de áudio, botões **Pausar**, **Retomar** e **Concluir gravação**.
+     - **Upload de arquivo de áudio** (`flac`, `mp3`, `mp4`, `mpeg`, `mpga`, `m4a`, `ogg`, `wav`, `webm`) com limite máximo de **24 MB**.
+   - **Pré-configurações dentro do modal de voz**: pesquisa web (`auto` / `sempre` / `desativada`), links de referência opcionais, extensão do artigo, idioma, inclusão de imagens e perspectiva narrativa.
+   - **Processamento em 2 etapas**:
+     1. Envia o áudio em `FormData` para `/api/transcribe` (Groq Whisper).
+     2. Envia a transcrição para `/api/narrate-organize` (Gemini com `responseSchema`), retornando: `tema` (até 95/100 caracteres), `descricao` (até 260/300 caracteres), `palavrasChave` (3 a 6 termos), `tom` (selecionado entre os 6 tons oficiais) e `narracaoOrganizada` (parágrafos limpos preservando fatos, histórias e argumentos originais sem vícios de fala).
+   - **Etapa de Revisão (`review`)**: o usuário edita livremente o título, palavras-chave, tom e o texto organizado da narração antes de clicar em **Aplicar ao formulário** ou **Aplicar e Gerar Artigo automaticamente** (`autoGenerate: true`).
+3. **Tema ou Título Principal**:
+   - Campo de texto com limite de **100 caracteres** e contador ao vivo.
+   - Botão **Sugerir opções com IA** (`/api/suggest`): analisa o título (e/ou os links primários já adicionados!) para preencher automaticamente título sugerido (se vazio), descrição, 3–5 palavras-chave, tom ideal, faixa de palavras, uso de primeira pessoa e modo de pesquisa web.
+   - Atalhos de preenchimento rápido com **3 exemplos prontos** exibidos quando a área de trabalho está vazia.
+4. **Links de Referência — Fonte Primária (até 5 URLs)**:
+   - O usuário pode colar até **5 URLs** (`http://` ou `https://`) via botão ou Enter, visualizando chips removíveis. Mesmo sem preencher o campo de tema manualmente, basta adicionar links para a IA ler os links e gerar o artigo baseado neles.
+   - Segurança no servidor (`lib/link-scraper.ts`): bloqueio rigoroso de SSRF (nega `localhost`, IPs loopback `127.0.0.0/8`, privados `10.0.0.0/8`, `172.16.0.0/12`, `192.168.0.0/16`, `169.254.0.0/16` metadata, CGNAT, multicast, IPv6 privados/link-local e redirecionamentos para endereços bloqueados), timeout de **10 segundos**, limite de **3 redirecionamentos**, leitura de até **1,5 MB** por página, recorte de até **4.200 caracteres por link** e **14.000 caracteres** no total de contexto primário (extraindo título, meta description, autor, data de publicação, subtítulos H1–H3 e conteúdo principal limpo de HTML).
+5. **Palavras-chave (SEO)**:
+   - Inserção de até **10 tags** pressionando `Enter` ou vírgula (`,`), exibidas em chips removíveis.
+6. **Descrição / Foco do Artigo**:
+   - `textarea` com limite de **300 caracteres** e indicador visual quando foi preenchida automaticamente pela IA.
+7. **Tom do Texto (6 opções exatas)**:
+   - `Informativo e Didático` (padrão)
+   - `Notícia e Atualidade`
+   - `Jornalístico e Analítico`
+   - `Profissional e Corporativo`
+   - `Conversacional e Acessível`
+   - `Persuasivo e Marketing`
+8. **Idioma de Geração (5 idiomas oficiais)**:
+   - `Português (Brasil)` (`pt-BR`, padrão)
+   - `Português (Portugal)` (`pt-PT`)
+   - `English` (`en`)
+   - `Español` (`es`)
+   - `Français` (`fr`)
+9. **Extensão do Artigo (4 faixas de palavras)**:
+   - `800-1200`: 800 – 1.200 palavras (alvo ~1.050 palavras, **4 seções** H2)
+   - `1200-1800`: 1.200 – 1.800 palavras (alvo ~1.550 palavras, **5 seções** H2)
+   - `2000-2500`: 2.000 – 2.500 palavras (alvo ~2.300 palavras, **7 seções** H2 — **padrão**)
+   - `2500-3200`: 2.500 – 3.200 palavras (alvo ~2.850 palavras, **8 seções** H2)
+10. **Ilustrações e Design das Imagens Geradas**:
+    - Interruptor `Incluir imagens` (ligado por padrão). Quando ativado, cada seção do artigo recebe uma imagem dedicada (1024×1024 px via NVIDIA FLUX.3 Klein).
+    - Seletor **Design das imagens do artigo** disponível para **todos os usuários** (visitantes, Grátis, Starter, Pro e Agência) com **6 estilos visuais**:
+      1. `editorial-flat` — **Ilustração Editorial (Padrão)**: traço limpo moderno com paleta azul-petróleo (`#0F766E`), areia (`#E6D5B8`) e grafite (`#1E293B`).
+      2. `fotografia-realista` — **Fotografia Realista**: fotos naturais em alta definição com luz do dia ou estúdio suave e profundidade DSLR 35mm.
+      3. `realismo-cinematografico` — **Realismo Cinematográfico**: atmosfera dramática, golden hour ou estúdio contrastado, profundidade anamórfica e color grading editorial.
+      4. `render-3d-moderno` — **3D Minimalista & Tech**: renderização isométrica fosca com materiais argila/vidro fosco e iluminação suave para SaaS, tecnologia e negócios.
+      5. `aquarela-editorial` — **Aquarela & Arte Orgânica**: pinceladas suaves e tinta fina sobre papel texturizado de algodão para cultura, saúde e bem-estar.
+      6. `minimalista-geometrico` — **Minimalista Geométrico**: formas arquitetônicas nítidas, amplo espaço negativo e paleta cobalto/terracota para finanças, análise e estratégia.
+    - Todas as instruções enviadas ao modelo incluem restrição estrita: *"strictly no text, no letters, no numbers, no watermarks"*.
+11. **Perspectiva Narrativa (Primeira Pessoa)**:
+    - Interruptor ligado por padrão (`primeiraPessoa = true`), instruindo o esboço e cada seção a usar voz pessoal direta (*"eu", "na minha experiência", "recomendo"*). Quando desligado, força escrita em terceira pessoa / estilo impessoal sem pronomes pessoais.
+12. **Modo de Pesquisa na Web**:
+    - `auto` (**Automática** — padrão): o Gemini avalia se o tema exige fatos recentes, preços, versões ou dados verificáveis; se sim, ativa Google Search grounding.
+    - `sempre` (**Sempre pesquisar**): força a consulta de fontes atuais na web antes de criar o esboço.
+    - `desativada` (**Desativada**): redige apenas com o conhecimento do modelo, links primários (se fornecidos) e narração do usuário.
+13. **Controles de Execução**:
+    - Botão **Gerar Artigo** e botão **Parar** (cancela imediatamente via `AbortController` todas as chamadas em voo).
+
+### 4.3 Pipeline de Execução Passo a Passo na Geração de um Artigo
+Ao clicar em **Gerar Artigo**:
+1. **Auto-sugestão opcional (`/api/suggest`)**: se o usuário não preencheu descrição, não adicionou palavras-chave e não veio de uma narração por voz, o estúdio chama `/api/suggest` automaticamente para preencher metadados estratégicos (e título sugerido caso apenas links tenham sido fornecidos).
+2. **Coleta de Fontes Primárias e Pesquisa Web (`/api/research`)**: executado sempre que `pesquisaWeb !== "desativada"` ou quando houver links de referência. Raspa os links do usuário primeiro (`tipo: "primaria"`) e, se necessário, executa pesquisa Gemini com Google Search (`tipo: "secundaria"`), retornando até 12 fontes organizadas e o contexto factual separado em `contextoPrimario` e `resumoPesquisa`.
+3. **Criação do Esboço Estruturado (`/api/outline`)**: envia `sessionKey` única para controle idempotente de cota (1 artigo consumido por `sessionKey`) e gera título principal + exatas `N` seções H2 (4, 5, 7 ou 8) com `titulo` e `objetivo` em JSON validado por Schema.
+4. **Escrita Progressiva Seção a Seção (`/api/section`)**:
+   - Percorre sequencialmente de `i = 0` até `lista.length - 1`.
+   - Envia o índice completo, resumo cumulativo das seções já redigidas (evitando repetições), meta de palavras por seção (`Math.ceil(alvoPalavras / lista.length)`), `narracao`, `contextoPrimario`, `contextoPesquisa`, tom, idioma, perspectiva narrativa e `sectionHint` do estilo de imagem selecionado.
+   - Separa automaticamente o texto editorial da diretiva final `IMAGEM: <descrição em inglês>` para gerar o prompt visual de cada seção.
+   - Atualiza o resumo progressivo (até ~450 caracteres do início de cada seção) antes de avançar à próxima.
+5. **Ilustração por Seção (`/api/image`)**:
+   - Quando `incluirImagens = true`, solicita `/api/image` passando `prompt`, `estiloImagem`, `sectionIndex`, `plano` e `sessionKey`.
+   - Em caso de falha em uma seção específica, exibe mensagem legível na própria seção com botão **Tentar imagem de novo**, sem interromper o texto das demais seções.
+6. **Persistência e Sincronização**:
+   - **Usuários logados (Google/Supabase)**: o artigo é salvo na tabela de artigos do Supabase com suas seções, imagens, fontes e metadados.
+   - **Visitantes sem login**: o artigo é salvo no `localStorage` do navegador (com compressão automática das imagens via canvas quando necessário para caber com segurança na cota de armazenamento do navegador).
+
+### 4.4 Área de Trabalho do Artigo (`ArticleWorkspace`) — 3 Abas e Exportação
+Barra superior da área de trabalho exibe status em tempo real, indicador de uso de fontes primárias/secundárias (`SourceBadge`), botão **Favorito** (coração), **Copiar Texto** (copia Markdown `# Título`, descrição e `## 1. Subtítulo`) e **Baixar HTML**.
+
+1. **Aba `Prévia`**:
+   - Exibe estado vazio educativo com Mulébi e **3 exemplos clicáveis** antes da geração.
+   - Durante a geração: exibe cada seção já concluída e o cartão animado **Mulébi está a escrever…** (`WritingMascotScene`) na seção em andamento, além de cartões de fila para as seções seguintes.
+   - Imagem da 1ª seção é exibida como **banner de capa** (`h-64 sm:h-80`) acima do título; imagens das seções seguintes aparecem logo abaixo de seus respectivos subtítulos H2.
+   - Ao final do artigo, exibe o bloco `<aside>` **Fontes consultadas** listando todas as URLs clicáveis com selo diferenciando **Fonte primária** (verde) e **Apoio secundário**.
+2. **Aba `Editor`**:
+   - Campo editável para o **Título do artigo**.
+   - Para cada seção:
+     - Contador ao vivo de palavras da seção, botão **Nova imagem / Gerar imagem** e botão de excluir seção (quando houver mais de 1 seção).
+     - Input para editar o título H2 da seção.
+     - **Painel Integrado de Pré-visualização de Imagem na Área de Edição**: exibe a imagem atual da seção (capa ou seção N), overlay translúcido com spinner *"A regenerar imagem desta secção…"* durante a atualização, botões rápidos **Regenerar** e **Remover**, estado de erro com **Tentar novamente** e campo editável **Prompt visual da imagem** para o usuário ajustar a cena desejada antes de regenerar.
+     - `textarea` amplo para edição livre do conteúdo da seção.
+   - Botão **Adicionar nova secção** ao final para expandir manualmente o artigo.
+3. **Aba `SEO`**:
+   - **4 métricas resumidas**: Total de palavras, Tempo estimado de leitura (`200 palavras/min`), Quantidade de seções H2 e Imagens geradas (`X/N`).
+   - **Auditoria editorial e estrutura (5 critérios objetivos)**:
+     1. Título principal definido (`20–95` caracteres válidos; ideal `30–80`).
+     2. Meta descrição informativa (`50–300` caracteres; ideal `80–160`).
+     3. Extensão adequada para ranqueamento (`>= 800` palavras).
+     4. Estrutura dividida em múltiplas seções H2 (`>= 4` seções).
+     5. Imagens com texto alternativo (`alt`) presentes (`>= 1` imagem gerada).
+   - **Tabela de Cobertura de Palavras-chave**: para cada palavra-chave configurada, mostra se está **Presente/Ausente no título**, **Presente/Ausente nos subtítulos H2** e o número total de **ocorrências** no artigo inteiro.
+4. **Exportação em HTML Limpo (`Baixar HTML`)**:
+   - Gera automaticamente um arquivo `<slug-do-titulo>.html` autônomo (`<!doctype html>`) com tipografia editorial legível (`max-width: 760px`, Georgia serif, `line-height: 1.78`), título `<h1>`, descrição introdutória, seções `<h2>` numeradas, tags `<img>` com `alt` descritivo e `<section>` final de **Fontes consultadas** com links externos `target="_blank" rel="noopener noreferrer"` identificando `[Fonte primária]` e `[Apoio secundário]`.
+
+### 4.5 Biblioteca (`Meus Artigos` e `Favoritos`), Estatísticas e Configurações
+- **Meus Artigos / Favoritos**: barra de busca instantânea por título ou tema, metadata por item (palavras, seções, imagens, idioma, data), ações rápidas de **Alternar favorito**, **Baixar HTML**, **Abrir no estúdio** e **Excluir**.
+- **Estatísticas (`StatsView`)**:
+  - Cartões com total de artigos salvos, total de palavras escritas, média de palavras por artigo, imagens geradas e horas totais de leitura estimadas.
+  - Gráfico interativo Recharts com alternância de tipo (**Área** / **Barras**) e filtro de período (**6 meses**, **12 meses**, **Todo histórico**).
+  - Lista de histórico recente clicável para reabrir qualquer artigo diretamente no workspace.
+- **Configurações (`SettingsView`)**:
+  - **Aparência**: seleção de Tema Claro ou Tema Escuro.
+  - **Aplicativo Instalável (PWA)**: botão de instalação em desktop/Android/iOS.
+  - **Padrões de Geração** (persistidos no perfil do usuário no Supabase via migrações `17_user_image_style.sql` e configurações locais): Tom padrão, Idioma padrão, Faixa de extensão padrão, Incluir imagens por padrão, **Design das imagens do artigo padrão** (os 6 estilos visuais disponíveis para todos os planos), Escrita em primeira pessoa por padrão e Pesquisa web padrão.
+  - **Limpar histórico local** (ação protegida para apagar artigos locais).
+
+---
+
+## 5. Planos, Preços (BRL via Cakto) e Regras Exatas de Cota
+
+Todos os valores são em Real brasileiro (`BRL`), processados pela **Cakto** com suporte a **Pix (aprovação imediata)**, **Cartão de Crédito** e **Boleto**.
+
+| Plano | Preço Mensal | Preço Anual (Equiv./mês) | Artigos / mês | Imagens incluídas / artigo | Teto de Imagens / mês |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| **Grátis** | R$ 0 | — | **2** | até **7** | **14** |
+| **Starter** | R$ 34,90/mês | R$ 349,00/ano (R$ 29,08/mês) | **14** | até **7** | **98** |
+| **Pro** *(Mais Popular)* | R$ 94,90/mês | R$ 949,00/ano (R$ 79,08/mês) | **33** | até **7** | **231** |
+| **Agência** *(Melhor Valor)* | R$ 149,90/mês | R$ 1.499,00/ano (R$ 124,92/mês) | **48** | até **7** | **336** |
+
+Regras técnicas de consumo e renovação (`lib/pricing.ts` e `lib/usage-enforcement.ts`):
+1. **Idempotência por Sessão de Artigo (`sessionKey`)**: chamar `/api/outline` e depois `/api/section` múltiplas vezes dentro da mesma `sessionKey` consome apenas **1 crédito de artigo**.
+2. **Regra das 7 imagens por artigo + conversão de crédito extra**:
+   - Cada artigo tem cota inclusa de até **7 imagens** (`MAX_IMAGES_PER_ARTICLE = 7`), seja na geração inicial ou em regenerações posteriores dentro da mesma `sessionKey`.
+   - Caso o usuário gere ou regenere uma **8ª imagem (ou múltiplo além de 7)** no mesmo artigo (por exemplo, um artigo de 8 seções ou múltiplas regenerações no Editor), o sistema verifica se ainda há **1 crédito de artigo mensal disponível** e converte automaticamente 1 crédito de artigo em **+7 slots de imagem** para aquele artigo — desde que o teto mensal total de imagens do plano não tenha sido atingido.
+3. **Créditos bônus e não cumulatividade**: cotas mensais não acumulam para o mês seguinte e renovam a cada ciclo mensal (`resetAt`). Créditos bônus administrativos (`articleCreditsBonus`) somam-se ao limite mensal de artigos quando concedidos.
+4. **Cancelamento e Gestão de Assinatura**: feito a qualquer momento pelo próprio assinante no **Portal do Assinante Cakto** (`https://assinatura.cakto.com.br`) ou pelo atalho no estúdio; o acesso pago permanece ativo até o término do ciclo pago e retorna ao plano Grátis caso não seja renovado/regularizado.
+5. **Visitantes Anônimos**: rastreados no servidor via cookie HMAC-SHA256 `artigen_guest_quota`, recebendo gratuitamente os mesmos limites mensais do plano Grátis (2 artigos / 14 imagens por mês) sem precisar cadastrar cartão.
+
+---
+
+## 6. Programa de Parceiros (Afiliados) — `/parceiro` e `/parceiro/convite/[token]`
+
+Sistema de indicação fechado por convite administrativo oficial, com rastreamento completo em servidor e pagamentos em Real brasileiro.
+
+### 6.1 Fluxo de Ingresso e Atribuição
+1. Um superadmin gera um link exclusivo de convite (`/parceiro/convite/<token>`), podendo vincular a um prospecto específico (ex.: influenciador de YouTube/Instagram/TikTok) com validade configurável (padrão 14 ou 30 dias).
+2. Apenas o hash SHA-256 do token é gravado no banco; ao abrir o link, o convidado faz login com sua conta Google e aceita os Termos do Programa de Parceiros (`/termos-parceiros`).
+3. O sistema cria o parceiro com código único automático (que ele pode personalizar no painel respeitando 3–30 caracteres `a-z`, `0-9`, `-`, sem `--` e fora da lista de palavras reservadas em `lib/referral-constants.ts`).
+4. Todo visitante que acessa `https://criador.artificializar.site/?ref=<codigo>` recebe o cookie `artigen_ref` válido por **60 dias**. Quando esse usuário cria conta e assina um plano pago na Cakto, todas as suas compras e renovações ficam vinculadas permanentemente ao parceiro.
+
+### 6.2 Regras Oficiais de Comissão (`lib/partners.ts`)
+- **Base de Cálculo**: **valor bruto** efetivamente pago pelo cliente indicado.
+- **Comissão Recorrente**: **Sim e sem limite de meses (`COMISSAO_MAX_MESES = null`)** — incide tanto no **primeiro pagamento** quanto em todas as **renovações mensais ou anuais** enquanto a assinatura do indicado estiver ativa.
+- **Percentuais Oficiais por Plano Assinado**:
+  - Plano **Starter**: **20%** recorrente
+  - Plano **Pro**: **35%** recorrente
+  - Plano **Agência**: **35%** recorrente
+- **Ciclo de Status da Comissão**:
+  1. `pendente`: criada no webhook de pagamento aprovado da Cakto, permanecendo em janela de garantia de **7 dias** (`GARANTIA_DIAS = 7`).
+  2. `disponivel`: liberada automaticamente após 7 dias sem estorno/reembolso, somando ao saldo disponível para saque.
+  3. `em_saque`: reservada enquanto uma solicitação de saque está aberta.
+  4. `paga`: transferida ao parceiro e marcada como quitada pelo administrador.
+  5. `estornada`: caso o cliente indicado solicite reembolso ou ocorra chargeback (antes ou após o saque, com compensação de saldo registrada).
+
+### 6.3 Regras de Saque no Painel (`/parceiro`)
+- **Valor Mínimo para Saque**: **R$ 50,00** (`5000` centavos).
+- **Concorrência**: permitido apenas **1 pedido de saque aberto** por vez (`solicitado` ou `em_analise`).
+- **Métodos Suportados**:
+  - **Pix**: tipos de chave `cpf`, `cnpj`, `email`, `telefone` ou `aleatoria`.
+  - **Outro**: descrição livre de dados bancários/alternativos (3 a 500 caracteres).
+- **Painel de Métricas do Parceiro**: código/link copiável, QR Code em PNG para download, edição de código personalizado, total de indicados, assinantes ativos, saldo pendente (em garantia 7 dias), saldo disponível, total já recebido, histórico detalhado de comissões e histórico de saques (com comprovante quando pago ou motivo quando recusado).
+
+---
+
+## 7. Módulos Administrativos (`/admin/*`)
+
+Disponíveis exclusivamente para e-mails autorizados em superadmin:
+
+### 7.1 Caixa de E-mail Oficial (`/admin/emails`)
+- Interface estilo webmail em threads conectada à API e webhooks da **Resend**.
+- Permite visualizar e-mails recebidos em `contato@artificializar.site` (e formulários do site), responder na mesma thread, iniciar novas mensagens e inspecionar HTML em iframe isolado com sanitização (`sanitizeSandboxedEmailHtml`).
+
+### 7.2 Gestão de Parceiros (`/admin/parceiros`)
+- Gerar convites individuais com nome sugerido, percentual de comissão e dias de validade; copiar link de convite; cancelar convites pendentes.
+- Listar todos os parceiros, ativar/suspender status, inspecionar indicados e comissões geradas.
+- Analisar fila de saques (`solicitado` / `em_analise`), marcar como **Pago** (anexando URL/texto de comprovante e data) ou **Recusar** (com justificativa visível ao parceiro).
+
+### 7.3 Prospecção Inteligente (`/admin/prospeccao`)
+Composta por duas ferramentas complementares dentro do mesmo workspace:
+
+#### A. Convite por Print (Influenciadores de YouTube, Instagram, TikTok, etc.)
+1. O administrador captura um print (screenshot) do canal ou perfil de um criador de conteúdo e envia por **clique/upload**, **arrastar e soltar** ou **colar da área de transferência (`Ctrl+V`)** (até ~6 MB; formatos PNG/JPEG/WebP), podendo opcionalmente informar URL do canal, nome manual, observações extras, percentual de comissão e validade do link.
+2. **Análise Multimodal com Gemini gratuito**: a IA lê visualmente a imagem do canal/perfil (nome do criador, plataforma, handle, tamanho aproximado da audiência, nicho/temas dos vídeos ou posts) e gera uma abordagem sob medida em 3 tons selecionáveis (`amigavel`, `direto` ou `consultivo`).
+3. **Link Oficial de Parceiro Automático**: ao gerar o convite, o sistema cria automaticamente um link `/parceiro/convite/<token>` real no banco de parceiros (ou reutiliza um link informado) e o insere diretamente dentro do texto convite.
+4. **Saídas Prontas para Envio**:
+   - **Mensagem Curta (DM / Instagram / WhatsApp / Comentário fixado)** citando o canal, explicando o Artigen e convidando a testar e divulgar com comissão recorrente por cada assinante; botão de **copiar com 1 clique**.
+   - **Versão E-mail Curto** (Assunto + Corpo) com opção de envio direto pela **Resend** caso o influenciador tenha e-mail público visível no print ou informado pelo admin.
+
+#### B. Busca Discriminada na Web & E-mail Personalizado
+1. O administrador configura uma campanha informando **nicho/mercado-alvo**, **região**, **idioma**, **quantidade de leads por rodada**, critérios adicionais e selecionando os **perfis discriminados** desejados:
+   - `blogs`: **Blogs e Portais de Artigos** (blogs independentes, revistas digitais, portais editoriais).
+   - `agencias`: **Agências Digitais e SEO** (marketing de conteúdo e consultorias SEO).
+   - `saas`: **Plataformas e SaaS** (empresas de software com blog educativo e aquisição orgânica).
+   - `criadores`: **Criadores e Redes Públicas** (newsletters, Substack, Medium e páginas públicas com e-mail).
+2. **Descoberta + Raspagem Real (`/api/admin/prospecting/discover`)**:
+   - O Gemini gratuito com **Google Search grounding** descobre sites reais aderentes ao nicho e exclui domínios já prospectados anteriormente.
+   - O servidor visita as URLs e páginas típicas de contato (`/contato`, `/contact`, `/sobre`, `/about`) via `fetchWithSafeRedirects` extraindo **e-mails públicos** e **links de redes sociais** (Instagram, YouTube, LinkedIn, X/Twitter, TikTok, Facebook).
+   - Gera **assunto e corpo de e-mail personalizado** para cada lead explicando exatamente como o Artigen se aplica ao perfil e conteúdo específico daquele site.
+3. **Revisão e Disparo (`/api/admin/prospecting/leads` e `/api/admin/prospecting/send-batch`)**:
+   - O admin filtra leads (`rascunho_pronto`, `aprovado`, `sem_email`, `enviado`, `ignorado`), escolhe qual e-mail encontrado usar (ou informa manualmente), edita assunto/texto e envia **individualmente ou em lote** via Resend, registrando automaticamente na caixa de entrada (`/admin/emails`).
+
+---
+
+## 8. Mapa Completo de Endpoints de API (`/api/*`)
+
+- **Geração e Edição de Artigos**:
+  - `POST /api/suggest` — Sugere tema, descrição, palavras-chave, tom, extensão, perspectiva e modo de pesquisa a partir de tema e/ou links primários.
+  - `POST /api/research` — Raspa até 5 links primários e/ou executa pesquisa web via Gemini + Google Search grounding.
+  - `POST /api/outline` — Valida cota mensal (`sessionKey`) e cria o esboço em JSON estruturado (`titulo` + `N` seções).
+  - `POST /api/section` — Redige uma seção individual + gera `IMAGEM:` prompt ajustado ao `estiloImagem` escolhido.
+  - `POST /api/image` — Gera imagem 1024×1024 via NVIDIA NIM (`black-forest-labs/flux-3-image-klein`) aplicando o prefixo do estilo visual e controlando cota de 7 imagens + conversão automática de crédito de artigo extra.
+  - `POST /api/transcribe` — Transcreve áudio (até 24 MB) usando Groq Whisper.
+  - `POST /api/narrate-organize` — Transforma transcrição bruta em título, descrição, tags, tom e narração estruturada usando Gemini.
+- **Uso, Assinatura e Contato**:
+  - `GET /api/usage` — Retorna o snapshot atualizado de plano e consumo mensal do visitante ou usuário autenticado.
+  - `POST /api/contact` — Envia mensagem do formulário de contato da landing page via Resend.
+  - `POST /api/cakto/checkout` — Cria/retorna link de checkout Cakto para o usuário autenticado (com referência de parceiro se houver).
+  - `POST /api/cakto/portal` — Retorna URL do portal de assinatura Cakto.
+  - `GET /api/cakto/status` — Consulta status da assinatura do usuário.
+  - `POST /api/cakto/verify-order` — Verifica confirmação de pedido Cakto pós-checkout.
+  - `POST /api/cakto/webhook` — Processa eventos de pagamento, renovação, cancelamento e reembolso da Cakto, atualizando plano do usuário e gerando/estornando comissões de parceiros.
+- **Parceiros & Referências**:
+  - `POST /api/referrals/*` — Captura e vinculação de referência `?ref=`.
+  - `GET /api/parceiros/me` — Dados do painel do parceiro autenticado.
+  - `POST /api/parceiros/codigo` — Atualiza código personalizado de indicação.
+  - `POST /api/parceiros/convite/[token]` — Aceita convite oficial de parceiro.
+  - `POST /api/parceiros/saques` — Solicita saque (mínimo R$ 50,00, Pix ou Outro).
+- **Administração (Superadmin)**:
+  - `GET /api/admin/session` — Verifica privilégios de superadmin.
+  - `GET/POST /api/admin/emails/*` — Listagem de threads, detalhes e envio/resposta via Resend.
+  - `GET/POST /api/admin/parceiros/*` — Gestão de parceiros, convites e pagamentos/recusas de saques.
+  - `GET /api/admin/prospecting` — Lista campanhas e leads salvos.
+  - `POST /api/admin/prospecting/discover` — Executa busca web discriminada + raspagem + geração de rascunhos personalizados.
+  - `PATCH /api/admin/prospecting/leads` — Atualiza e-mail selecionado, assunto, corpo ou status do lead.
+  - `POST /api/admin/prospecting/send-batch` — Dispara e-mails aprovados via Resend.
+  - `POST /api/admin/prospecting/influencer-invite` — Analisa screenshot de influenciador com Gemini multimodal, cria link oficial de parceiro e gera DM curta + e-mail.
+
+---
+
+## 9. Privacidade, Segurança e Conformidade Técnica
+
+- **Sem Exposição de Chaves no Cliente**: todas as chaves (`GEMINI_API_KEY`, `NVIDIA_API_KEY`, `GROQ_API_KEY`, `RESEND_API_KEY`, `CAKTO_*`, `SUPABASE_SERVICE_ROLE_KEY`) ficam exclusivamente no servidor.
+- **Proteção SSRF na Raspagem de Links**: tanto o leitor de links primários do estúdio (`/api/research`, `/api/suggest`) quanto o raspador de prospecção admin resolvem DNS e validam IPs contra faixas locais, privadas e metadados em nuvem antes de requisitar páginas externas.
+- **Cookies Assinados e Seguros**: cota de visitante (`artigen_guest_quota`) assinada com HMAC-SHA256; atribuição de parceiro (`artigen_ref`) válida por 60 dias com validação estrita de caracteres.
+- **Políticas Publicadas**: LGPD e coleta transparente detalhadas em `/privacidade`, `/politica-de-cookies`, `/termos-de-uso`, `/reembolso-e-cancelamento` e `/termos-parceiros`.
+
+---
+
+## 10. Guia Prático para LLMs Criarem Tutoriais, Cursos ou Roteiros sobre o Artigen
+
+Qualquer IA ou instrutor que ler este arquivo pode estruturar aulas, manuais escritos, cursos em vídeo ou guias rápidos seguindo exatamente esta progressão modular fiel ao sistema real:
+
+1. **Módulo 1 — Primeiros Passos e Arquitetura da Experiência**:
+   - Explicar como testar imediatamente sem cadastro em `/studio` (2 artigos e 14 imagens grátis/mês) ou entrar com Google para sincronizar artigos na nuvem.
+   - Apresentar o menu lateral (`Início`, `Meus Artigos`, `Favoritos`, `Estatísticas`, `Configurações`), o alternador de tema Claro/Escuro, instalação PWA e o mascote 3D **Mulébi** (`/mascote`).
+2. **Módulo 2 — Método 1: Criando Artigos do Zero pelo Título**:
+   - Inserir o tema principal (até 100 chars), clicar em **Sugerir opções com IA** para preencher palavras-chave (até 10), descrição (até 300 chars), tom (entre os 6 disponíveis), idioma (5 opções), extensão (`800–1200` até `2500–3200` palavras = 4 a 8 seções), perspectiva (`1ª` ou `3ª` pessoa) e modo de pesquisa web (`Automática`, `Sempre`, `Desativada`).
+3. **Módulo 3 — Método 2: Criando a Partir de Links Próprios (Fonte Primária)**:
+   - Adicionar até 5 URLs no campo **Links de referência (Fonte Primária)**; demonstrar que o Artigen lê o conteúdo real das páginas primeiro e usa a web apenas como apoio secundário, exibindo os selos **Fonte primária** vs **Apoio secundário** no rodapé do artigo e no HTML exportado.
+4. **Módulo 4 — Método 3: Criando Artigos Falando (Narração por Voz)**:
+   - Clicar em **Explicar tema por voz**, gravar ao vivo no navegador (com pausa/retomada) ou subir áudio até 24 MB; mostrar a transcrição automática (Groq Whisper), a organização em parágrafos claros (Gemini) mantendo fatos e experiências pessoais do usuário, a revisão final e a geração direta do artigo.
+5. **Módulo 5 — Personalizando o Design das Imagens em Qualquer Plano**:
+   - Mostrar o seletor **Design das imagens do artigo** (tanto no painel de criação quanto nos padrões em **Configurações**) com os 6 estilos: `Ilustração Editorial`, `Fotografia Realista`, `Realismo Cinematográfico`, `3D Minimalista & Tech`, `Aquarela & Arte Orgânica` e `Minimalista Geométrico`, todos gerados em 1024×1024 px via NVIDIA FLUX.3 Klein.
+   - Explicar a regra de cota visual: até 7 imagens incluídas por artigo, e conversão automática de 1 crédito de artigo disponível em +7 slots caso o usuário gere a 8ª imagem ou regenere acima de 7 no mesmo artigo.
+6. **Módulo 6 — Edição Ao Vivo, Pré-visualização de Imagens, Auditoria SEO e Exportação**:
+   - Demonstrar as 3 abas do `ArticleWorkspace`: `Prévia` (leitura completa + fontes), `Editor` (edição de título, textos, pré-visualização da imagem diretamente no bloco da seção, edição do prompt visual e regeneração ao vivo) e `SEO` (score de 5 critérios + tabela de densidade de palavras-chave no título, subtítulos H2 e corpo).
+   - Mostrar a exportação com **Copiar Texto** (Markdown) ou **Baixar HTML** (arquivo HTML limpo pronto para WordPress, Blogger, Ghost ou publicação estática).
+7. **Módulo 7 — Acompanhamento de Métricas, Planos Cakto e Programa de Parceiros**:
+   - Mostrar a aba `Estatísticas` (gráfico de área/barras por período) e os 4 planos (`Grátis`, `Starter`, `Pro`, `Agência`) via Cakto (Pix, Cartão, Boleto).
+   - Explicar como funciona o **Programa de Parceiros** (`/parceiro`): ingresso via link de convite (`/parceiro/convite/[token]`), personalização de código `?ref=`, QR Code, janela de 60 dias, comissões recorrentes ilimitadas (`20%` Starter / `35%` Pro e Agência sobre valor bruto), garantia de 7 dias e saque mínimo de R$ 50,00 via Pix.
+8. **Módulo 8 — Operação Administrativa (Para Gestores da Plataforma)**:
+   - Explicar o painel `/admin/emails` (inbox/outbox Resend), `/admin/parceiros` (gestão de convites e aprovação de saques) e `/admin/prospeccao` (busca web discriminada de blogs/agências/SaaS/criadores + funcionalidade **Convite por Print** para enviar screenshots de canais do YouTube/redes sociais e gerar automaticamente link de convite + mensagem curta pronta).
