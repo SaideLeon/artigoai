@@ -580,6 +580,12 @@ export default function AdminPartnersClient() {
               Prospecção IA
             </Link>
             <Link
+              href="/admin/roteiros"
+              className="hover:text-slate-950 dark:hover:text-white hover:underline underline-offset-4 whitespace-nowrap shrink-0"
+            >
+              Roteiros & Áudio
+            </Link>
+            <Link
               href="/admin/emails"
               className="hover:text-slate-950 dark:hover:text-white hover:underline underline-offset-4 whitespace-nowrap shrink-0"
             >

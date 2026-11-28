@@ -71,6 +71,12 @@ export default function AdminProspectingPageClient() {
               Caixa de E-mail
             </Link>
             <Link
+              href="/admin/roteiros"
+              className="hover:text-slate-950 dark:hover:text-white hover:underline underline-offset-4 whitespace-nowrap shrink-0"
+            >
+              Roteiros & Áudio
+            </Link>
+            <Link
               href="/admin/parceiros"
               className="hover:text-slate-950 dark:hover:text-white hover:underline underline-offset-4 whitespace-nowrap shrink-0"
             >
