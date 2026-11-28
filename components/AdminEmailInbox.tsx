@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import {
   Archive,
@@ -342,6 +342,27 @@ export default function AdminEmailInbox({
     },
     [updateCounts]
   );
+
+  const deepLinkAppliedRef = useRef(false);
+  useEffect(() => {
+    if (deepLinkAppliedRef.current || embeddedInStudio) return;
+    deepLinkAppliedRef.current = true;
+    const params = new URLSearchParams(window.location.search);
+    const qFolder = params.get("folder");
+    const qThread = params.get("thread");
+
+    void Promise.resolve().then(() => {
+      if (
+        qFolder &&
+        ["inbox", "sent", "starred", "archived", "trash"].includes(qFolder)
+      ) {
+        setFolder(qFolder as EmailFolder);
+      }
+      if (qThread) {
+        void openThread(qThread);
+      }
+    });
+  }, [embeddedInStudio, openThread]);
 
   async function handlePatchThread(
     threadId: string,

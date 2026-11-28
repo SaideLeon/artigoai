@@ -367,7 +367,7 @@ async function readResponseWithLimit(
   return new TextDecoder("utf-8", { fatal: false }).decode(merged);
 }
 
-async function fetchWithSafeRedirects(startUrl: string): Promise<{
+export async function fetchWithSafeRedirects(startUrl: string): Promise<{
   finalUrl: string;
   contentType: string;
   body: string;

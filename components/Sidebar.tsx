@@ -15,6 +15,7 @@ import {
   ArrowLeft,
   Bot,
   Mail,
+  Radar,
   ShieldCheck,
   ArrowUpRight,
 } from "lucide-react";
@@ -195,6 +196,18 @@ export default function Sidebar({
                   </span>
                 )}
               </button>
+
+              <Link
+                href="/admin/prospeccao"
+                onClick={onCloseMobile}
+                className="group flex w-full items-center justify-between rounded-xl px-3.5 py-2.5 text-left text-sm font-medium text-slate-200 transition-all duration-150 hover:bg-white/8 hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-400"
+              >
+                <span className="flex items-center gap-3 whitespace-nowrap">
+                  <Radar className="h-[18px] w-[18px] shrink-0 text-emerald-300 group-hover:text-white" />
+                  <span>Prospecção IA</span>
+                </span>
+                <ArrowUpRight className="h-3.5 w-3.5 text-slate-400 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5 group-hover:text-white" />
+              </Link>
 
               <Link
                 href="/admin/parceiros"

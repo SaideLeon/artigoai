@@ -65,6 +65,12 @@ export default function AdminEmailsPageClient() {
             className="hidden md:flex items-center gap-6 text-sm font-medium text-slate-600 dark:text-slate-300"
           >
             <Link
+              href="/admin/prospeccao"
+              className="hover:text-slate-950 dark:hover:text-white hover:underline underline-offset-4 whitespace-nowrap shrink-0"
+            >
+              Prospecção IA
+            </Link>
+            <Link
               href="/admin/parceiros"
               className="hover:text-slate-950 dark:hover:text-white hover:underline underline-offset-4 whitespace-nowrap shrink-0"
             >
