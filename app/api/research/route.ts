@@ -2,8 +2,7 @@ import { NextResponse } from "next/server";
 import { Groq } from "groq-sdk";
 import {
   formatGeminiError,
-  GEMINI_RESEARCH_FALLBACK_MODEL,
-  GEMINI_RESEARCH_MODEL,
+  GEMINI_RESEARCH_CANDIDATE_MODELS,
   getGeminiClient,
   GROQ_RESEARCH_MODEL,
   normalizePlano,
@@ -192,9 +191,7 @@ async function runGeminiResearch(
   }
 
   const ai = getGeminiClient();
-  const candidateModels = Array.from(
-    new Set([GEMINI_RESEARCH_MODEL, GEMINI_RESEARCH_FALLBACK_MODEL])
-  );
+  const candidateModels = GEMINI_RESEARCH_CANDIDATE_MODELS;
 
   let lastError: unknown = null;
 

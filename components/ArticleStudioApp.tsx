@@ -34,9 +34,12 @@ import {
   updateArticleContentCloud,
 } from "@/lib/supabase-service";
 import {
+  DEFAULT_ESTILO_IMAGEM,
   FAIXAS_PALAVRAS,
+  isValidEstiloImagemId,
   type ArtigoSalvo,
   type ConfiguracoesPadrao,
+  type EstiloImagemId,
   type FaixaPalavrasId,
   type FontePesquisa,
   type ModoPesquisa,
@@ -60,6 +63,7 @@ const DEFAULT_CONFIG: ConfiguracoesPadrao = {
   idiomaPadrao: "Português (Brasil)",
   faixaPalavrasPadrao: "2000-2500",
   incluirImagensPadrao: true,
+  estiloImagemPadrao: DEFAULT_ESTILO_IMAGEM,
   primeiraPessoaPadrao: true,
   pesquisaWebPadrao: "auto",
 };
@@ -243,6 +247,9 @@ export default function ArticleStudioApp() {
   );
   const [incluirImagens, setIncluirImagens] = useState<boolean>(
     DEFAULT_CONFIG.incluirImagensPadrao
+  );
+  const [estiloImagem, setEstiloImagem] = useState<EstiloImagemId>(
+    DEFAULT_CONFIG.estiloImagemPadrao ?? DEFAULT_ESTILO_IMAGEM
   );
   const [primeiraPessoa, setPrimeiraPessoa] = useState<boolean>(
     Boolean(DEFAULT_CONFIG.primeiraPessoaPadrao)
@@ -485,6 +492,11 @@ export default function ArticleStudioApp() {
             setIdioma(merged.idiomaPadrao);
             setFaixaPalavras(merged.faixaPalavrasPadrao);
             setIncluirImagens(merged.incluirImagensPadrao);
+            setEstiloImagem(
+              isValidEstiloImagemId(merged.estiloImagemPadrao)
+                ? merged.estiloImagemPadrao
+                : DEFAULT_ESTILO_IMAGEM
+            );
             setPrimeiraPessoa(Boolean(merged.primeiraPessoaPadrao));
             setPesquisaWeb(merged.pesquisaWebPadrao ?? "auto");
           }
@@ -515,6 +527,8 @@ export default function ArticleStudioApp() {
             remote.faixaPalavrasPadrao ?? prev.faixaPalavrasPadrao,
           incluirImagensPadrao:
             remote.incluirImagensPadrao ?? prev.incluirImagensPadrao,
+          estiloImagemPadrao:
+            remote.estiloImagemPadrao ?? prev.estiloImagemPadrao,
           primeiraPessoaPadrao:
             remote.primeiraPessoaPadrao ?? prev.primeiraPessoaPadrao,
           pesquisaWebPadrao: remote.pesquisaWebPadrao ?? prev.pesquisaWebPadrao,
@@ -523,6 +537,11 @@ export default function ArticleStudioApp() {
         setIdioma(merged.idiomaPadrao);
         setFaixaPalavras(merged.faixaPalavrasPadrao);
         setIncluirImagens(merged.incluirImagensPadrao);
+        setEstiloImagem(
+          isValidEstiloImagemId(merged.estiloImagemPadrao)
+            ? merged.estiloImagemPadrao
+            : DEFAULT_ESTILO_IMAGEM
+        );
         setPrimeiraPessoa(Boolean(merged.primeiraPessoaPadrao));
         setPesquisaWeb(merged.pesquisaWebPadrao ?? "auto");
         return merged;
@@ -801,7 +820,8 @@ export default function ArticleStudioApp() {
     index: number,
     prompt: string,
     signal?: AbortSignal,
-    explicitSessionKey?: string
+    explicitSessionKey?: string,
+    explicitEstiloImagem?: EstiloImagemId
   ): Promise<string | undefined> {
     atualizarSecao(index, { aGerarImagem: true, erro: undefined });
     try {
@@ -814,6 +834,7 @@ export default function ArticleStudioApp() {
         "/api/image",
         {
           prompt,
+          estiloImagem: explicitEstiloImagem ?? estiloImagem,
           plano: planoGeracao,
           sessionKey: sessionKeyToSend,
         },
@@ -1090,6 +1111,7 @@ export default function ArticleStudioApp() {
             contextoPesquisa,
             contextoPrimario,
             narracao: narracaoEfetiva,
+            estiloImagem,
             plano: planoGeracao,
             sessionKey: generationSessionKey,
           },
@@ -1109,7 +1131,8 @@ export default function ArticleStudioApp() {
             i,
             prompt ?? lista[i].titulo,
             controller.signal,
-            generationSessionKey
+            generationSessionKey,
+            estiloImagem
           );
           if (imgUrl) {
             lista = lista.map((s, j) =>
@@ -1316,6 +1339,11 @@ export default function ArticleStudioApp() {
     setIdioma(nova.idiomaPadrao);
     setFaixaPalavras(nova.faixaPalavrasPadrao);
     setIncluirImagens(nova.incluirImagensPadrao);
+    setEstiloImagem(
+      isValidEstiloImagemId(nova.estiloImagemPadrao)
+        ? nova.estiloImagemPadrao
+        : DEFAULT_ESTILO_IMAGEM
+    );
     setPrimeiraPessoa(Boolean(nova.primeiraPessoaPadrao));
     setPesquisaWeb(nova.pesquisaWebPadrao ?? "auto");
     try {
@@ -1435,6 +1463,8 @@ export default function ArticleStudioApp() {
                   onChangeFaixaPalavras={setFaixaPalavras}
                   incluirImagens={incluirImagens}
                   onChangeIncluirImagens={setIncluirImagens}
+                  estiloImagem={estiloImagem}
+                  onChangeEstiloImagem={setEstiloImagem}
                   primeiraPessoa={primeiraPessoa}
                   onChangePrimeiraPessoa={setPrimeiraPessoa}
                   pesquisaWeb={pesquisaWeb}
@@ -1532,7 +1562,7 @@ export default function ArticleStudioApp() {
           {activeTab === "configuracoes" && (
             <div className="min-h-0 flex-1">
               <SettingsView
-                key={`${configPadrao.tomPadrao}-${configPadrao.idiomaPadrao}-${configPadrao.faixaPalavrasPadrao}-${configPadrao.incluirImagensPadrao}-${configPadrao.primeiraPessoaPadrao}-${configPadrao.pesquisaWebPadrao}`}
+                key={`${configPadrao.tomPadrao}-${configPadrao.idiomaPadrao}-${configPadrao.faixaPalavrasPadrao}-${configPadrao.incluirImagensPadrao}-${configPadrao.estiloImagemPadrao ?? DEFAULT_ESTILO_IMAGEM}-${configPadrao.primeiraPessoaPadrao}-${configPadrao.pesquisaWebPadrao}`}
                 config={configPadrao}
                 onSaveConfig={salvarConfigPadrao}
                 onLimparHistorico={() => {

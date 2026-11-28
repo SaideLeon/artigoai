@@ -24,9 +24,11 @@ import {
   Plus,
 } from "lucide-react";
 import {
+  ESTILOS_IMAGEM,
   FAIXAS_PALAVRAS,
   TONS_TEXTO,
   IDIOMAS,
+  type EstiloImagemId,
   type FaixaPalavrasId,
   type ModoPesquisa,
   type PlanoGeracao,
@@ -47,6 +49,8 @@ type ArticleConfigFormProps = {
   onChangeFaixaPalavras: (val: FaixaPalavrasId) => void;
   incluirImagens: boolean;
   onChangeIncluirImagens: (val: boolean) => void;
+  estiloImagem: EstiloImagemId;
+  onChangeEstiloImagem: (val: EstiloImagemId) => void;
   primeiraPessoa: boolean;
   onChangePrimeiraPessoa: (val: boolean) => void;
   pesquisaWeb: ModoPesquisa;
@@ -84,6 +88,8 @@ export default function ArticleConfigForm({
   onChangeFaixaPalavras,
   incluirImagens,
   onChangeIncluirImagens,
+  estiloImagem,
+  onChangeEstiloImagem,
   primeiraPessoa,
   onChangePrimeiraPessoa,
   pesquisaWeb,
@@ -621,6 +627,32 @@ export default function ArticleConfigForm({
             />
           </button>
         </div>
+
+        {incluirImagens && (
+          <div>
+            <label
+              htmlFor="campo-estilo-imagem"
+              className="mb-1.5 block text-xs font-semibold text-slate-700 dark:text-slate-300"
+            >
+              Design das imagens do artigo
+            </label>
+            <select
+              id="campo-estilo-imagem"
+              value={estiloImagem}
+              disabled={ocupado}
+              onChange={(e) =>
+                onChangeEstiloImagem(e.target.value as EstiloImagemId)
+              }
+              className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-3.5 py-2 text-xs font-medium text-slate-800 transition-colors focus:border-indigo-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/15 disabled:opacity-60 dark:border-slate-700 dark:bg-slate-800/70 dark:text-slate-100 dark:focus:bg-slate-800"
+            >
+              {ESTILOS_IMAGEM.map((style) => (
+                <option key={style.id} value={style.id}>
+                  {style.label}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
 
         {/* Primeira pessoa toggle */}
         <div className="flex items-center justify-between pt-0.5">

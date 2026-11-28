@@ -3,8 +3,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { composeAdminEmail } from "@/lib/admin-inbox";
 import {
   formatGeminiError,
-  GEMINI_RESEARCH_FALLBACK_MODEL,
-  GEMINI_RESEARCH_MODEL,
+  GEMINI_RESEARCH_CANDIDATE_MODELS,
   generateArticleText,
   getGeminiClient,
 } from "@/lib/ai-providers";
@@ -669,9 +668,7 @@ async function discoverProspectCandidatesWithGemini(params: {
   modelo: string;
 }> {
   const ai = getGeminiClient();
-  const candidateModels = Array.from(
-    new Set([GEMINI_RESEARCH_MODEL, GEMINI_RESEARCH_FALLBACK_MODEL])
-  );
+  const candidateModels = GEMINI_RESEARCH_CANDIDATE_MODELS;
 
   const perfisTexto = params.perfis
     .map((p) => `- ${PROSPECT_PROFILE_LABELS[p].label}: ${PROSPECT_PROFILE_LABELS[p].hint}`)

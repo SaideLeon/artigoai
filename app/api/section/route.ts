@@ -7,6 +7,7 @@ import {
   attachGuestQuotaCookie,
   enforceGenerationQuota,
 } from "@/lib/usage-enforcement";
+import { getEstiloImagemConfig } from "@/lib/types";
 
 export async function POST(req: Request) {
   try {
@@ -24,9 +25,12 @@ export async function POST(req: Request) {
       contextoPesquisa = "",
       contextoPrimario = "",
       narracao = "",
+      estiloImagem,
       plano: rawPlano,
       sessionKey,
     } = await req.json();
+
+    const styleConfig = getEstiloImagemConfig(estiloImagem);
 
     const requestedPlano = normalizePlano(rawPlano);
     const quotaDecision = await enforceGenerationQuota({
@@ -80,7 +84,7 @@ ${extras}
 ${resumo ? `O que já foi escrito (não repitas):\n${resumo}\n` : ""}
 Escreve agora APENAS a secção "${secao.titulo}". Objectivo: ${secao.objetivo}.
 Escreve cerca de ${palavras} palavras, em parágrafos corridos separados por linha em branco, sem título e sem listas.
-Na última linha, depois do texto, escreve: IMAGEM: <descrição visual da secção, em inglês, numa frase, sem pedir texto escrito na imagem>`;
+Na última linha, depois do texto, escreve: IMAGEM: <${styleConfig.sectionHint}>`;
 
     const result = await generateArticleText(prompt);
 

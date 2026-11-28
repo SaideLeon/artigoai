@@ -1,9 +1,13 @@
 import type { User } from "@supabase/supabase-js";
 import { getSupabaseClient } from "@/lib/supabase";
 import {
+  DEFAULT_ESTILO_IMAGEM,
+  ESTILOS_IMAGEM,
   FAIXAS_PALAVRAS,
+  isValidEstiloImagemId,
   type ArtigoSalvo,
   type ConfiguracoesPadrao,
+  type EstiloImagemId,
   type FaixaPalavrasId,
   type FontePesquisa,
   type ModoPesquisa,
@@ -14,6 +18,7 @@ import { FREE_PLAN, SUBSCRIPTION_PLANS, type BillingCycle } from "@/lib/pricing"
 
 const ALLOWED_FAIXAS = new Set<string>(FAIXAS_PALAVRAS.map((f) => f.id));
 const ALLOWED_PESQUISA = new Set<string>(["auto", "sempre", "desativada"]);
+const ALLOWED_ESTILOS_IMAGEM = new Set<string>(ESTILOS_IMAGEM.map((s) => s.id));
 const ARTICLE_IMAGES_BUCKET = "article-images";
 const MAX_DATA_URL_LENGTH = 2_500_000;
 const SIGNED_URL_TTL_SECONDS = 60 * 60 * 24 * 7;
@@ -454,6 +459,11 @@ export function subscribeUserSettings(
         typeof data.incluir_imagens_padrao === "boolean"
           ? data.incluir_imagens_padrao
           : undefined,
+      estiloImagemPadrao:
+        typeof data.estilo_imagem_padrao === "string" &&
+        ALLOWED_ESTILOS_IMAGEM.has(data.estilo_imagem_padrao)
+          ? (data.estilo_imagem_padrao as EstiloImagemId)
+          : undefined,
       primeiraPessoaPadrao:
         typeof data.primeira_pessoa_padrao === "boolean"
           ? data.primeira_pessoa_padrao
@@ -509,22 +519,44 @@ export async function saveUserSettings(
     ? (config.pesquisaWebPadrao as ModoPesquisa)
     : "auto";
 
-  const { error } = await supabase.from("user_settings").upsert(
-    {
-      user_id: userId,
-      tom_padrao: clampStr(config.tomPadrao || "Informativo e Didático", 80),
-      idioma_padrao: clampStr(config.idiomaPadrao || "Português (Brasil)", 60),
-      faixa_palavras_padrao: safeFaixa,
-      incluir_imagens_padrao: Boolean(config.incluirImagensPadrao),
-      primeira_pessoa_padrao: Boolean(config.primeiraPessoaPadrao),
-      pesquisa_web_padrao: safePesquisa,
-      theme: theme === "dark" ? "dark" : "light",
-      updated_at: new Date().toISOString(),
-    },
-    { onConflict: "user_id" }
-  );
+  const safeEstilo: EstiloImagemId = isValidEstiloImagemId(
+    config.estiloImagemPadrao
+  )
+    ? config.estiloImagemPadrao
+    : DEFAULT_ESTILO_IMAGEM;
+
+  const basePayload = {
+    user_id: userId,
+    tom_padrao: clampStr(config.tomPadrao || "Informativo e Didático", 80),
+    idioma_padrao: clampStr(config.idiomaPadrao || "Português (Brasil)", 60),
+    faixa_palavras_padrao: safeFaixa,
+    incluir_imagens_padrao: Boolean(config.incluirImagensPadrao),
+    primeira_pessoa_padrao: Boolean(config.primeiraPessoaPadrao),
+    pesquisa_web_padrao: safePesquisa,
+    theme: theme === "dark" ? "dark" : "light",
+    updated_at: new Date().toISOString(),
+  };
+
+  const { error } = await supabase
+    .from("user_settings")
+    .upsert(
+      { ...basePayload, estilo_imagem_padrao: safeEstilo },
+      { onConflict: "user_id" }
+    );
 
   if (error) {
+    if (/estilo_imagem_padrao|column|schema cache/i.test(error.message)) {
+      const { error: fallbackErr } = await supabase
+        .from("user_settings")
+        .upsert(basePayload, { onConflict: "user_id" });
+      if (fallbackErr) {
+        console.error(
+          "Erro ao guardar configurações Supabase:",
+          fallbackErr.message
+        );
+      }
+      return;
+    }
     console.error("Erro ao guardar configurações Supabase:", error.message);
   }
 }

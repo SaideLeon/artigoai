@@ -9,10 +9,7 @@ import {
   attachGuestQuotaCookie,
   enforceGenerationQuota,
 } from "@/lib/usage-enforcement";
-
-// Estilo fixo no início de todos os prompts para as imagens parecerem do mesmo conjunto.
-const ESTILO =
-  "Flat editorial illustration, muted teal and sand palette, clean composition, no text, no letters. ";
+import { getEstiloImagemConfig } from "@/lib/types";
 
 function toImageDataUri(raw: string): string {
   const trimmed = raw.trim();
@@ -165,8 +162,15 @@ async function gerarImagemNvidia(prompt: string): Promise<string> {
 
 export async function POST(req: Request) {
   try {
-    const { prompt, plano: rawPlano, sessionKey, articleId } = await req.json();
+    const {
+      prompt,
+      estiloImagem,
+      plano: rawPlano,
+      sessionKey,
+      articleId,
+    } = await req.json();
     const requestedPlano = normalizePlano(rawPlano);
+    const styleConfig = getEstiloImagemConfig(estiloImagem);
     const resolvedSessionKey =
       typeof sessionKey === "string" && sessionKey.trim()
         ? sessionKey
@@ -192,7 +196,7 @@ export async function POST(req: Request) {
       );
     }
 
-    const promptCompleto = ESTILO + String(prompt ?? "");
+    const promptCompleto = styleConfig.promptPrefix + String(prompt ?? "");
     const quotaPayload = {
       deductedArticleCredit: Boolean(quotaDecision.deductedArticleCreditForImage),
       articleImagesUsed: quotaDecision.articleImagesUsed ?? 1,
@@ -205,6 +209,7 @@ export async function POST(req: Request) {
       url,
       provedor: "nvidia",
       modelo: NVIDIA_IMAGE_MODEL,
+      estiloImagem: styleConfig.id,
       quota: quotaPayload,
     });
     return attachGuestQuotaCookie(

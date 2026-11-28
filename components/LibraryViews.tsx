@@ -15,6 +15,7 @@ import {
   Sun,
   Moon,
   TrendingUp,
+  Image as ImageIcon,
 } from "lucide-react";
 import {
   ResponsiveContainer,
@@ -30,11 +31,14 @@ import {
 import { useTheme } from "@/components/ThemeProvider";
 import PWAInstallButton from "@/components/PWAInstallButton";
 import {
+  DEFAULT_ESTILO_IMAGEM,
+  ESTILOS_IMAGEM,
   FAIXAS_PALAVRAS,
   TONS_TEXTO,
   IDIOMAS,
   type ArtigoSalvo,
   type ConfiguracoesPadrao,
+  type EstiloImagemId,
   type FaixaPalavrasId,
   type ModoPesquisa,
 } from "@/lib/types";
@@ -915,8 +919,79 @@ export function SettingsView({
             <option value="sempre">Sempre pesquisar</option>
             <option value="desativada">Desativada</option>
           </select>
+        </div>
+      </div>
+
+      {/* Design padrão das imagens dos artigos */}
+      <div className="space-y-3 rounded-xl border border-slate-200 p-4 dark:border-slate-800 dark:bg-slate-950/30">
+        <div className="flex items-start gap-2.5">
+          <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-indigo-50 text-indigo-600 dark:bg-indigo-950/70 dark:text-indigo-400">
+            <ImageIcon className="h-4 w-4" />
+          </span>
+          <div>
+            <p className="text-xs font-semibold text-slate-900 dark:text-slate-100">
+              Design das imagens geradas nos artigos
+            </p>
+            <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
+              Disponível para todos os planos. Escolha entre ilustração editorial
+              padrão, fotografia realista e outros estilos visuais.
+            </p>
           </div>
         </div>
+
+        <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+          {ESTILOS_IMAGEM.map((style) => {
+            const active =
+              (draft.estiloImagemPadrao ?? DEFAULT_ESTILO_IMAGEM) === style.id;
+            return (
+              <button
+                key={style.id}
+                type="button"
+                onClick={() =>
+                  setDraft({
+                    ...draft,
+                    estiloImagemPadrao: style.id as EstiloImagemId,
+                  })
+                }
+                className={`flex items-start justify-between gap-3 rounded-xl border p-3 text-left transition-all ${
+                  active
+                    ? "border-indigo-500 bg-indigo-50/70 ring-1 ring-indigo-500/30 dark:border-indigo-500/80 dark:bg-indigo-950/40"
+                    : "border-slate-200 bg-white hover:border-slate-300 dark:border-slate-700/80 dark:bg-slate-900 dark:hover:border-slate-600"
+                }`}
+              >
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-bold text-slate-900 dark:text-white">
+                      {style.label}
+                    </span>
+                  </div>
+                  <p className="mt-1 text-[11px] leading-snug text-slate-500 dark:text-slate-400">
+                    {style.descricao}
+                  </p>
+                </div>
+
+                <div className="flex shrink-0 flex-col items-end gap-1.5">
+                  <div className="flex items-center gap-1">
+                    {style.swatches.map((hex) => (
+                      <span
+                        key={hex}
+                        aria-hidden="true"
+                        className="h-3 w-3 rounded-full border border-black/10 dark:border-white/15"
+                        style={{ backgroundColor: hex }}
+                      />
+                    ))}
+                  </div>
+                  {active && (
+                    <span className="inline-flex h-4 w-4 items-center justify-center rounded-full bg-indigo-600 text-white">
+                      <Check className="h-2.5 w-2.5" />
+                    </span>
+                  )}
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      </div>
       </div>
 
       <div className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-t border-slate-100 bg-white/95 px-6 py-4 dark:border-slate-800 dark:bg-slate-900/95">

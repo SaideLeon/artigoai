@@ -1,15 +1,25 @@
 import { GoogleGenAI, type Schema } from "@google/genai";
 import type { PlanoGeracao } from "@/lib/types";
 
-// Geração de texto gratuita com Google Gemini (sem usar modelos pagos da série 4)
+// Geração de texto gratuita com Google Gemini (modelos 3.5/3.1 gratuitos — sem usar modelos pagos da série 4)
 export const GEMINI_TEXT_MODEL =
-  process.env.GEMINI_TEXT_MODEL?.trim() || "gemini-3.1-flash-lite";
-export const GEMINI_TEXT_FALLBACK_MODEL = "gemini-2.5-flash";
+  process.env.GEMINI_TEXT_MODEL?.trim() || "gemini-3.5-flash-lite";
+export const GEMINI_TEXT_FALLBACK_MODEL = "gemini-3.1-flash-lite";
+export const GEMINI_TEXT_CANDIDATE_MODELS = Array.from(
+  new Set([GEMINI_TEXT_MODEL, GEMINI_TEXT_FALLBACK_MODEL, "gemini-3.5-flash"])
+);
 
-// Pesquisa na web gratuita com Google Search grounding (Gemini 2.5 Flash / 2.5 Flash-Lite)
+// Pesquisa na web gratuita com Google Search grounding (sem modelos 2.5 descontinuados nem série 4)
 export const GEMINI_RESEARCH_MODEL =
-  process.env.GEMINI_RESEARCH_MODEL?.trim() || "gemini-2.5-flash";
-export const GEMINI_RESEARCH_FALLBACK_MODEL = "gemini-2.5-flash-lite";
+  process.env.GEMINI_RESEARCH_MODEL?.trim() || "gemini-3.5-flash-lite";
+export const GEMINI_RESEARCH_FALLBACK_MODEL = "gemini-3.5-flash";
+export const GEMINI_RESEARCH_CANDIDATE_MODELS = Array.from(
+  new Set([
+    GEMINI_RESEARCH_MODEL,
+    GEMINI_RESEARCH_FALLBACK_MODEL,
+    "gemini-3.1-flash-lite",
+  ])
+);
 
 // Geração de imagem via NVIDIA NIM (black-forest-labs/flux-3-image-klein)
 export const NVIDIA_IMAGE_URL =
@@ -50,9 +60,31 @@ export function getGeminiClient(): GoogleGenAI {
   });
 }
 
+function extractReadableGeminiMessage(raw: string): string {
+  const trimmed = raw.trim();
+  if (trimmed.startsWith("{")) {
+    try {
+      const parsed = JSON.parse(trimmed) as {
+        error?: { message?: string; code?: number; status?: string };
+        message?: string;
+      };
+      if (parsed?.error?.message) {
+        return parsed.error.message;
+      }
+      if (parsed?.message) {
+        return parsed.message;
+      }
+    } catch {
+      // segue com texto bruto
+    }
+  }
+  return trimmed;
+}
+
 export function formatGeminiError(error: unknown): Error {
   const raw = error instanceof Error ? error.message : String(error ?? "");
-  const lower = raw.toLowerCase();
+  const readable = extractReadableGeminiMessage(raw);
+  const lower = readable.toLowerCase();
 
   if (
     lower.includes("permission_denied") ||
@@ -61,7 +93,17 @@ export function formatGeminiError(error: unknown): Error {
     lower.includes("403")
   ) {
     return new Error(
-      `Falha de autenticação ou permissão na API Gemini (${raw}). Verifique sua GEMINI_API_KEY nas variáveis de ambiente do servidor.`
+      `Falha de autenticação ou permissão na API Gemini (${readable}). Verifique sua GEMINI_API_KEY nas variáveis de ambiente do servidor.`
+    );
+  }
+
+  if (
+    lower.includes("not_found") ||
+    lower.includes("no longer available") ||
+    lower.includes("404")
+  ) {
+    return new Error(
+      `Modelo Gemini indisponível ou descontinuado para esta chave (${readable}).`
     );
   }
 
@@ -72,13 +114,11 @@ export function formatGeminiError(error: unknown): Error {
     lower.includes("billing")
   ) {
     return new Error(
-      `Limite diário ou cota excedida na API Gemini (${raw}). Tente novamente em alguns instantes ou verifique sua GEMINI_API_KEY.`
+      `Limite diário ou cota excedida na API Gemini (${readable}). Tente novamente em alguns instantes ou verifique sua GEMINI_API_KEY.`
     );
   }
 
-  return error instanceof Error
-    ? error
-    : new Error(raw || "Erro na API Gemini.");
+  return new Error(readable || "Erro na API Gemini.");
 }
 
 export function stripReasoningTags(rawText: string): string {
@@ -93,7 +133,7 @@ export type ArticleTextGenerationResult = {
 
 /**
  * Gera texto de artigos (esboço, seções, sugestões e organização de narração)
- * usando modelos gratuitos do Google Gemini (gemini-3.1-flash-lite com fallback para gemini-2.5-flash).
+ * usando modelos gratuitos do Google Gemini (gemini-3.5-flash-lite, gemini-3.1-flash-lite, gemini-3.5-flash).
  */
 export async function generateArticleText(
   prompt: string,
@@ -104,9 +144,7 @@ export async function generateArticleText(
   }
 ): Promise<ArticleTextGenerationResult> {
   const ai = getGeminiClient();
-  const candidateModels = Array.from(
-    new Set([GEMINI_TEXT_MODEL, GEMINI_TEXT_FALLBACK_MODEL])
-  );
+  const candidateModels = GEMINI_TEXT_CANDIDATE_MODELS;
 
   const config: Record<string, unknown> = {};
   if (options?.systemInstruction?.trim()) {

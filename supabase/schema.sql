@@ -21,4 +21,5 @@
 --   14. 14_plans_and_partner_rates.sql     -> Planos atualizados, limites de imagens e taxas 20%/35%/35%
 --   15. 15_admin_email_inbox.sql           -> Caixa de e-mail administrativa (threads e respostas)
 --   16. 16_admin_prospecting.sql           -> Prospecção inteligente, leads e convites personalizados
+--   17. 17_user_image_style.sql            -> Preferência padrão de estilo/design das imagens dos artigos
 -- =============================================================================
