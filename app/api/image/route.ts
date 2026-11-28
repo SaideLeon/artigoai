@@ -1,10 +1,9 @@
 import { NextResponse } from "next/server";
 import {
-  formatGeminiError,
-  GEMINI_IMAGE_MODEL,
-  getGeminiClient,
-  normalizePlano,
+  NVIDIA_IMAGE_MODEL,
+  NVIDIA_IMAGE_STEPS,
   NVIDIA_IMAGE_URL,
+  normalizePlano,
 } from "@/lib/ai-providers";
 import {
   attachGuestQuotaCookie,
@@ -85,13 +84,13 @@ function findImageInPayload(node: unknown, depth = 0): string | null {
 }
 
 /**
- * Plano gratuito: gera imagens exclusivamente com modelo NVIDIA (FLUX.2 Klein 4B).
+ * Gera imagens com o modelo NVIDIA NIM (black-forest-labs/flux-3-image-klein).
  */
 async function gerarImagemNvidia(prompt: string): Promise<string> {
   const apiKey = process.env.NVIDIA_API_KEY?.trim();
   if (!apiKey) {
     throw new Error(
-      "NVIDIA_API_KEY não configurada no servidor para gerar imagens no plano gratuito."
+      "NVIDIA_API_KEY não configurada no servidor para gerar imagens com FLUX.3 Klein."
     );
   }
 
@@ -106,7 +105,7 @@ async function gerarImagemNvidia(prompt: string): Promise<string> {
       prompt,
       width: 1024,
       height: 1024,
-      steps: 4,
+      steps: NVIDIA_IMAGE_STEPS,
     }),
   });
 
@@ -164,39 +163,6 @@ async function gerarImagemNvidia(prompt: string): Promise<string> {
   );
 }
 
-/**
- * Plano pago: gera imagens exclusivamente com Google Gemini (Nano Banana 2.1).
- */
-async function gerarImagemGemini(prompt: string): Promise<string> {
-  const ai = getGeminiClient();
-
-  try {
-    const response = await ai.models.generateContent({
-      model: GEMINI_IMAGE_MODEL,
-      contents: {
-        parts: [{ text: prompt }],
-      },
-      config: {
-        imageConfig: {
-          aspectRatio: "16:9",
-          imageSize: "1K",
-        },
-      },
-    });
-
-    for (const part of response.candidates?.[0]?.content?.parts ?? []) {
-      if (part.inlineData?.data) {
-        const mime = part.inlineData.mimeType ?? "image/png";
-        return `data:${mime};base64,${part.inlineData.data}`;
-      }
-    }
-
-    throw new Error("O modelo Gemini de imagem não devolveu nenhuma imagem.");
-  } catch (err) {
-    throw formatGeminiError(err);
-  }
-}
-
 export async function POST(req: Request) {
   try {
     const { prompt, plano: rawPlano, sessionKey, articleId } = await req.json();
@@ -226,7 +192,6 @@ export async function POST(req: Request) {
       );
     }
 
-    const plano = quotaDecision.effectivePlano;
     const promptCompleto = ESTILO + String(prompt ?? "");
     const quotaPayload = {
       deductedArticleCredit: Boolean(quotaDecision.deductedArticleCreditForImage),
@@ -235,25 +200,11 @@ export async function POST(req: Request) {
       snapshot: quotaDecision.snapshot,
     };
 
-    if (plano === "paid") {
-      const url = await gerarImagemGemini(promptCompleto);
-      const response = NextResponse.json({
-        url,
-        provedor: "gemini",
-        modelo: GEMINI_IMAGE_MODEL,
-        quota: quotaPayload,
-      });
-      return attachGuestQuotaCookie(
-        response,
-        quotaDecision.updatedGuestCookieValue
-      );
-    }
-
     const url = await gerarImagemNvidia(promptCompleto);
     const response = NextResponse.json({
       url,
       provedor: "nvidia",
-      modelo: "black-forest-labs/flux.2-klein-4b",
+      modelo: NVIDIA_IMAGE_MODEL,
       quota: quotaPayload,
     });
     return attachGuestQuotaCookie(

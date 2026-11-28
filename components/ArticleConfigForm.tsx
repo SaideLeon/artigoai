@@ -211,9 +211,7 @@ export default function ArticleConfigForm({
               <span>Plano de geração</span>
             </span>
             <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400">
-              {planoGeracao === "paid"
-                ? "Google Gemini"
-                : "OpenRouter · Groq · NVIDIA"}
+              Gemini · Search · FLUX.3 Klein
             </span>
           </div>
           <div className="grid grid-cols-2 gap-1.5 rounded-lg border border-slate-200 bg-white p-1 dark:border-slate-700 dark:bg-slate-900">
@@ -243,9 +241,7 @@ export default function ArticleConfigForm({
             </button>
           </div>
           <p className="mt-1.5 text-[11px] leading-snug text-slate-500 dark:text-slate-400">
-            {planoGeracao === "paid"
-              ? "Usa apenas modelos Google Gemini para artigo, pesquisa e imagens."
-              : "Usa OpenRouter para texto, Groq para pesquisa web e NVIDIA para imagens."}
+            Usa Gemini gratuito para artigos e pesquisa web, e NVIDIA FLUX.3 Klein para gerar as imagens.
           </p>
           {planoGeracao === "paid" && !hasPaidSubscription && (
             <div className="mt-2 flex items-center justify-between gap-2 rounded-lg border border-amber-300/70 bg-amber-50/80 px-2.5 py-1.5 text-[11px] text-amber-900 dark:border-amber-700/60 dark:bg-amber-950/40 dark:text-amber-200">

@@ -1,8 +1,7 @@
 import { NextResponse } from "next/server";
 import { Type, type Schema } from "@google/genai";
 import {
-  generateFreeText,
-  generatePaidGeminiText,
+  generateArticleText,
   normalizePlano,
 } from "@/lib/ai-providers";
 import {
@@ -77,7 +76,6 @@ export async function POST(req: Request) {
       );
     }
 
-    const plano = quotaDecision.effectivePlano;
     const primaryLinks = normalizeAndDedupeLinks(links, tema);
 
     if ((!tema || !tema.trim()) && primaryLinks.length === 0) {
@@ -115,12 +113,9 @@ Responde APENAS com JSON válido (sem texto antes ou depois) neste formato exato
   "pesquisaWeb": "auto ou sempre (usa sempre se for notícia, evento recente, dado técnico ou atualidade) ou desativada"
 }`;
 
-    const result =
-      plano === "paid"
-        ? await generatePaidGeminiText(prompt, {
-            responseSchema: SUGGEST_SCHEMA,
-          })
-        : await generateFreeText(prompt);
+    const result = await generateArticleText(prompt, {
+      responseSchema: SUGGEST_SCHEMA,
+    });
 
     const jsonMatch = result.text.match(/\{[\s\S]*\}/)?.[0];
     if (!jsonMatch) {

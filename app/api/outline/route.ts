@@ -1,8 +1,7 @@
 import { NextResponse } from "next/server";
 import { Type, type Schema } from "@google/genai";
 import {
-  generateFreeText,
-  generatePaidGeminiText,
+  generateArticleText,
   normalizePlano,
 } from "@/lib/ai-providers";
 import {
@@ -65,7 +64,6 @@ export async function POST(req: Request) {
       );
     }
 
-    const plano = quotaDecision.effectivePlano;
     const narracaoLimpa =
       typeof narracao === "string" ? narracao.trim().slice(0, 16000) : "";
     const primarioLimpo =
@@ -100,12 +98,9 @@ Responde APENAS com JSON válido, sem texto antes ou depois, neste formato:
 {"titulo": "...", "secoes": [{"titulo": "...", "objetivo": "o que esta secção deve explicar, numa frase"}]}
 O artigo deve ter exactamente ${secoes} secções.`;
 
-    const result =
-      plano === "paid"
-        ? await generatePaidGeminiText(prompt, {
-            responseSchema: OUTLINE_SCHEMA,
-          })
-        : await generateFreeText(prompt);
+    const result = await generateArticleText(prompt, {
+      responseSchema: OUTLINE_SCHEMA,
+    });
 
     const json = result.text.match(/\{[\s\S]*\}/)?.[0];
     if (!json) {

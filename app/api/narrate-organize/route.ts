@@ -1,10 +1,6 @@
 import { NextResponse } from "next/server";
 import { Type, type Schema } from "@google/genai";
-import {
-  generateFreeText,
-  generatePaidGeminiText,
-  normalizePlano,
-} from "@/lib/ai-providers";
+import { generateArticleText } from "@/lib/ai-providers";
 import { TONS_TEXTO } from "@/lib/types";
 
 const VALID_TONS = new Set<string>(TONS_TEXTO);
@@ -53,7 +49,6 @@ export async function POST(req: Request) {
         ? body.idioma.trim()
         : "Português (Brasil)";
     const primeiraPessoa = body.primeiraPessoa ?? true;
-    const plano = normalizePlano(body.plano);
 
     const prompt = `O utilizador gravou uma narração em áudio explicando com as suas próprias palavras o tema, ideias, factos ou história para transformar num artigo completo de blog em ${idioma}.
 
@@ -82,12 +77,9 @@ Responde APENAS com JSON válido (sem markdown nem texto extra) neste formato:
   "narracaoOrganizada": "..."
 }`;
 
-    const result =
-      plano === "paid"
-        ? await generatePaidGeminiText(prompt, {
-            responseSchema: ORGANIZE_SCHEMA,
-          })
-        : await generateFreeText(prompt);
+    const result = await generateArticleText(prompt, {
+      responseSchema: ORGANIZE_SCHEMA,
+    });
 
     const jsonMatch = result.text.match(/\{[\s\S]*\}/)?.[0];
     if (!jsonMatch) {

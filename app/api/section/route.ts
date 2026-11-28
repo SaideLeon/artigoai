@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import {
-  generateFreeText,
-  generatePaidGeminiText,
+  generateArticleText,
   normalizePlano,
 } from "@/lib/ai-providers";
 import {
@@ -48,7 +47,6 @@ export async function POST(req: Request) {
       );
     }
 
-    const plano = quotaDecision.effectivePlano;
     const narracaoLimpa =
       typeof narracao === "string" ? narracao.trim().slice(0, 16000) : "";
     const primarioLimpo =
@@ -84,10 +82,7 @@ Escreve agora APENAS a secção "${secao.titulo}". Objectivo: ${secao.objetivo}.
 Escreve cerca de ${palavras} palavras, em parágrafos corridos separados por linha em branco, sem título e sem listas.
 Na última linha, depois do texto, escreve: IMAGEM: <descrição visual da secção, em inglês, numa frase, sem pedir texto escrito na imagem>`;
 
-    const result =
-      plano === "paid"
-        ? await generatePaidGeminiText(prompt)
-        : await generateFreeText(prompt);
+    const result = await generateArticleText(prompt);
 
     const [texto, promptImg] = result.text.split(/\n\s*\**IMAGEM:?\**:?/i);
 

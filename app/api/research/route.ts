@@ -2,7 +2,8 @@ import { NextResponse } from "next/server";
 import { Groq } from "groq-sdk";
 import {
   formatGeminiError,
-  GEMINI_TEXT_MODEL,
+  GEMINI_RESEARCH_FALLBACK_MODEL,
+  GEMINI_RESEARCH_MODEL,
   getGeminiClient,
   GROQ_RESEARCH_MODEL,
   normalizePlano,
@@ -149,60 +150,21 @@ async function runGeminiResearch(
   primarySources: ScrapedPrimarySource[],
   primaryContext: string
 ) {
-  const ai = getGeminiClient();
-
-  try {
-    const response = await ai.models.generateContent({
-      model: GEMINI_TEXT_MODEL,
-      contents: prompt,
-      config: {
-        tools: [{ googleSearch: {} }],
-      },
-    });
-
-    const rawContent = (response.text ?? "").trim();
-    const parsed = parseResearchJson(rawContent);
-    const fontesMap = new Map<string, FontePesquisa>();
-
-    for (const f of parsed.fontes ?? []) {
-      if (f?.url && /^https?:\/\//i.test(f.url)) {
-        fontesMap.set(f.url, {
-          titulo: f.titulo?.trim() || f.url,
-          url: f.url.trim(),
-          tipo: "secundaria",
-        });
-      }
+  if (!process.env.GEMINI_API_KEY?.trim()) {
+    if (process.env.GROQ_API_KEY?.trim()) {
+      return await runGroqResearch(
+        prompt,
+        modo,
+        primarySources,
+        primaryContext
+      );
     }
-
-    const groundingChunks =
-      response.candidates?.[0]?.groundingMetadata?.groundingChunks ?? [];
-    for (const chunk of groundingChunks) {
-      const uri = chunk.web?.uri;
-      const title = chunk.web?.title;
-      if (uri && /^https?:\/\//i.test(uri) && !fontesMap.has(uri)) {
-        fontesMap.set(uri, {
-          titulo: title?.trim() || uri,
-          url: uri.trim(),
-          tipo: "secundaria",
-        });
-      }
-    }
-
-    return formatResearchResponse(
-      parsed,
-      Array.from(fontesMap.values()),
-      modo,
-      "gemini",
-      primarySources,
-      primaryContext
-    );
-  } catch (err) {
     if (primarySources.length > 0 && primaryContext.trim()) {
       return formatResearchResponse(
         {
           necessario: true,
           motivo:
-            "Fontes primárias raspadas diretamente; busca secundária indisponível no momento.",
+            "Fontes primárias raspadas diretamente (GEMINI_API_KEY não configurada para pesquisa web).",
         },
         [],
         modo,
@@ -211,8 +173,111 @@ async function runGeminiResearch(
         primaryContext
       );
     }
-    throw formatGeminiError(err);
+    if (modo === "sempre") {
+      return NextResponse.json(
+        {
+          erro: "GEMINI_API_KEY não configurada no servidor para pesquisa na web com Gemini gratuito.",
+        },
+        { status: 500 }
+      );
+    }
+    return NextResponse.json({
+      pesquisou: false,
+      motivo: "Pesquisa automática ignorada (GEMINI_API_KEY não configurada).",
+      contextoPrimario: "",
+      resumoPesquisa: "",
+      fontes: [] as FontePesquisa[],
+      provedor: "gemini",
+    });
   }
+
+  const ai = getGeminiClient();
+  const candidateModels = Array.from(
+    new Set([GEMINI_RESEARCH_MODEL, GEMINI_RESEARCH_FALLBACK_MODEL])
+  );
+
+  let lastError: unknown = null;
+
+  for (const modelName of candidateModels) {
+    try {
+      const response = await ai.models.generateContent({
+        model: modelName,
+        contents: prompt,
+        config: {
+          tools: [{ googleSearch: {} }],
+        },
+      });
+
+      const rawContent = (response.text ?? "").trim();
+      const parsed = parseResearchJson(rawContent);
+      const fontesMap = new Map<string, FontePesquisa>();
+
+      for (const f of parsed.fontes ?? []) {
+        if (f?.url && /^https?:\/\//i.test(f.url)) {
+          fontesMap.set(f.url, {
+            titulo: f.titulo?.trim() || f.url,
+            url: f.url.trim(),
+            tipo: "secundaria",
+          });
+        }
+      }
+
+      const groundingChunks =
+        response.candidates?.[0]?.groundingMetadata?.groundingChunks ?? [];
+      for (const chunk of groundingChunks) {
+        const uri = chunk.web?.uri;
+        const title = chunk.web?.title;
+        if (uri && /^https?:\/\//i.test(uri) && !fontesMap.has(uri)) {
+          fontesMap.set(uri, {
+            titulo: title?.trim() || uri,
+            url: uri.trim(),
+            tipo: "secundaria",
+          });
+        }
+      }
+
+      return formatResearchResponse(
+        parsed,
+        Array.from(fontesMap.values()),
+        modo,
+        "gemini",
+        primarySources,
+        primaryContext
+      );
+    } catch (err) {
+      lastError = err;
+    }
+  }
+
+  if (process.env.GROQ_API_KEY?.trim()) {
+    try {
+      return await runGroqResearch(
+        prompt,
+        modo,
+        primarySources,
+        primaryContext
+      );
+    } catch {
+      // Se Groq também falhar, segue tratamento abaixo
+    }
+  }
+
+  if (primarySources.length > 0 && primaryContext.trim()) {
+    return formatResearchResponse(
+      {
+        necessario: true,
+        motivo:
+          "Fontes primárias raspadas diretamente; busca secundária indisponível no momento.",
+      },
+      [],
+      modo,
+      "scraper",
+      primarySources,
+      primaryContext
+    );
+  }
+
+  throw formatGeminiError(lastError);
 }
 
 async function runGroqResearch(
@@ -361,7 +426,6 @@ export async function POST(req: Request) {
       );
     }
 
-    const plano = quotaDecision.effectivePlano;
     const narracaoLimpa =
       typeof narracao === "string" ? narracao.trim().slice(0, 10000) : "";
 
@@ -400,8 +464,7 @@ export async function POST(req: Request) {
       );
     }
 
-    const ferramentaLabel =
-      plano === "paid" ? "Google Search grounding" : "browser_search";
+    const ferramentaLabel = "Google Search grounding";
 
     const hasPrimary = primarySources.length > 0;
     const instrucaoModo = hasPrimary
@@ -458,16 +521,7 @@ Responde APENAS em JSON válido neste formato exato:
   "fontes": [{"titulo": "Nome da publicação ou página secundária", "url": "https://..."}]
 }`;
 
-    if (plano === "paid") {
-      return await runGeminiResearch(
-        prompt,
-        modo,
-        primarySources,
-        primaryContext
-      );
-    }
-
-    return await runGroqResearch(
+    return await runGeminiResearch(
       prompt,
       modo,
       primarySources,
